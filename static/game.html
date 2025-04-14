@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My Game</title>
+  <meta charset="utf-8">
+  <style>
+    body {
+      background-color: #121212;
+      color: #f0f0f0;
+      font-family: sans-serif;
+      text-align: center;
+      margin-top: 20px;
+    }
+    textarea {
+      background-color: #1e1e1e;
+      color: #e0e0e0;
+      border: 1px solid #444;
+    }
+    canvas {
+      display: block;
+      margin: 20px auto;
+      border: 1px solid #333;
+    }
+  </style>
+</head>
+<body>
+<h1>Welcome to the Game</h1>
+<p id="welcome"></p>
+<textarea id="gamestate" rows="10" cols="50" placeholder="Game data here..."></textarea>
+<br>
+<button onclick="save()">Save Game</button>
+<button onclick="logout()">Log out</button>
+
+<canvas id="game" width="640" height="480"></canvas>
+
+<script>
+  const base = "http://localhost:8080";
+  const username = localStorage.getItem("username");
+
+  if (!username) {
+    window.location.href = "index.html"; // not logged in
+  }
+
+  document.getElementById("welcome").innerText = "Logged in as: " + username;
+
+  // Load save
+  fetch(`${base}/load?user=${username}`)
+          .then(res => {
+            if (!res.ok) throw new Error("No save found");
+            return res.json();
+          })
+          .then(data => {
+            document.getElementById("gamestate").value = data.state;
+          })
+          .catch(err => {
+            document.getElementById("gamestate").value = "// No previous save. Start new.";
+          });
+
+  function save() {
+    const state = document.getElementById("gamestate").value;
+    fetch(base + "/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, state })
+    })
+            .then(() => alert("Game saved!"))
+            .catch(() => alert("Failed to save game"));
+  }
+
+  function logout() {
+    localStorage.removeItem("username");
+    window.location.href = "index.html";
+  }
+</script>
+
+<!-- Load wasm runtime and game -->
+<script src="wasm_exec.js"></script>
+<script>
+  const go = new Go();
+  WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject)
+          .then(result => {
+            go.run(result.instance);
+          })
+          .catch(err => {
+            console.error("Failed to load WASM:", err);
+          });
+</script>
+</body>
