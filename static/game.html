@@ -26,10 +26,7 @@
 <body>
 <h1>Welcome to the Game</h1>
 <p id="welcome"></p>
-<textarea id="gamestate" rows="10" cols="50" placeholder="Game data here..."></textarea>
-<br>
-<button onclick="save()">Save Game</button>
-<button onclick="logout()">Log out</button>
+<textarea id="gameState" rows="10" cols="50" placeholder="Game data here..."></textarea>
 
 <canvas id="game" width="640" height="480"></canvas>
 
@@ -46,14 +43,25 @@
   // Load save
   fetch(`${base}/load?user=${username}`)
           .then(res => {
-            if (!res.ok) throw new Error("No save found");
+            if (!res.ok) {
+              throw new Error("No save found");
+            }
             return res.json();
           })
           .then(data => {
-            document.getElementById("gamestate").value = data.state;
+            // send game state into WASM
+            if (window.loadGameState) {
+              window.loadGameState(data.state);
+            } else {
+              console.error("WASM not ready yet");
+            }
           })
           .catch(err => {
-            document.getElementById("gamestate").value = "// No previous save. Start new.";
+            console.warn("No saved game found or failed to load:", err.message);
+            // Initialize game with empty or default state
+            if (window.loadGameState) {
+              window.loadGameState("{}"); // or some default JSON string
+            }
           });
 
   function save() {
@@ -72,17 +80,56 @@
     window.location.href = "index.html";
   }
 </script>
+<script>
+  window.saveGame = function (data) {
+    const username = localStorage.getItem("username");
+    if (!username) {
+      alert("Not logged in!");
+      return;
+    }
 
+    fetch("http://localhost:8080/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, state: data })
+    })
+            .then(() => console.log("Game saved!"))
+            .catch(err => console.error("Failed to save game:", err));
+  };
+</script>
 <!-- Load wasm runtime and game -->
 <script src="wasm_exec.js"></script>
 <script>
   const go = new Go();
+
+  // Step 1: Load and run the WASM module
   WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject)
           .then(result => {
-            go.run(result.instance);
+            return go.run(result.instance); // This blocks while Go is running
+          })
+          .then(() => {
+            // This will only run after main() in Go exits (which is rare unless using select{} etc.)
           })
           .catch(err => {
             console.error("Failed to load WASM:", err);
           });
+
+  // Step 2: Poll for when `loadGameState` becomes available from Go
+  const waitForWasmAndLoadGame = setInterval(() => {
+    if (typeof window.loadGameState === "function") {
+      clearInterval(waitForWasmAndLoadGame);
+
+      // Step 3: Fetch saved game state
+      fetch(`${base}/load?user=${username}`)
+              .then(res => res.json())
+              .then(data => {
+                // Step 4: Call the Go-exposed function
+                window.loadGameState(data.state);
+              })
+              .catch(err => {
+                console.error("No saved game found or failed to load:", err);
+              });
+    }
+  }, 100);
 </script>
 </body>
