@@ -12,7 +12,7 @@ import (
 	"log"
 )
 
-func LoadMenu(gameWidth, gameHeight int) *ebitenui.UI {
+func LoadMenu(gameWidth, gameHeight int, eHub *events.EventHub) *ebitenui.UI {
 
 	// construct a new container that serves as the root of the UI hierarchy
 	rootContainer := widget.NewContainer(
@@ -33,8 +33,7 @@ func LoadMenu(gameWidth, gameHeight int) *ebitenui.UI {
 		)),
 	)
 
-	var button *widget.Button
-	// construct a button
+	button := LoadButton("save", eHub)
 
 	rootContainer.AddChild(button)
 	// construct the UI
@@ -72,7 +71,8 @@ func loadFont(size float64) (text.Face, error) {
 	}, nil
 }
 
-func loadButton(buttonText string, hub events.EventHub) *widget.Button {
+func LoadButton(buttonText string, hub *events.EventHub) *widget.Button {
+	//load a generic button labeled with button text string that will send a button clicked event to event hub
 	buttonImage, err := loadButtonImage()
 	if err != nil {
 		log.Fatal()
@@ -127,9 +127,11 @@ func loadButton(buttonText string, hub events.EventHub) *widget.Button {
 
 		// add a handler that reacts to clicking the button
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+
 			ev := events.ButtonClickedEvent{
 				buttonText,
 			}
+
 			hub.Publish(ev)
 		}),
 

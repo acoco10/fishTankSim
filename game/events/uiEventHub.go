@@ -29,16 +29,3 @@ func (h *EventHub) Publish(event Event) {
 		handler(event)
 	}
 }
-
-type PropertyUpdate struct {
-	Property string
-	Value    bool
-}
-
-type DialogueEvent struct {
-	Characters []string
-}
-
-type ButtonClickedEvent struct {
-	ButtonText string
-}

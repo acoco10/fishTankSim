@@ -2,7 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"fishTankWebGame/ebitenToJs"
 	"fishTankWebGame/game"
+	"flag"
+	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
 	"net/http"
@@ -113,11 +116,16 @@ func initServer() {
 	http.HandleFunc("/save", saveHandler)
 	http.HandleFunc("/load", loadHandler)
 	http.Handle("/", http.FileServer(http.Dir("./static")))
+	http.HandleFunc("/main.wasm", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/wasm")
+		http.ServeFile(w, r, "static/main.wasm")
+	})
 	log.Println("Server starting on :8080...")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func runGame() {
+	ebitenToJs.WasmStartUp()
 	g := game.NewGame()
 	err := ebiten.RunGame(g)
 	if err != nil {
@@ -126,6 +134,20 @@ func runGame() {
 }
 
 func main() {
-	//initServer()
-	runGame()
+
+	gameFlag := flag.Bool("g", false, "Run the game")
+	serverFlag := flag.Bool("s", false, "Run the server")
+
+	flag.Parse()
+
+	if *gameFlag {
+		fmt.Println("Starting game...")
+		runGame()
+	} else if *serverFlag {
+		fmt.Println("Starting server...")
+		initServer()
+	} else {
+		fmt.Println("not run with flag, running game")
+		runGame()
+	}
 }
