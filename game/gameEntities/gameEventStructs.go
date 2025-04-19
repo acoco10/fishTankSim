@@ -1,6 +1,4 @@
-package events
-
-import "image"
+package gameEntities
 
 type PropertyUpdate struct {
 	Property string
@@ -16,9 +14,10 @@ type ButtonClickedEvent struct {
 }
 
 type CreatureReachedPoint struct {
-	Point image.Point
+	Point    *Point
+	Creature *Creature
 }
 
 type MouseButtonPressed struct {
-	Point image.Point
+	Point *Point
 }

@@ -44,12 +44,11 @@
   fetch(`${base}/load?user=${username}`)
           .then(res => {
             if (!res.ok) {
-              throw new Error("No save found");
+              throw new Error("No save found"); // e.g., 404
             }
             return res.json();
           })
           .then(data => {
-            // send game state into WASM
             if (window.loadGameState) {
               window.loadGameState(data.state);
             } else {
@@ -58,14 +57,14 @@
           })
           .catch(err => {
             console.warn("No saved game found or failed to load:", err.message);
-            // Initialize game with empty or default state
+            // Use a default game state if no save found
             if (window.loadGameState) {
-              window.loadGameState("{}"); // or some default JSON string
+              window.loadGameState("{}"); // use "{}" or your default JSON state
             }
           });
 
   function save() {
-    const state = document.getElementById("gamestate").value;
+    const state = document.getElementById("gameState").value;
     fetch(base + "/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -94,7 +93,10 @@
       body: JSON.stringify({ username, state: data })
     })
             .then(() => console.log("Game saved!"))
-            .catch(err => console.error("Failed to save game:", err));
+            .catch(err => {
+              console.warn("No saved game found or failed to load:", err.message);
+              window.loadGameState("{}"); // Default/empty game state
+            })
   };
 </script>
 <!-- Load wasm runtime and game -->
@@ -104,14 +106,23 @@
 
   // Step 1: Load and run the WASM module
   WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject)
-          .then(result => {
-            return go.run(result.instance); // This blocks while Go is running
-          })
+          .then(result => go.run(result.instance))
           .then(() => {
-            // This will only run after main() in Go exits (which is rare unless using select{} etc.)
+            // Once Go is ready and loadGameState exists, load save
+            if (typeof window.loadGameState === "function") {
+              fetch(`${base}/load?user=${username}`)
+                      .then(res => {
+                        if (!res.ok) throw new Error("No save found");
+                        return res.json();
+                      })
+                      .then(data => window.loadGameState(data.state))
+                      .catch(() => window.loadGameState("{}")); // default state if error
+            } else {
+              console.warn("loadGameState not available");
+            }
           })
           .catch(err => {
-            console.error("Failed to load WASM:", err);
+            console.error("Failed to load WASM or save:", err);
           });
 
   // Step 2: Poll for when `loadGameState` becomes available from Go
@@ -127,7 +138,11 @@
                 window.loadGameState(data.state);
               })
               .catch(err => {
-                console.error("No saved game found or failed to load:", err);
+                save(0)
+                window.loadGameState("{}")
+              })
+              .catch( err => {
+                console.error("failed to load save"+err.message)
               });
     }
   }, 100);

@@ -2,7 +2,7 @@ package ui
 
 import (
 	"bytes"
-	"fishTankWebGame/game/events"
+	"fishTankWebGame/game/gameEntities"
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
@@ -12,7 +12,7 @@ import (
 	"log"
 )
 
-func LoadMenu(gameWidth, gameHeight int, eHub *events.EventHub) *ebitenui.UI {
+func LoadMenu(gameWidth, gameHeight int, eHub *gameEntities.EventHub) *ebitenui.UI {
 
 	// construct a new container that serves as the root of the UI hierarchy
 	rootContainer := widget.NewContainer(
@@ -71,7 +71,7 @@ func loadFont(size float64) (text.Face, error) {
 	}, nil
 }
 
-func LoadButton(buttonText string, hub *events.EventHub) *widget.Button {
+func LoadButton(buttonText string, hub *gameEntities.EventHub) *widget.Button {
 	//load a generic button labeled with button text string that will send a button clicked event to event hub
 	buttonImage, err := loadButtonImage()
 	if err != nil {
@@ -128,7 +128,7 @@ func LoadButton(buttonText string, hub *events.EventHub) *widget.Button {
 		// add a handler that reacts to clicking the button
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 
-			ev := events.ButtonClickedEvent{
+			ev := gameEntities.ButtonClickedEvent{
 				buttonText,
 			}
 

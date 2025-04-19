@@ -1,10 +1,9 @@
 module fishTankWebGame
 
-go 1.23.0
-
-toolchain go1.23.1
+go 1.23.1
 
 require (
+	github.com/acoco10/QuickDrawAdventure v0.0.0-00010101000000-000000000000
 	github.com/ebitenui/ebitenui v0.6.2
 	github.com/hajimehoshi/ebiten/v2 v2.8.7
 	golang.org/x/image v0.25.0
@@ -20,4 +19,9 @@ require (
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
+)
+
+replace (
+	github.com/acoco10/QuickDrawAdventure => /Users/aidancoco/Desktop/Projects/go_projects/rpg/QuickDrawAdventure
+
 )
