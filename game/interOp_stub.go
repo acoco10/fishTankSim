@@ -1,7 +1,7 @@
 //go:build !js || !wasm
 // +build !js !wasm
 
-package ebitenToJs
+package game
 
 func SaveToBackend(data string) {
 	// No-op: Only used in WASM build

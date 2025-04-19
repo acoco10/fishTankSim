@@ -1,36 +1,33 @@
 package game
 
 import (
-	"fishTankWebGame/assets"
-	"fishTankWebGame/ebitenToJs"
 	cursorUpdater "fishTankWebGame/game/cursor"
-	"fishTankWebGame/game/events"
+	"fishTankWebGame/game/gameEntities"
+	"fishTankWebGame/game/helperFunc"
 	"fishTankWebGame/game/ui"
-	"fmt"
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/input"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"image"
 	"image/color"
-	"log"
+	"math/rand/v2"
 )
 
 type Game struct {
 	img        *ebiten.Image
 	background *ebiten.Image
 	loaded     bool
-	Creatures  []*Creature
+	Creatures  []*gameEntities.Creature
 	ui         *ebitenui.UI
-	eventHub   *events.EventHub
-	particles  []*Particle
+	eventHub   *gameEntities.EventHub
+	particles  []*gameEntities.Particle
 	tankSize   image.Rectangle
 	counter    int
 }
 
 const (
-	screenWidth  = 600
-	screenHeight = 500
+	screenWidth  = 640
+	screenHeight = 480
 )
 
 func (g *Game) Update() error {
@@ -47,8 +44,8 @@ func (g *Game) Update() error {
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 		if g.counter%2 == 0 {
 			x, y := ebiten.CursorPosition()
-			ev := events.MouseButtonPressed{
-				Point: image.Point{x, y},
+			ev := gameEntities.MouseButtonPressed{
+				Point: &gameEntities.Point{X: float32(x), Y: float32(y), PType: gameEntities.Food},
 			}
 			println("publishing event for mouse click")
 			g.eventHub.Publish(ev)
@@ -76,31 +73,42 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return screenWidth, screenHeight
+	return ebiten.WindowSize()
 }
 
-func NewGame() *Game {
+func NewGame(gameState int) *Game {
 
 	g := &Game{}
 
-	g.eventHub = events.NewEventHub()
-	g.eventHub.Subscribe(events.ButtonClickedEvent{}, func(e events.Event) {
-		ev := e.(events.ButtonClickedEvent)
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+	g.eventHub = gameEntities.NewEventHub()
+
+	g.eventHub.Subscribe(gameEntities.ButtonClickedEvent{}, func(e gameEntities.Event) {
+		ev := e.(gameEntities.ButtonClickedEvent)
 		switch ev.ButtonText {
 		case "save":
 			g.SaveGame()
 		}
 	})
-	g.eventHub.Subscribe(events.MouseButtonPressed{}, func(e events.Event) {
-		ev := e.(events.MouseButtonPressed)
-		p := NewParticle(ev.Point.X, ev.Point.Y)
+
+	g.eventHub.Subscribe(gameEntities.MouseButtonPressed{}, func(e gameEntities.Event) {
+		ev := e.(gameEntities.MouseButtonPressed)
+		x := rand.Float32() * 100
+		ev.Point.X = ev.Point.X + x
+		p := gameEntities.NewParticle(ev.Point)
 		g.particles = append(g.particles, &p)
 	})
-	g.eventHub.Subscribe(events.CreatureReachedPoint{}, func(e events.Event) {
-		//
+
+	g.eventHub.Subscribe(gameEntities.CreatureReachedPoint{}, func(e gameEntities.Event) {
+		ev := e.(gameEntities.CreatureReachedPoint)
+		for i, p := range g.particles {
+			if p.Point == ev.Point {
+				g.particles = append(g.particles[:i], g.particles[i+1:]...)
+			}
+		}
 	})
 
-	g.background = LoadImageAssetAsEbitenImage("fishTank")
+	g.background = helperFunc.LoadImageAssetAsEbitenImage("fishTank")
 
 	tankX := g.background.Bounds().Max.X
 	tankY := g.background.Bounds().Max.Y
@@ -116,8 +124,8 @@ func NewGame() *Game {
 
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 
-	firstFish := NewFish(g.eventHub, g.tankSize)
-	secondFish := NewFish(g.eventHub, g.tankSize)
+	firstFish := gameEntities.NewFish(g.eventHub, g.tankSize)
+	secondFish := gameEntities.NewFish(g.eventHub, g.tankSize)
 
 	g.Creatures = append(g.Creatures, firstFish, secondFish)
 
@@ -130,14 +138,5 @@ func (g *Game) SaveGame() {
 	for _, creature := range g.Creatures {
 		saveData = saveData + "current size =" + string(rune(creature.Size))
 	}
-	ebitenToJs.SaveToBackend(saveData)
-}
-
-func LoadImageAssetAsEbitenImage(assetName string) *ebiten.Image {
-	imgPath := fmt.Sprintf("images/%s.png", assetName)
-	img, _, err := ebitenutil.NewImageFromFileSystem(assets.ImagesDir, imgPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return img
+	SaveToBackend(saveData)
 }

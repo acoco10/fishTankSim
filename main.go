@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fishTankWebGame/ebitenToJs"
 	"fishTankWebGame/game"
 	"flag"
 	"fmt"
@@ -75,6 +74,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 
 	users[u.Username] = u.Password
 	err := json.NewEncoder(w).Encode(map[string]string{"message": "Registration Successful"})
+	gameSaves[u.Username] = "0"
 	if err != nil {
 		return
 	}
@@ -125,7 +125,7 @@ func initServer() {
 }
 
 func runGame() {
-	ebitenToJs.WasmStartUp()
+	game.WasmStartUp()
 	g := game.NewGame()
 	err := ebiten.RunGame(g)
 	if err != nil {

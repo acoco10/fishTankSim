@@ -28,7 +28,6 @@ func CreateCursorUpdater() *CursorUpdater {
 	cu.cursorImages = make(map[string]*ebiten.Image)
 	cu.cursorImages[input.CURSOR_DEFAULT] = loadNormalCursorImage()
 	cu.cursorImages["pressed"] = loadPressedCursorImage()
-	cu.cursorImages["statusBar"] = loadNormalCursorImage()
 	cu.countdown = 0
 	return &cu
 }
@@ -38,6 +37,9 @@ func CreateCursorUpdater() *CursorUpdater {
 
 func (cu *CursorUpdater) Update() {
 
+	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		input.SetCursorShape("pressed")
+	}
 	if cu.countdown > 0 {
 		cu.countdown--
 	}
@@ -67,7 +69,6 @@ func (cu *CursorUpdater) AfterDraw(screen *ebiten.Image) {
 
 // MouseButtonPressed returns whether mouse button b is currently pressed.
 func (cu *CursorUpdater) MouseButtonPressed(b ebiten.MouseButton) bool {
-	input.SetCursorImage("clicked", cu.cursorImages["pressed"])
 	return ebiten.IsMouseButtonPressed(b)
 }
 
