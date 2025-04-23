@@ -1,1 +1,0 @@
-GOOS=js GOARCH=wasm go build -tags=g -o static/main.wasm

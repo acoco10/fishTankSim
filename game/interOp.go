@@ -4,7 +4,7 @@
 package game
 
 import (
-	"github.com/hajimehoshi/ebiten/v2"
+	"fmt"
 	"syscall/js"
 )
 
@@ -14,36 +14,37 @@ func SaveToBackend(data string) {
 	js.Global().Call("saveGame", data)
 }
 
-var loadedGameState string
+func LoadSaveDataFromJS(this js.Value, args []js.Value) interface{} {
 
-func receiveGameState(this js.Value, args []js.Value) interface{} {
 	if len(args) < 1 {
-		println("No game state passed!")
+		fmt.Println("No data received")
 		return nil
 	}
 
-	loadedGameState = args[0].String()
-
-	println("Loaded game state from JS:", loadedGameState)
-
-	// You can now use `loadedGameState` inside your game init logic
-	if !gameStarted {
-		gameStarted = true
-		go func() {
-			// Initialize your game struct using loadedGameState
-			game := NewGame(loadedGameState) // Replace with your actual function
-			if err := ebiten.RunGame(game); err != nil {
-				println("Failed to start game:", err.Error())
-			}
-		}()
-	}
-
+	state := args[0].Get("state").String()
+	fmt.Println("WASM received state:", state)
 	return nil
+
 }
 
-func WasmStartUp() {
-	js.Global().Set("loadGameState", js.FuncOf(receiveGameState))
-	js.Global().Set("wasmReady", js.ValueOf(true))
-	// Proceed to start your Ebiten game (defer until game state is set if needed)
+func AwaitPromise(p js.Value) (js.Value, error) {
+	ch := make(chan struct{})
+	var result js.Value
+	var err error
 
+	thenFunc := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		result = args[0]
+		close(ch)
+		return nil
+	})
+
+	catchFunc := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		err = fmt.Errorf("promise rejected: %v", args[0])
+		close(ch)
+		return nil
+	})
+
+	p.Call("then", thenFunc).Call("catch", catchFunc)
+	<-ch
+	return result, err
 }

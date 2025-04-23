@@ -1,0 +1,4 @@
+{
+  "username": "aidan",
+  "state": "[{\"Size\":1,\"Img\":{},\"X\":305.81705,\"Y\":145.28651,\"Dy\":-0.68173784,\"Dx\":-0.33751404,\"FirstF\":0,\"LastF\":3,\"Step\":1,\"SpeedInTPS\":11.013109,\"WidthInTiles\":4,\"HeightInTiles\":2,\"SpriteWidth\":19,\"SpriteHeight\":7},{\"Size\":1,\"Img\":{},\"X\":250.61969,\"Y\":315.5743,\"Dy\":0.71670914,\"Dx\":-0.12804906,\"FirstF\":0,\"LastF\":3,\"Step\":1,\"SpeedInTPS\":10.384362,\"WidthInTiles\":4,\"HeightInTiles\":2,\"SpriteWidth\":19,\"SpriteHeight\":7}]"
+}

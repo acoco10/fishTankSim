@@ -1,11 +1,6 @@
 package gameEntities
 
 import (
-	"fishTankWebGame/game/helperFunc"
-	"fishTankWebGame/game/sprite"
-	"fmt"
-	"github.com/acoco10/QuickDrawAdventure/animations"
-	"github.com/acoco10/QuickDrawAdventure/spriteSheet"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image"
 	"math"
@@ -23,8 +18,8 @@ const (
 
 type Creature struct {
 	Size           int
-	progress       int
-	nextLevel      int
+	progress       float32
+	nextLevel      float32
 	appetite       int
 	pointQueue     []*Point
 	eventHub       *EventHub
@@ -32,19 +27,20 @@ type Creature struct {
 	timers         map[FishState]*Timer
 	state          FishState
 	maxSpeed       float32
-	*sprite.AnimatedSprite
+	*AnimatedSprite
 }
 
-func NewFish(hub *EventHub, tankSize image.Rectangle) *Creature {
+func NewFish(hub *EventHub, tankSize image.Rectangle, saveData SavedFish) *Creature {
 
 	timers := make(map[FishState]*Timer)
 	randDuration := rand.Float64() * 50
 	timers[Swimming] = NewTimer(randDuration)
 	timers[Eating] = NewTimer(0.5)
 	timers[Resting] = NewTimer(30)
+	size := saveData.Size
 	maxSpeed := rand.Float32()
 	c := Creature{
-		1,
+		size,
 		0,
 		10,
 		3,
@@ -54,16 +50,12 @@ func NewFish(hub *EventHub, tankSize image.Rectangle) *Creature {
 		timers,
 		Swimming,
 		maxSpeed,
-		sprite.NewAnimatedSprite(),
+		NewAnimatedSprite(),
 	}
+	c.AnimatedSprite = LoadFishSprite("fish", size)
 
 	firstPoint := c.RandomTarget()
 	c.AddTargetPointToQueue(firstPoint)
-
-	img := helperFunc.LoadImageAssetAsEbitenImage("fishSpriteSheet")
-	c.Img = img
-	c.Animation = animations.NewAnimation(0, 3, 1, 4)
-	c.SpriteSheet = spritesheet.NewSpritesheet(4, 2, 19, 7)
 
 	//water Level does not reach the top of  the tank
 	// should automate this somehow
@@ -81,7 +73,7 @@ func NewFish(hub *EventHub, tankSize image.Rectangle) *Creature {
 	c.Y = rand.Float32()*100 + float32(tankSize.Min.Y)
 	c.eventHub.Subscribe(MouseButtonPressed{}, func(e Event) {
 		ev := e.(MouseButtonPressed)
-		if c.pointQueue[0].PType != Food {
+		if len(c.pointQueue) >= 1 && c.pointQueue[0].PType != Food {
 			c.pointQueue = []*Point{}
 		}
 		c.AddTargetPointToQueue(ev.Point)
@@ -95,6 +87,7 @@ func NewFish(hub *EventHub, tankSize image.Rectangle) *Creature {
 				c.pointQueue = c.pointQueue[:len(c.pointQueue)-1]
 				if ev.Creature == &c && ev.Point.PType == Food {
 					c.state = Eating
+					c.progress += 1
 				}
 				if ev.Creature == &c && ev.Point.PType != Food {
 					c.RandomTarget()
@@ -197,8 +190,10 @@ func (c *Creature) Update() {
 		}
 	}
 	if c.progress >= c.nextLevel {
-		newImg := helperFunc.LoadImageAssetAsEbitenImage("goldFishGrowth1")
-		c.Img = newImg
+		c.Size += 1
+		c.AnimatedSprite = LoadFishSprite("fish", c.Size)
+		c.nextLevel *= 1.2
+		c.progress = 0
 	}
 	c.AnimatedSprite.Update()
 }
@@ -215,7 +210,6 @@ func (c *Creature) RandomTarget() *Point {
 	targetY := float32(randomTargetY)
 
 	newPoint := Point{targetX, targetY, Structure}
-	fmt.Printf("Random target point: (%f, %f)\n", targetX, targetY)
 	return &newPoint
 }
 
@@ -289,7 +283,7 @@ func (c *Creature) Draw(screen *ebiten.Image) {
 
 	opts.GeoM.Translate(float64(c.X), float64(c.Y))
 
-	c.DrawSprite(screen, &opts)
+	c.AnimatedSprite.Draw(screen, &opts)
 
 }
 

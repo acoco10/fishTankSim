@@ -21,3 +21,7 @@ type CreatureReachedPoint struct {
 type MouseButtonPressed struct {
 	Point *Point
 }
+
+type SpriteHovered struct {
+	sprite *Sprite
+}

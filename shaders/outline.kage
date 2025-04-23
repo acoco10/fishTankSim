@@ -1,0 +1,28 @@
+package main
+
+var Resolution vec2 // size of the sprite in pixels
+
+func Fragment(position vec4, texCoord vec2, color vec4) vec4 {
+	center := imageSrc0At(texCoord)
+
+	if center.a > 0.0 {
+		return center * color
+	}
+
+	offset := vec2(1.0) / Resolution
+
+	for x := -1; x <= 1; x++ {
+		for y := -1; y <= 1; y++ {
+			if x == 0 && y == 0 {
+				continue
+			}
+			sampleCoord := texCoord + vec2(float(x), float(y)) * offset
+			sample := imageSrc0At(sampleCoord)
+			if sample.a > 0.0 {
+				return vec4(1.0, 1.0, 0.0, 1.0) // strong yellow
+			}
+		}
+	}
+
+	return vec4(0.0)
+}

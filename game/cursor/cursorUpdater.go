@@ -23,8 +23,6 @@ type CursorUpdater struct {
 
 func CreateCursorUpdater() *CursorUpdater {
 	cu := CursorUpdater{}
-	X, Y := ebiten.CursorPosition()
-	cu.currentPosition = image.Point{X, Y}
 	cu.cursorImages = make(map[string]*ebiten.Image)
 	cu.cursorImages[input.CURSOR_DEFAULT] = loadNormalCursorImage()
 	cu.cursorImages["pressed"] = loadPressedCursorImage()
@@ -40,27 +38,15 @@ func (cu *CursorUpdater) Update() {
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 		input.SetCursorShape("pressed")
 	}
+
 	if cu.countdown > 0 {
 		cu.countdown--
 	}
 
 	X, Y := ebiten.CursorPosition()
 
-	diffX := cu.systemPosition.X - X
-	diffY := cu.systemPosition.Y - Y
-
-	cu.currentPosition.X -= diffX
-	cu.currentPosition.Y -= diffY
-
-	/*if inpututil.IsKeyJustPressed(ebiten.KeyLeft) {
-		cu.currentPosition.X -= 10
-	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyRight) {
-		cu.currentPosition.X += 10
-	*/
-
 	cu.systemPosition = image.Point{X, Y}
-
+	cu.currentPosition = image.Point{X, Y}
 }
 func (cu *CursorUpdater) Draw(screen *ebiten.Image) {
 }
