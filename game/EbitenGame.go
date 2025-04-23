@@ -108,21 +108,12 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return 785, 520
 }
 
-func NewGame() *Game {
+func NewGame(fishes gameEntities.SaveGameState) *Game {
 	println("inititating game in ebiten NewGame()")
 	g := &Game{}
 
-	println("loading data from hard coded value")
-	saveData := gameEntities.LoadSaveJson("data/saveaidan.json")
-
-	var fishes gameEntities.SaveGameState
-	err := json.Unmarshal([]byte(saveData), &fishes)
-	if err != nil {
-		return nil
-	}
-
-	for i, sFish := range fishes.Fish {
-		println("saved fish: ", i, "size: ", sFish.Size)
+	for i, fish := range fishes.Fish {
+		println("saved fish: ", i, "size: ", fish.Size)
 	}
 
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)

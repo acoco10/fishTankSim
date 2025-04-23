@@ -69,14 +69,17 @@
 </script>
 <script>
     window.loadSaveData = async function () {
+        try{
         const res = await(
         fetch(`${base}/load`, {
             method: "GET",
-        }))
-            .then(res => res.json).then(data => {
-                console.log(data)}).catch(err => {
-                console.warn("Failed to load game:", err.message);
-            });
+        }));
+        return await res.json();
+        } catch (err){
+            console.warn("Failed to load game:", err.message);
+            return null;
+        }
     };
+
 </script>
 
