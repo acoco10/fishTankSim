@@ -1,0 +1,37 @@
+{
+  "username": "aidan",
+  "state": [
+    {
+      "Dx": 0.3834089,
+      "Dy": 0.7354311,
+      "FirstF": 0,
+      "HeightInTiles": 1,
+      "Img": {},
+      "LastF": 3,
+      "Size": 1,
+      "SpeedInTPS": 9.383589,
+      "SpriteHeight": 11,
+      "SpriteWidth": 24,
+      "Step": 1,
+      "WidthInTiles": 4,
+      "X": 398.08994,
+      "Y": 379.249
+    },
+    {
+      "Dx": 0.041304488,
+      "Dy": 0.09169918,
+      "FirstF": 0,
+      "HeightInTiles": 1,
+      "Img": {},
+      "LastF": 3,
+      "Size": 1,
+      "SpeedInTPS": 9.748322,
+      "SpriteHeight": 11,
+      "SpriteWidth": 24,
+      "Step": 1,
+      "WidthInTiles": 4,
+      "X": 399.35538,
+      "Y": 378.35208
+    }
+  ]
+}

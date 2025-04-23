@@ -20,7 +20,7 @@ func (p *Particle) float() {
 		vy = 0.1
 	}
 	if p.counter%5 == 0 && p.underWater {
-		vx := math.Sin(float64(p.counter)*0.5) * 0.3 * 5
+		vx := math.Sin(float64(p.counter)*0.5) * 0.3 * 1
 		noise := rand.Float64()*0.1 - 0.05
 		p.X = p.X + float32(vx+noise)
 	}
@@ -44,7 +44,7 @@ func (p *Particle) Draw(screen *ebiten.Image) {
 }
 
 func NewParticle(point *Point) Particle {
-	
+
 	p := Particle{
 		point,
 		0,

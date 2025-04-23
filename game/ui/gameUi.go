@@ -2,12 +2,12 @@ package ui
 
 import (
 	"bytes"
+	"fishTankWebGame/assets"
 	"fishTankWebGame/game/gameEntities"
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"golang.org/x/image/font/gofont/goregular"
 	"image/color"
 	"log"
 )
@@ -18,24 +18,20 @@ func LoadMenu(gameWidth, gameHeight int, eHub *gameEntities.EventHub) *ebitenui.
 	rootContainer := widget.NewContainer(
 		// the container will use a plain color as its background
 		// the container will use an anchor layout to layout its single child widget
-		widget.ContainerOpts.Layout(widget.NewGridLayout(
-			//Define number of columns in the grid
-			widget.GridLayoutOpts.Columns(2),
-			//Define how much padding to inset the child content
-			widget.GridLayoutOpts.Padding(widget.Insets{Top: (gameHeight / 6) * 5, Left: 100, Right: 300}),
-			//Define how far apart the rows and columns should be
-			widget.GridLayoutOpts.Spacing(20, 10),
-			// DefaultStretch values will be used when extra columns/rows are used
-			// out of the ones defined on the normal Stretch
-			widget.GridLayoutOpts.DefaultStretch(false, true),
-			//Define how to stretch the rows and columns.
-			widget.GridLayoutOpts.Stretch([]bool{true}, []bool{false}),
-		)),
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Spacing(20),
+			widget.RowLayoutOpts.Padding(
+				widget.Insets{Right: 0, Left: 0, Top: 200, Bottom: 20}),
+		),
+		),
 	)
 
-	button := LoadButton("save", eHub)
+	button := LoadButton("Save", eHub)
+	button2 := LoadButton("fish food", eHub)
 
 	rootContainer.AddChild(button)
+	rootContainer.AddChild(button2)
 	// construct the UI
 	ui := ebitenui.UI{
 		Container: rootContainer,
@@ -45,7 +41,7 @@ func LoadMenu(gameWidth, gameHeight int, eHub *gameEntities.EventHub) *ebitenui.
 }
 
 func loadButtonImage() (*widget.ButtonImage, error) {
-	idle := image.NewNineSliceColor(color.NRGBA{R: 170, G: 170, B: 180, A: 255})
+	idle := image.NewNineSliceColor(color.NRGBA{R: 170, G: 170, B: 180, A: 0})
 
 	hover := image.NewNineSliceColor(color.NRGBA{R: 130, G: 130, B: 150, A: 255})
 
@@ -59,7 +55,11 @@ func loadButtonImage() (*widget.ButtonImage, error) {
 }
 
 func loadFont(size float64) (text.Face, error) {
-	s, err := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
+	loadedFont, err := assets.FontsDir.ReadFile("fonts/nk57.otf")
+	if err != nil {
+		return nil, err
+	}
+	s, err := text.NewGoTextFaceSource(bytes.NewReader(loadedFont))
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
@@ -78,7 +78,7 @@ func LoadButton(buttonText string, hub *gameEntities.EventHub) *widget.Button {
 		log.Fatal()
 	}
 
-	face, err := loadFont(12)
+	face, err := loadFont(16)
 	if err != nil {
 		log.Fatal()
 	}
