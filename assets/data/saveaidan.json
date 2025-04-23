@@ -2,36 +2,36 @@
   "username": "aidan",
   "state": [
     {
-      "Dx": 0.3834089,
-      "Dy": 0.7354311,
+      "Dx": 0.39749318,
+      "Dy": 0.5234745,
       "FirstF": 0,
       "HeightInTiles": 1,
       "Img": {},
       "LastF": 3,
-      "Size": 1,
-      "SpeedInTPS": 9.383589,
+      "Size": 2,
+      "SpeedInTPS": 10.822519,
       "SpriteHeight": 11,
       "SpriteWidth": 24,
       "Step": 1,
       "WidthInTiles": 4,
-      "X": 398.08994,
-      "Y": 379.249
+      "X": 128.94432,
+      "Y": 102.28804
     },
     {
-      "Dx": 0.041304488,
-      "Dy": 0.09169918,
+      "Dx": 0.17157613,
+      "Dy": 0.42995974,
       "FirstF": 0,
       "HeightInTiles": 1,
       "Img": {},
       "LastF": 3,
-      "Size": 1,
-      "SpeedInTPS": 9.748322,
+      "Size": 2,
+      "SpeedInTPS": 12.709188,
       "SpriteHeight": 11,
       "SpriteWidth": 24,
       "Step": 1,
       "WidthInTiles": 4,
-      "X": 399.35538,
-      "Y": 378.35208
+      "X": 245.09125,
+      "Y": 193.86899
     }
   ]
 }

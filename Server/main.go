@@ -137,12 +137,14 @@ func loadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	println("checking for save")
 	//username := r.URL.Query().Get("user")
+
 	save, err := os.ReadFile("../assets/data/saveaidan.json")
 	if err != nil {
 		log.Fatal(err)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(save)
+	_, err = w.Write(save)
+	//w.Header().Set("Content-Type", "application/json")
+	//err = json.NewEncoder(w).Encode(save)
 	if err != nil {
 		log.Fatal(err)
 	}
