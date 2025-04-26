@@ -53,7 +53,6 @@ func NewUpdater(sprite *Sprite) *XYUpdater {
 }
 
 func (up *XYUpdater) Update() {
-	println("sprite x y =", up.Sprite.X, up.Sprite.Y)
 	x, y := ebiten.CursorPosition()
 	up.Sprite.X = float32(x) - up.offSetX
 	up.Sprite.Y = float32(y) - up.offSetY

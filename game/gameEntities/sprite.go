@@ -1,12 +1,10 @@
 package gameEntities
 
 import (
-	"fishTankWebGame/game/gameEntities"
 	"fishTankWebGame/shaders"
 	"github.com/acoco10/QuickDrawAdventure/animations"
 	"github.com/acoco10/QuickDrawAdventure/spriteSheet"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"image"
 	"log"
 )
@@ -37,14 +35,6 @@ func (s Sprite) SpriteHovered() bool {
 	return point.In(rect)
 }
 
-type UiSprite struct {
-	*Sprite
-	AltImg                 *ebiten.Image
-	AltOffsetX, AltOffsetY float32
-	selected               bool
-	*XYUpdater
-}
-
 func AddYellowOutlineShader(spriteImg *ebiten.Image, sprite Sprite, screen *ebiten.Image) {
 	var options ebiten.DrawRectShaderOptions
 
@@ -65,28 +55,6 @@ func ApplyOutlineShaderToAnimation(sprite AnimatedSprite, screen *ebiten.Image) 
 	frameRect := sprite.SpriteSheet.Rect(frame)
 	eImg := ebiten.NewImageFromImage(frameRect)
 	AddYellowOutlineShader(eImg, *sprite.Sprite, screen)
-}
-
-func (us *UiSprite) Draw(screen *ebiten.Image) {
-
-	opts := ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(float64(us.X), float64(us.Y))
-	screen.DrawImage(us.Img, &opts)
-
-	if us.SpriteHovered() {
-		opts.GeoM.Translate(float64(us.AltOffsetX), float64(us.AltOffsetY))
-		screen.DrawImage(us.AltImg, &opts)
-	}
-
-}
-
-func (us *UiSprite) Update() {
-	if us.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		us.XYUpdater = gameEntities.NewUpdater(us.Sprite)
-	}
-	if us.XYUpdater != nil {
-		us.XYUpdater.Update()
-	}
 }
 
 type AnimatedSprite struct {

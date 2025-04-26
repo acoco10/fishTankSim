@@ -1,14 +1,5 @@
 package gameEntities
 
-type PropertyUpdate struct {
-	Property string
-	Value    bool
-}
-
-type DialogueEvent struct {
-	Characters []string
-}
-
 type ButtonClickedEvent struct {
 	ButtonText string
 }
@@ -19,6 +10,10 @@ type CreatureReachedPoint struct {
 }
 
 type MouseButtonPressed struct {
+	Point *Point
+}
+
+type PointGenerated struct {
 	Point *Point
 }
 

@@ -1,4 +1,17 @@
+
+{"username": "aidan",
+"state": [
 {
-  "username": "aidan",
-  "state": "[{\"Size\":1,\"Img\":{},\"X\":350.82462,\"Y\":187.85762,\"Dy\":-0.25019538,\"Dx\":-0.1193244,\"FirstF\":0,\"LastF\":3,\"Step\":1,\"SpeedInTPS\":10.358625,\"WidthInTiles\":4,\"HeightInTiles\":2,\"SpriteWidth\":19,\"SpriteHeight\":7},{\"Size\":1,\"Img\":{},\"X\":334.41318,\"Y\":268.7348,\"Dy\":-0.028068116,\"Dx\":-0.2333909,\"FirstF\":0,\"LastF\":3,\"Step\":1,\"SpeedInTPS\":10.701449,\"WidthInTiles\":4,\"HeightInTiles\":2,\"SpriteWidth\":19,\"SpriteHeight\":7}]"
+"FishType": "fish",
+"NextLevel": 10,
+"Progress": 0,
+"Size": 2
+},
+{
+"FishType": "mollyFish",
+"NextLevel": 10,
+"Progress": 0,
+"Size": 3
+}
+]
 }
