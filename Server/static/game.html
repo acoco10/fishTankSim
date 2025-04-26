@@ -39,15 +39,7 @@
     const go = new Go();
     WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject)
         .then(async (result) => {
-            // Run the Go WASM instance
             await go.run(result.instance);
-
-            // Fetch the saved game state from the backend (uncomment if necessary)
-            // const res = await fetch(`${base}/load?user=${username}`);
-            // const data = await res.json();
-
-            // Start the game with serialized state data
-            // 'state' should be the serialized fish state
         })
         .catch(err => {
             console.error("Failed to instantiate WASM:", err);
@@ -72,7 +64,8 @@
         try{
         const res = await(
         fetch(`${base}/load`, {
-            method: "GET",
+            method: "POST",
+            body: JSON.stringify({ username, password})
         }));
         return await res.json();
         } catch (err){

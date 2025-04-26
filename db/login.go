@@ -20,22 +20,33 @@ func main() {
 
 }
 
-func NewUser(userName string, PW string) {
+func NewUser(userName string, PW string) (string, error) {
+
 	db, err := sql.Open("sqlite3", "/Users/aidancoco/Desktop/projects/fishTankWebGame/db/users.db")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	defer db.Close()
+
+	exists, err := checkIfUserExists(userName, db)
+	if err != nil {
+		return "", err
+	}
+	if exists {
+		return "", fmt.Errorf("user already exists")
+	}
+
 	hashPW, err := hashPassword(PW)
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 
 	err = addUser(db, userName, hashPW)
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
+	return "user created successfully", nil
 }
 
 func addUser(db *sql.DB, userName string, hashedPW string) error {
@@ -71,9 +82,24 @@ func CheckLoginUser(userName string, enteredPassword string) bool {
 		log.Fatal(err)
 	}
 
+	exists, err := checkIfUserExists(userName, db)
+	if !exists {
+		println("no user found with name", userName)
+		return false
+	}
+
 	hashPW, err := getPW(db, userName)
 	if err != nil {
 		log.Fatal("error retrieving pw:", err)
+	}
+
+	id, err := getUserID(db, userName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = updateLastLogin(db, id)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	defer db.Close()
@@ -100,4 +126,25 @@ func getPW(db *sql.DB, userName string) (string, error) {
 	}
 
 	return stringPW, nil
+}
+
+func checkIfUserExists(userName string, db *sql.DB) (bool, error) {
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM users WHERE username = ? LIMIT 1)`
+	err := db.QueryRow(query, userName).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
+
+}
+
+func updateLastLogin(db *sql.DB, userID int) error {
+	query := `UPDATE users SET last_login = current_timestamp WHERE id = ?`
+	_, err := db.Exec(query, userID)
+	if err != nil {
+		return fmt.Errorf("erorr updating logintime for userid %d, %w", userID, err)
+	}
+	return nil
 }

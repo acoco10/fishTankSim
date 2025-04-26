@@ -4,21 +4,22 @@ import (
 	"encoding/json"
 	cursorUpdater "fishTankWebGame/game/cursor"
 	"fishTankWebGame/game/gameEntities"
+	"fishTankWebGame/game/soundFx"
 	"fishTankWebGame/game/ui"
 	"fmt"
 	"github.com/ebitenui/ebitenui"
-	"github.com/ebitenui/ebitenui/input"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"image"
 	"image/color"
-	"math/rand/v2"
+	"log"
+	"math/rand"
+	"os"
 )
 
-type cursorMode uint8
+type gameMode uint8
 
 const (
-	FishFood cursorMode = iota
+	Position gameMode = iota
 	Normal
 )
 
@@ -33,20 +34,21 @@ type Game struct {
 	tankSize    image.Rectangle
 	counter     int
 	fishTankImg *ebiten.Image
-	sprites     []*gameEntities.UiSprite
-	cursorMode
+	frontLayer  *ebiten.Image
+	gameMode
+	sprites []*gameEntities.UiSprite
 	*gameEntities.XYUpdater
 	ffCursor *cursorUpdater.CursorUpdater
+	*soundFX.SongPlayer
 }
 
 const (
-	screenWidth  = 784
-	screenHeight = 520
+	screenWidth  = 940
+	screenHeight = 593
 )
 
 func (g *Game) Update() error {
 	g.counter++
-	g.ui.Update()
 
 	for _, creature := range g.Creatures {
 		creature.Update()
@@ -56,24 +58,7 @@ func (g *Game) Update() error {
 	}
 
 	for _, sprite := range g.sprites {
-		if sprite.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-			g.XYUpdater = gameEntities.NewUpdater(sprite.Sprite)
-		}
-	}
-
-	if g.XYUpdater != nil && g.XYUpdater.Sprite != nil {
-		g.XYUpdater.Update()
-	}
-
-	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-		if g.counter%2 == 0 && g.cursorMode == FishFood {
-			x, y := ebiten.CursorPosition()
-			ev := gameEntities.MouseButtonPressed{
-				Point: &gameEntities.Point{X: float32(x), Y: float32(y), PType: gameEntities.Food},
-			}
-			println("publishing event for mouse click")
-			g.eventHub.Publish(ev)
-		}
+		sprite.Update()
 	}
 
 	return nil
@@ -85,7 +70,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	opts := ebiten.DrawImageOptions{}
 	screen.DrawImage(g.background, &opts)
 	opts.GeoM.Reset()
-	opts.GeoM.Translate(float64(g.tankSize.Min.X), float64(g.tankSize.Min.Y+6))
+	opts.GeoM.Translate(float64(g.tankSize.Min.X), float64(g.tankSize.Min.Y))
 	screen.DrawImage(g.fishTankImg, &opts)
 	for _, particle := range g.particles {
 		particle.Draw(screen)
@@ -96,6 +81,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	for _, s := range g.sprites {
 		s.Draw(screen)
 	}
+	opts.GeoM.Reset()
+	screen.DrawImage(g.frontLayer, &opts)
+	for _, s := range g.sprites {
+		if s.SpriteHovered() {
+			s.Draw(screen)
+		}
+	}
 
 	g.ui.Draw(screen)
 }
@@ -105,11 +97,22 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	if x > 0 && y > 0 {
 		return ebiten.WindowSize()
 	}
-	return 785, 520
+	return 940, 593
 }
 
 func NewGame(fishes gameEntities.SaveGameState) *Game {
-	println("inititating game in ebiten NewGame()")
+
+	var positions gameEntities.SavePositionData
+	spritePosition, err := os.ReadFile("../assets/data/spritePosition.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	json.Unmarshal(spritePosition, &positions)
+
+	backGroundImgShelfHeigth := 124
+
+	println("initiating game in ebiten NewGame()")
 	g := &Game{}
 
 	for i, fish := range fishes.Fish {
@@ -117,48 +120,27 @@ func NewGame(fishes gameEntities.SaveGameState) *Game {
 	}
 
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+
 	g.eventHub = gameEntities.NewEventHub()
-	g.cursorMode = Normal
-	g.eventHub.Subscribe(gameEntities.ButtonClickedEvent{}, func(e gameEntities.Event) {
-		ev := e.(gameEntities.ButtonClickedEvent)
-		switch ev.ButtonText {
-		case "Save":
-			g.SaveGame()
-		case "fish food":
-			g.cursorMode = FishFood
-			g.ffCursor = cursorUpdater.CreateCursorUpdater()
-			input.SetCursorUpdater(g.ffCursor)
-		}
-	})
-
-	g.eventHub.Subscribe(gameEntities.MouseButtonPressed{}, func(e gameEntities.Event) {
-		ev := e.(gameEntities.MouseButtonPressed)
-		x := rand.Float32() * 100
-		ev.Point.X = ev.Point.X + x
-		p := gameEntities.NewParticle(ev.Point)
-		g.particles = append(g.particles, &p)
-	})
-
-	g.eventHub.Subscribe(gameEntities.CreatureReachedPoint{}, func(e gameEntities.Event) {
-		ev := e.(gameEntities.CreatureReachedPoint)
-		for i, p := range g.particles {
-			if p.Point == ev.Point {
-				g.particles = append(g.particles[:i], g.particles[i+1:]...)
-			}
-		}
-	})
 
 	g.background = gameEntities.LoadImageAssetAsEbitenImage("roomBackground")
 	g.fishTankImg = gameEntities.LoadImageAssetAsEbitenImage("fishTank")
-	fishFoodImg := gameEntities.LoadImageAssetAsEbitenImage("fishFoodCursor")
+	g.frontLayer = gameEntities.LoadImageAssetAsEbitenImage("frontLayer")
+	var ffImgs []*ebiten.Image
 
-	ffSprite := gameEntities.UiSprite{&gameEntities.Sprite{fishFoodImg, 681, 405, 0, 0}}
-	g.sprites = append(g.sprites, &ffSprite)
+	fishFoodImg := gameEntities.LoadImageAssetAsEbitenImage("fishFoodCursor")
+	outlineFishFoodImg := gameEntities.LoadImageAssetAsEbitenImage("fishFoodOutline")
+	altFishFoodImg := gameEntities.LoadImageAssetAsEbitenImage("fishFoodAlt")
+
+	ffImgs = append(ffImgs, fishFoodImg, outlineFishFoodImg, altFishFoodImg)
+	ffSprite := gameEntities.NewUiSprite(ffImgs, g.eventHub, positions.X, positions.Y, "fishFood")
+
+	g.sprites = append(g.sprites, ffSprite)
 	tankX := g.fishTankImg.Bounds().Max.X
 	tankY := g.fishTankImg.Bounds().Max.Y
 
 	startingX := (screenWidth - tankX) / 2
-	startingY := 74
+	startingY := screenHeight - backGroundImgShelfHeigth - g.fishTankImg.Bounds().Dy()
 
 	tankRect := image.Rect(startingX, startingY, tankX+startingX, tankY+startingY)
 
@@ -173,16 +155,74 @@ func NewGame(fishes gameEntities.SaveGameState) *Game {
 
 	g.Creatures = append(g.Creatures, firstFish, secondFish)
 
+	g.eventHub.Subscribe(gameEntities.ButtonClickedEvent{}, func(e gameEntities.Event) {
+		ev := e.(gameEntities.ButtonClickedEvent)
+		switch ev.ButtonText {
+		case "Save":
+			g.SaveGame()
+		case "Mode":
+			g.SwitchGameMode()
+		}
+	})
+
+	//eventhub subscriptions
+	g.eventHub.Subscribe(gameEntities.MouseButtonPressed{}, func(e gameEntities.Event) {
+		ev := e.(gameEntities.MouseButtonPressed)
+		xCheck := ev.Point.X > float32(g.tankSize.Min.X) && ev.Point.X < float32(g.tankSize.Max.X)
+		yCheck := ev.Point.Y < float32(g.tankSize.Min.Y)-20
+
+		if xCheck && yCheck {
+			x := rand.Float32() * 100
+			ev.Point.X = ev.Point.X + x
+			p := gameEntities.NewParticle(ev.Point)
+			g.particles = append(g.particles, &p)
+
+			pointEvent := gameEntities.PointGenerated{Point: ev.Point}
+			g.eventHub.Publish(pointEvent)
+		}
+	})
+
+	g.eventHub.Subscribe(gameEntities.CreatureReachedPoint{}, func(e gameEntities.Event) {
+		ev := e.(gameEntities.CreatureReachedPoint)
+		for i, p := range g.particles {
+			if p.Point == ev.Point {
+				g.particles = append(g.particles[:i], g.particles[i+1:]...)
+			}
+		}
+	})
+
+	g.ui.Update()
+	songPlayer, err := soundFX.NewSongPlayer()
+	if err != nil {
+		log.Fatal(err)
+	}
+	songPlayer.Play(soundFX.JazzE)
+
 	return g
 }
 
 func (g *Game) SaveGame() {
 	println("save game event generated and received")
-	jsonSaveData, err := json.Marshal(g.Creatures)
+	var savedFish []gameEntities.SavedFish
+
+	for _, creature := range g.Creatures {
+		f := gameEntities.GameFishToSaveFish(creature)
+		savedFish = append(savedFish, f)
+	}
+	jsonSaveData, err := json.Marshal(savedFish)
 	if err != nil {
 		fmt.Println("Error marshaling:", err)
 		return
 	}
 
 	SaveToBackend(string(jsonSaveData))
+}
+
+func (g *Game) SwitchGameMode() {
+	switch g.gameMode {
+	case Normal:
+		g.gameMode = Position
+	case Position:
+		g.gameMode = Normal
+	}
 }

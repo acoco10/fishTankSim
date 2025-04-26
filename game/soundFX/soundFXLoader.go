@@ -1,4 +1,4 @@
-package soundFx
+package soundFX
 
 import (
 	"bytes"
@@ -21,26 +21,26 @@ var SoundData = map[string][]byte{}
 
 // key is file path, not just name
 func LoadSounds() (*resource.Loader, error) {
-	dirName := "soundFX"
-	soundDir, err := assets.SoundDir.ReadDir(dirName)
+
 	var rLoader *resource.Loader
+
+	soundDir, err := assets.SoundDir.ReadDir("soundFx")
+
 	if err != nil {
-		return rLoader, fmt.Errorf("error reading sound files")
+		return rLoader, fmt.Errorf("error reading sound files: %w", err)
 	}
 
 	audioRegMap := map[resource.AudioID]resource.AudioInfo{}
 
 	for i, dir := range soundDir {
 		name := dir.Name()
-		startIndex := len(name) - 4
-		endIndex := startIndex
-		sName := name[startIndex:endIndex]
-		println(sName)
-
+		endIndex := len(name) - 4
+		sName := name[:endIndex]
+		println(i, "Loading sound:", sName)
 		song, err := assets.SoundDir.ReadFile(name)
 
 		if err != nil {
-			return rLoader, err
+			return rLoader, fmt.Errorf("error reading sound file: %w", err)
 		}
 
 		SoundData[name] = song

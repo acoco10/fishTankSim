@@ -12,3 +12,6 @@ var DataDir embed.FS
 
 //go:embed fonts
 var FontsDir embed.FS
+
+//go:embed soundFx
+var SoundDir embed.FS

@@ -7,9 +7,11 @@ import (
 )
 
 type SavedFish struct {
-	Size int     `json:"Size"`
-	X    float64 `json:"X"`
-	Y    float64 `json:"Y"`
+	Size      int     `json:"Size"`
+	Progress  float32 `json:"Progress"`
+	NextLevel float32 `json:"NextLevel"`
+	FishType  string  `json:"FishType"`
+	MaxSpeed  float32 `json:"MaxSpeed"`
 }
 
 type SaveGameState struct {

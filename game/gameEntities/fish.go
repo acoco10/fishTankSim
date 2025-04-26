@@ -16,6 +16,13 @@ const (
 	Resting
 )
 
+type FishList string
+
+const (
+	fish      FishList = "fish"
+	mollyFish FishList = "mollyFish"
+)
+
 type Creature struct {
 	Size           int
 	progress       float32
@@ -27,7 +34,13 @@ type Creature struct {
 	timers         map[FishState]*Timer
 	state          FishState
 	maxSpeed       float32
+	fishType       FishList
 	*AnimatedSprite
+}
+
+func LoadFish(hub *EventHub, tankSize image.Rectangle, saveData SavedFish) *Creature {
+	c := Creature{}
+	return &c
 }
 
 func NewFish(hub *EventHub, tankSize image.Rectangle, saveData SavedFish) *Creature {
@@ -38,7 +51,11 @@ func NewFish(hub *EventHub, tankSize image.Rectangle, saveData SavedFish) *Creat
 	timers[Eating] = NewTimer(0.5)
 	timers[Resting] = NewTimer(30)
 	size := saveData.Size
-	maxSpeed := rand.Float32()
+	maxSpeed := rand.Float32() + 0.2
+	if maxSpeed > 0.7 {
+		maxSpeed = 0.7
+	}
+
 	c := Creature{
 		size,
 		0,
@@ -50,9 +67,10 @@ func NewFish(hub *EventHub, tankSize image.Rectangle, saveData SavedFish) *Creat
 		timers,
 		Swimming,
 		maxSpeed,
+		FishList(saveData.FishType),
 		NewAnimatedSprite(),
 	}
-	c.AnimatedSprite = LoadFishSprite("fish", size)
+	c.AnimatedSprite = LoadFishSprite(c.fishType, c.Size)
 
 	firstPoint := c.RandomTarget()
 	c.AddTargetPointToQueue(firstPoint)
@@ -71,13 +89,13 @@ func NewFish(hub *EventHub, tankSize image.Rectangle, saveData SavedFish) *Creat
 
 	c.X = rand.Float32()*200 + float32(tankSize.Min.X)
 	c.Y = rand.Float32()*100 + float32(tankSize.Min.Y)
-	c.eventHub.Subscribe(MouseButtonPressed{}, func(e Event) {
-		ev := e.(MouseButtonPressed)
-		if len(c.pointQueue) >= 1 && c.pointQueue[0].PType != Food {
-			c.pointQueue = []*Point{}
+	c.eventHub.Subscribe(PointGenerated{}, func(e Event) {
+		ev := e.(PointGenerated)
+		if len(c.pointQueue) >= 1 && ev.Point.PType == Food {
+			c.AddTargetPointToQueue(ev.Point)
+			c.sortPoints()
 		}
-		c.AddTargetPointToQueue(ev.Point)
-		c.sortPoints()
+
 	})
 	c.eventHub.Subscribe(CreatureReachedPoint{}, func(e Event) {
 		ev := e.(CreatureReachedPoint)
@@ -140,6 +158,12 @@ func (c *Creature) sortPoints() {
 		distI := DistanceFunc(xI, c.X, yI, c.Y)
 		distJ := DistanceFunc(xJ, c.X, yJ, c.Y)
 
+		pTypeI := c.pointQueue[i].PType
+		pTypeJ := c.pointQueue[j].PType
+
+		if pTypeI == Food && pTypeJ != Food {
+			return true
+		}
 		return distI < distJ
 	})
 
@@ -191,7 +215,10 @@ func (c *Creature) Update() {
 	}
 	if c.progress >= c.nextLevel {
 		c.Size += 1
-		c.AnimatedSprite = LoadFishSprite("fish", c.Size)
+		x, y := c.X, c.Y
+		c.AnimatedSprite = LoadFishSprite(c.fishType, c.Size)
+		c.X = x
+		c.Y = y
 		c.nextLevel *= 1.2
 		c.progress = 0
 	}
@@ -299,4 +326,15 @@ func (c *Creature) CheckDistFromPoint(x, y float32) {
 func (c *Creature) AddTargetPointToQueue(point *Point) {
 
 	c.pointQueue = append(c.pointQueue, point)
+}
+
+func GameFishToSaveFish(creature *Creature) SavedFish {
+	var s SavedFish
+
+	s.Size = creature.Size
+	s.Progress = creature.progress
+	s.NextLevel = creature.nextLevel
+	s.FishType = string(creature.fishType)
+
+	return s
 }

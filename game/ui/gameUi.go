@@ -28,10 +28,10 @@ func LoadMenu(gameWidth, gameHeight int, eHub *gameEntities.EventHub) *ebitenui.
 	)
 
 	button := LoadButton("Save", eHub)
-	button2 := LoadButton("fish food", eHub)
+	modeButton := LoadButton("Mode", eHub)
 
 	rootContainer.AddChild(button)
-	rootContainer.AddChild(button2)
+	rootContainer.AddChild(modeButton)
 	// construct the UI
 	ui := ebitenui.UI{
 		Container: rootContainer,
@@ -78,7 +78,7 @@ func LoadButton(buttonText string, hub *gameEntities.EventHub) *widget.Button {
 		log.Fatal()
 	}
 
-	face, err := loadFont(16)
+	face, err := loadFont(12)
 	if err != nil {
 		log.Fatal()
 	}
@@ -137,7 +137,6 @@ func LoadButton(buttonText string, hub *gameEntities.EventHub) *widget.Button {
 
 		// add a handler that reacts to entering the button with the cursor
 		widget.ButtonOpts.CursorEnteredHandler(func(args *widget.ButtonHoverEventArgs) {
-			println("cursor entered button: entered =", args.Entered, "offsetX =", args.OffsetX, "offsetY =", args.OffsetY)
 			//If we moved the Text because we clicked on this button previously, move the text down and right
 			if button.GetWidget().CustomData == true {
 				button.Text().Inset.Top = 4
@@ -147,12 +146,10 @@ func LoadButton(buttonText string, hub *gameEntities.EventHub) *widget.Button {
 
 		// add a handler that reacts to moving the cursor on the button
 		widget.ButtonOpts.CursorMovedHandler(func(args *widget.ButtonHoverEventArgs) {
-			println("cursor moved on button: entered =", args.Entered, "offsetX =", args.OffsetX, "offsetY =", args.OffsetY, "diffX =", args.DiffX, "diffY =", args.DiffY)
 		}),
 
 		// add a handler that reacts to exiting the button with the cursor
 		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
-			println("cursor exited button: entered =", args.Entered, "offsetX =", args.OffsetX, "offsetY =", args.OffsetY)
 			//Reset the Text inset if the cursor is no longer over the button
 			button.Text().Inset.Top = 0
 			button.Text().Inset.Left = 0

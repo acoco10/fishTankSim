@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fishTankWebGame/db"
 	"fmt"
 	"io"
 	"log"
@@ -22,11 +23,8 @@ type GameState struct {
 }
 
 var (
-	users       = make(map[string]string) // username -> password
-	gameSaves   = make(map[string]string) // username -> saved state
-	mu          = sync.Mutex{}
-	currentUser = "" // protects maps
-	loginChan   = make(chan string)
+	mu        = sync.Mutex{}
+	loginChan = make(chan string)
 )
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -44,8 +42,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	stored, ok := users[u.Username]
-	if !ok || stored != u.Password {
+	if !db.CheckLoginUser(u.Username, u.Password) {
 		http.Error(w, `{"error":"Invalid login"}`, http.StatusUnauthorized)
 		return
 	}
@@ -73,14 +70,12 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	if _, exists := users[u.Username]; exists {
-		http.Error(w, "User exists", http.StatusBadRequest)
+	msg, err := db.NewUser(u.Username, u.Password)
+	if err != nil {
 		return
 	}
 
-	users[u.Username] = u.Password
-	err := json.NewEncoder(w).Encode(map[string]string{"message": "Registration Successful"})
-	gameSaves[u.Username] = "0"
+	err = json.NewEncoder(w).Encode(map[string]string{"message": msg})
 	if err != nil {
 		return
 	}
@@ -117,6 +112,10 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = db.Save(s.Username, string(data))
+	if err != nil {
+		log.Fatal(err)
+	}
 	fileName := fmt.Sprintf("save%s.json", s.Username)
 
 	err = os.WriteFile("../assets/data/"+fileName, data, 0644)
@@ -131,24 +130,33 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func loadHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Only get allowed", http.StatusMethodNotAllowed)
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only post allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	println("checking for save")
 	//username := r.URL.Query().Get("user")
 
-	save, err := os.ReadFile("../assets/data/saveaidan.json")
+	/*	save, err := os.ReadFile("../assets/data/saveaidan.json")
+		if err != nil {
+			log.Fatal(err)
+		}*/
+
+	var u User
+	json.NewDecoder(r.Body).Decode(&u)
+
+	dbSave, err := db.LoadSave(u.Username)
+
 	if err != nil {
 		log.Fatal(err)
 	}
-	_, err = w.Write(save)
+
+	_, err = w.Write([]byte(dbSave))
 	//w.Header().Set("Content-Type", "application/json")
 	//err = json.NewEncoder(w).Encode(save)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 }
 
 func initServer() {
