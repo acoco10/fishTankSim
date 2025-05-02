@@ -10,9 +10,7 @@ import (
 )
 
 const (
-	JazzE resource.AudioID = iota
-	SunSetVibe
-	WaterBubbles
+	WaterBubbles resource.AudioID = iota
 )
 
 var audioContext = audio.NewContext(44100)
@@ -37,19 +35,20 @@ func LoadSounds() (*resource.Loader, error) {
 		endIndex := len(name) - 4
 		sName := name[:endIndex]
 		println(i, "Loading sound:", sName)
-		song, err := assets.SoundDir.ReadFile(name)
+		song, err := assets.SoundDir.ReadFile("soundFx/" + name)
 
 		if err != nil {
 			return rLoader, fmt.Errorf("error reading sound file: %w", err)
 		}
 
 		SoundData[name] = song
+		println("saving audio id:", resource.AudioID(i))
 		audioRegMap[resource.AudioID(i)] = resource.AudioInfo{Path: name, Volume: 0.2}
 
 	}
 
 	l := resource.NewLoader(audioContext)
-
+	l.AudioRegistry.Assign(audioRegMap)
 	l.OpenAssetFunc = func(path string) io.ReadCloser {
 		return io.NopCloser(bytes.NewReader(SoundData[path]))
 	}

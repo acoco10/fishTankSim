@@ -30,9 +30,11 @@ func NewUser(userName string, PW string) (string, error) {
 	defer db.Close()
 
 	exists, err := checkIfUserExists(userName, db)
+
 	if err != nil {
 		return "", err
 	}
+
 	if exists {
 		return "", fmt.Errorf("user already exists")
 	}
@@ -46,6 +48,12 @@ func NewUser(userName string, PW string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	id, err := getUserID(db, userName)
+	if err != nil {
+		return "", err
+	}
+	err = createSave(db, id, "")
 	return "user created successfully", nil
 }
 
