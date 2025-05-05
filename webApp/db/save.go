@@ -7,7 +7,7 @@ import (
 )
 
 func Save(userName string, saveJson string) error {
-	db, err := sql.Open("sqlite3", "/Users/aidancoco/Desktop/projects/fishTankWebGame/db/users.db")
+	db, err := sql.Open("sqlite3", file)
 	if err != nil {
 		log.Fatal(err)
 	}

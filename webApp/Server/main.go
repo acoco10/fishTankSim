@@ -1,15 +1,20 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
-	"fishTankWebGame/db"
+	db2 "fishTankWebGame/webApp/db"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 type User struct {
@@ -42,7 +47,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	if !db.CheckLoginUser(u.Username, u.Password) {
+	if !db2.CheckLoginUser(u.Username, u.Password) {
 		http.Error(w, `{"error":"Invalid login"}`, http.StatusUnauthorized)
 		return
 	}
@@ -70,7 +75,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	msg, err := db.NewUser(u.Username, u.Password)
+	msg, err := db2.NewUser(u.Username, u.Password)
 	if err != nil {
 		return
 	}
@@ -112,7 +117,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.Save(s.Username, string(data))
+	err = db2.Save(s.Username, string(data))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -145,7 +150,7 @@ func loadHandler(w http.ResponseWriter, r *http.Request) {
 	var u User
 	json.NewDecoder(r.Body).Decode(&u)
 
-	dbSave, err := db.LoadSave(u.Username)
+	dbSave, err := db2.LoadSave(u.Username)
 
 	if err != nil {
 		log.Fatal(err)
@@ -159,13 +164,16 @@ func loadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func initServer() {
+func testWasmLocallyInitServer() {
+	// You can now embed this URL in your HTML
+
 	http.HandleFunc("/register", registerHandler)
 	http.HandleFunc("/login", loginHandler)
 	http.HandleFunc("/save", saveHandler)
 	http.HandleFunc("/load", loadHandler)
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 	http.HandleFunc("/main.wasm", func(w http.ResponseWriter, r *http.Request) {
+		log.Println("Request received for /main.wasm")
 		w.Header().Set("Content-Type", "application/wasm")
 		http.ServeFile(w, r, "static/main.wasm")
 	})
@@ -173,6 +181,68 @@ func initServer() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
+func generatePresignedURL() string {
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		panic("unable to load SDK config, " + err.Error())
+	}
+
+	client := s3.NewFromConfig(cfg)
+
+	presigner := s3.NewPresignClient(client)
+
+	req, err := presigner.PresignGetObject(context.TODO(), &s3.GetObjectInput{
+		Bucket: aws.String("fish-fish-fish-assets"),
+		Key:    aws.String("wasm/main.wasm"),
+	}, s3.WithPresignExpires(15*time.Minute)) // Expires in 15 minutes
+
+	if err != nil {
+		panic("unable to presign request, " + err.Error())
+	}
+
+	return req.URL
+}
+
+func handleGetWasmURL(w http.ResponseWriter, r *http.Request) {
+	// Configuration
+
+	// Generate the presigned URL using utility function
+	wasmURL := generatePresignedURL()
+
+	fmt.Println("Pre-signed URL:", wasmURL)
+	// Prepare JSON response
+	response := map[string]string{"url": wasmURL}
+	w.Header().Set("Content-Type", "application/json")
+	err := json.NewEncoder(w).Encode(response)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func initServer() {
+	http.Handle("/", http.FileServer(http.Dir("./static")))
+	http.HandleFunc("/register", registerHandler)
+	http.HandleFunc("/login", loginHandler)
+	http.HandleFunc("/save", saveHandler)
+	http.HandleFunc("/load", loadHandler)
+
+	http.HandleFunc("/get-wasm-url", handleGetWasmURL)
+	log.Println("Server starting on :8080...")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
 func main() {
-	initServer()
+
+	var arg string
+
+	if len(os.Args) > 1 {
+		arg = os.Args[1]
+	}
+	println("running with os argument:", arg)
+
+	if arg == "local" {
+		testWasmLocallyInitServer()
+	} else {
+		initServer()
+	}
 }

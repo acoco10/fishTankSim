@@ -14,7 +14,7 @@ type Activities struct {
 	db *sql.DB
 }
 
-const file string = "users.db"
+const file string = "/Users/aidancoco/Desktop/projects/fishTankWebGame/webApp/db/users.db"
 
 func main() {
 
@@ -22,7 +22,7 @@ func main() {
 
 func NewUser(userName string, PW string) (string, error) {
 
-	db, err := sql.Open("sqlite3", "/Users/aidancoco/Desktop/projects/fishTankWebGame/db/users.db")
+	db, err := sql.Open("sqlite3", file)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func checkPasswordHash(password, hash string) bool {
 }
 
 func CheckLoginUser(userName string, enteredPassword string) bool {
-	db, err := sql.Open("sqlite3", "/Users/aidancoco/Desktop/projects/fishTankWebGame/db/users.db")
+	db, err := sql.Open("sqlite3", file)
 	if err != nil {
 		log.Fatal(err)
 	}
