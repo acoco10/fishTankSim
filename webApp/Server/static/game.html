@@ -32,19 +32,42 @@
 
 <script src="wasm_exec.js"></script>
 <script>
+
+
     const base = "http://localhost:8080";
     const username = localStorage.getItem("username");
     const password = localStorage.getItem("password")
 
     const go = new Go();
-    WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject)
+
+    fetch('/get-wasm-url')
+        .then(response => response.json())
+        .then(data => {
+            const wasmUrl = data.url; // Get the presigned URL
+            // Fetch and instantiate the WebAssembly module
+            WebAssembly.instantiateStreaming(fetch(wasmUrl), go.importObject)
+                .then(result => {
+                    console.log("WebAssembly module instantiated!");
+                    go.run(result.instance);
+                })
+                .catch(err => {
+                    console.error("Failed to execute WebAssembly:", err);
+                });
+        })
+        .catch(err => {
+            console.error("Error fetching presigned URL:", err);
+        });
+
+
+   /*
+    WebAssembly.instantiate(fetch(wasmUrl), go.importObject)
         .then(async (result) => {
             await go.run(result.instance);
         })
         .catch(err => {
             console.error("Failed to instantiate WASM:", err);
 
-    });
+    });*/
 </script>
 <script>
     window.saveGame = function (data) {

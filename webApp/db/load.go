@@ -7,7 +7,7 @@ import (
 )
 
 func LoadSave(userName string) (string, error) {
-	db, err := sql.Open("sqlite3", "/Users/aidancoco/Desktop/projects/fishTankWebGame/db/users.db")
+	db, err := sql.Open("sqlite3", file)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -24,7 +24,7 @@ func LoadSave(userName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("couldnt load user save for %s: %w", userName, err)
 	}
-	
+
 	return save, nil
 }
 

@@ -1,1 +1,1 @@
-GOOS=js GOARCH=wasm go build -tags=g -o static/main.wasm
+GOOS=js GOARCH=wasm go build -tags=g -o ../webApp/static/main.wasm
