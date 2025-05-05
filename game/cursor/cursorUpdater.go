@@ -96,7 +96,7 @@ func (cu *CursorUpdater) GetCursorOffset(name string) image.Point {
 // Layout implements gameScenes.
 
 func loadNormalCursorImage() *ebiten.Image {
-	f, err := assets.ImagesDir.Open("images/fishFoodCursor.png")
+	f, err := assets.ImagesDir.Open("images/fishFoodMain.png")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func loadNormalCursorImage() *ebiten.Image {
 }
 
 func loadHoverCursorImage() *ebiten.Image {
-	f, err := assets.ImagesDir.Open("images/fishFoodCursor.png")
+	f, err := assets.ImagesDir.Open("images/fishFoodMain.png")
 	if err != nil {
 		log.Fatal(err)
 	}

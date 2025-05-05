@@ -5,7 +5,7 @@ import (
 	"fishTankWebGame/assets"
 	"fishTankWebGame/game/gameEntities"
 	"github.com/ebitenui/ebitenui"
-	"github.com/ebitenui/ebitenui/image"
+	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"image/color"
@@ -13,9 +13,15 @@ import (
 )
 
 func LoadMenu(gameWidth, gameHeight int, eHub *gameEntities.EventHub) *ebitenui.UI {
-
+	/*img, _, err := ebitenutil.NewImageFromFileSystem(assets.ImagesDir, "images/menuAssets/statsMenuBackground.png")
+	if err != nil {
+		return nil
+	}
+	*/
+	//nineSliceImage := eimage.NewNineSlice(img, [3]int{8, 66 - 16, 8}, [3]int{8, 32 - 16, 8})
 	// construct a new container that serves as the root of the UI hierarchy
 	rootContainer := widget.NewContainer(
+		//widget.ContainerOpts.BackgroundImage(nineSliceImage),
 		// the container will use a plain color as its background
 		// the container will use an anchor layout to layout its single child widget
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
@@ -41,11 +47,11 @@ func LoadMenu(gameWidth, gameHeight int, eHub *gameEntities.EventHub) *ebitenui.
 }
 
 func loadButtonImage() (*widget.ButtonImage, error) {
-	idle := image.NewNineSliceColor(color.NRGBA{R: 170, G: 170, B: 180, A: 0})
+	idle := eimage.NewNineSliceColor(color.NRGBA{R: 170, G: 170, B: 180, A: 0})
 
-	hover := image.NewNineSliceColor(color.NRGBA{R: 130, G: 130, B: 150, A: 255})
+	hover := eimage.NewNineSliceColor(color.NRGBA{R: 130, G: 130, B: 150, A: 255})
 
-	pressed := image.NewNineSliceColor(color.NRGBA{R: 100, G: 100, B: 120, A: 255})
+	pressed := eimage.NewNineSliceColor(color.NRGBA{R: 100, G: 100, B: 120, A: 255})
 
 	return &widget.ButtonImage{
 		Idle:    idle,
@@ -54,7 +60,7 @@ func loadButtonImage() (*widget.ButtonImage, error) {
 	}, nil
 }
 
-func loadFont(size float64) (text.Face, error) {
+func LoadFont(size float64) (text.Face, error) {
 	loadedFont, err := assets.FontsDir.ReadFile("fonts/nk57.otf")
 	if err != nil {
 		return nil, err
@@ -78,7 +84,7 @@ func LoadButton(buttonText string, hub *gameEntities.EventHub) *widget.Button {
 		log.Fatal()
 	}
 
-	face, err := loadFont(12)
+	face, err := LoadFont(12)
 	if err != nil {
 		log.Fatal()
 	}

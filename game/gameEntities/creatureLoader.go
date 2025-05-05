@@ -5,17 +5,26 @@ import (
 	"github.com/acoco10/QuickDrawAdventure/animations"
 	"github.com/acoco10/QuickDrawAdventure/spriteSheet"
 	"github.com/hajimehoshi/ebiten/v2"
+	"log"
 )
 
 func LoadFishSprite(creatureType FishList, creatureLvl int) *AnimatedSprite {
 	var c AnimatedSprite
 	c.Sprite = &Sprite{}
-	img := LoadFishImg(creatureType, creatureLvl)
+
+	shaderParams := make(map[string]any)
+	shaderParams["OutlineColor"] = [4]float64{255, 255, 0, 255}
+	c.shaderParams = shaderParams
+
+	img, err := LoadFishImg(creatureType, creatureLvl)
+	if err != nil {
+		log.Fatal(err)
+	}
 	switch creatureLvl {
 	case 1:
 		c.Img = img
 		c.Animation = animations.NewAnimation(0, 3, 1, 4)
-		c.SpriteSheet = spritesheet.NewSpritesheet(4, 2, 19, 7)
+		c.SpriteSheet = spritesheet.NewSpritesheet(4, 1, 21, 9)
 	case 2:
 		c.Img = img
 		c.Animation = animations.NewAnimation(0, 3, 1, 4)
@@ -32,7 +41,7 @@ func LoadFishSprite(creatureType FishList, creatureLvl int) *AnimatedSprite {
 	return &c
 }
 
-func LoadFishImg(fType FishList, level int) *ebiten.Image {
+func LoadFishImg(fType FishList, level int) (*ebiten.Image, error) {
 	var fishImgName string
 	switch fType {
 	case fish:
@@ -40,6 +49,9 @@ func LoadFishImg(fType FishList, level int) *ebiten.Image {
 	case mollyFish:
 		fishImgName = fmt.Sprintf("mollyFish%dSpriteSheet", level)
 	}
-	img := LoadImageAssetAsEbitenImage(fishImgName)
-	return img
+	img, err := LoadImageAssetAsEbitenImage("fishSpriteSheets/" + fishImgName)
+	if err != nil {
+		return &ebiten.Image{}, err
+	}
+	return img, nil
 }

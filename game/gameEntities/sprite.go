@@ -9,7 +9,7 @@ import (
 	"log"
 )
 
-func loadOutlineShader() *ebiten.Shader {
+func LoadOutlineShader() *ebiten.Shader {
 	ols := []byte(shaders.OutlineShader)
 	s, err := ebiten.NewShader(ols)
 	if err != nil {
@@ -19,15 +19,26 @@ func loadOutlineShader() *ebiten.Shader {
 }
 
 type Sprite struct {
-	Img    *ebiten.Image
-	X, Y   float32
-	Dy, Dx float32
+	Img          *ebiten.Image
+	X, Y         float32
+	Dy, Dx       float32
+	shader       *ebiten.Shader
+	shaderParams map[string]any
 }
 
 func (s Sprite) SpriteHovered() bool {
 	x, y := ebiten.CursorPosition()
 	point := image.Point{x, y}
 	rect := s.Img.Bounds()
+
+	if rect.Max.X < 50 {
+		rect.Max.X += 50
+	}
+
+	if rect.Max.Y < 50 {
+		rect.Max.Y += 50
+	}
+
 	rect.Min.X += int(s.X)
 	rect.Min.Y += int(s.Y)
 	rect.Max.X += int(s.X)
@@ -35,50 +46,49 @@ func (s Sprite) SpriteHovered() bool {
 	return point.In(rect)
 }
 
-func AddYellowOutlineShader(spriteImg *ebiten.Image, sprite Sprite, screen *ebiten.Image) {
-	var options ebiten.DrawRectShaderOptions
-
-	width, height := ebiten.WindowSize()
-
-	options.Images[0] = spriteImg // the sprite to outline
-	options.Uniforms = map[string]interface{}{
-		"Resolution": []float32{float32(width), float32(height)},
-	}
-
-	options.GeoM.Translate(float64(sprite.X), float64(sprite.Y))
-	s := loadOutlineShader()
-	DrawShader(sprite, spriteImg, s, screen)
-}
-
-func ApplyOutlineShaderToAnimation(sprite AnimatedSprite, screen *ebiten.Image) {
-	frame := sprite.Frame()
-	frameRect := sprite.SpriteSheet.Rect(frame)
-	eImg := ebiten.NewImageFromImage(frameRect)
-	AddYellowOutlineShader(eImg, *sprite.Sprite, screen)
-}
-
 type AnimatedSprite struct {
 	*Sprite
 	*animations.Animation
 	*spritesheet.SpriteSheet
+	frameImg *ebiten.Image
 }
 
 func (s Sprite) Coord() (x, y float32) {
 	return s.X, s.Y
 }
 
-func (as *AnimatedSprite) Update() {
-	as.Animation.Update()
+func (s Sprite) LoadShader(shader *ebiten.Shader) {
+	s.shader = shader
 }
 
-func (as *AnimatedSprite) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) {
-	if as.SpriteHovered() {
-		ApplyOutlineShaderToAnimation(*as, screen)
-	} else {
-		frame := as.Frame()
-		frameRect := as.SpriteSheet.Rect(frame)
-		screen.DrawImage(as.Img.SubImage(frameRect).(*ebiten.Image), opts)
+func (s Sprite) UnLoadShader() {
+	s.shader = nil
+}
+
+func (as *AnimatedSprite) Update() {
+	as.Animation.Update()
+	as.UpdateSpriteFrameImg()
+}
+
+func (as *AnimatedSprite) UpdateSpriteFrameImg() {
+	frame := as.Frame()
+	frameRect := as.SpriteSheet.Rect(frame)
+	img := as.Img.SubImage(frameRect).(*ebiten.Image)
+	as.frameImg = img
+}
+
+func (as *AnimatedSprite) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions, shaderOpts *ebiten.DrawRectShaderOptions) {
+	frame := as.Frame()
+	frameRect := as.SpriteSheet.Rect(frame)
+	img := as.Img.SubImage(frameRect).(*ebiten.Image)
+	if as.shader != nil {
+		shaderOpts.Images[0] = img
+		shaderOpts.Uniforms = as.shaderParams
+		b := img.Bounds()
+		screen.DrawRectShader(b.Dx(), b.Dy(), as.shader, shaderOpts)
+		return
 	}
+	screen.DrawImage(img, opts)
 }
 
 func NewAnimatedSprite() *AnimatedSprite {
@@ -86,6 +96,7 @@ func NewAnimatedSprite() *AnimatedSprite {
 		&Sprite{},
 		&animations.Animation{},
 		&spritesheet.SpriteSheet{},
+		&ebiten.Image{},
 	}
 	return &as
 }

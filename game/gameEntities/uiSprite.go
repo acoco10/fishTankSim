@@ -1,12 +1,14 @@
 package gameEntities
 
 import (
-	"encoding/json"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"log"
-	"os"
 )
+
+type DrawableSprite interface {
+	Draw(screen *ebiten.Image)
+	Update()
+}
 
 type uiSpriteState uint8
 
@@ -24,11 +26,6 @@ const (
 	Normal
 )
 
-type UpdateSprite interface {
-	Draw(screen *ebiten.Image)
-	Update()
-}
-
 type UiSprite struct {
 	*Sprite
 	HoverImg               *ebiten.Image
@@ -39,18 +36,28 @@ type UiSprite struct {
 	state    uiSpriteState
 	stateWas uiSpriteState
 	gameMode
-	label string
+	Label                     string
+	screenHeight, screenWidth int
 }
 
 func (us *UiSprite) Draw(screen *ebiten.Image) {
-
 	opts := ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(float64(us.X), float64(us.Y))
 	screen.DrawImage(us.Img, &opts)
-
+	if us.shader != nil {
+		shaderOpts := &ebiten.DrawRectShaderOptions{}
+		shaderOpts.Uniforms = us.shaderParams
+		shaderOpts.GeoM.Translate(float64(us.X), float64(us.Y))
+		shaderOpts.Images[0] = us.Img
+		b := us.Img.Bounds().Max
+		screen.DrawRectShader(b.X, b.Y, us.shader, shaderOpts)
+		return
+	}
 	if us.state == Selected || us.state == Hovered {
-		opts.GeoM.Translate(float64(us.AltOffsetX), float64(us.AltOffsetY))
-		screen.DrawImage(us.HoverImg, &opts)
+		if us.HoverImg != nil {
+			opts.GeoM.Translate(float64(us.AltOffsetX), float64(us.AltOffsetY))
+			screen.DrawImage(us.HoverImg, &opts)
+		}
 	}
 
 }
@@ -66,7 +73,7 @@ func (us *UiSprite) Update() {
 
 func (us *UiSprite) UpdatePosition() {
 	us.updateState()
-	if us.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && us.state == Selected {
+	if us.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		us.XYUpdater = NewUpdater(us.Sprite)
 	}
 	if us.XYUpdater != nil {
@@ -75,7 +82,6 @@ func (us *UiSprite) UpdatePosition() {
 
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && us.state == Clicked && us.stateWas == Clicked {
 		us.XYUpdater = nil
-		us.savePosition()
 	}
 
 	us.stateWas = us.state
@@ -95,9 +101,11 @@ func (us *UiSprite) UpdateNormal() {
 
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && us.state == Clicked {
 		if us.AltImg != nil && us.stateWas != Clicked {
-			img := us.Sprite.Img
-			us.Sprite.Img = us.AltImg
-			us.AltImg = img
+			if us.AltImg != nil {
+				img := us.Sprite.Img
+				us.Sprite.Img = us.AltImg
+				us.AltImg = img
+			}
 		}
 		ev := MouseButtonPressed{
 			Point: &Point{X: float32(x), Y: float32(y), PType: Food},
@@ -106,9 +114,11 @@ func (us *UiSprite) UpdateNormal() {
 	}
 
 	if us.stateWas == Clicked && us.state != Clicked {
-		img := us.Img
-		us.Sprite.Img = us.AltImg
-		us.AltImg = img
+		if us.AltImg != nil {
+			img := us.Img
+			us.Sprite.Img = us.AltImg
+			us.AltImg = img
+		}
 
 	}
 
@@ -116,13 +126,12 @@ func (us *UiSprite) UpdateNormal() {
 }
 
 func (us *UiSprite) updateState() {
+	if !us.SpriteHovered() {
+		us.state = Idle
+	}
 
 	if us.SpriteHovered() && (us.state != Clicked && us.state != Selected) {
 		us.state = Hovered
-	}
-
-	if !us.SpriteHovered() {
-		us.state = Idle
 	}
 
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && us.state == Hovered {
@@ -137,9 +146,9 @@ func (us *UiSprite) updateState() {
 	}
 }
 
-func NewUiSprite(imgs []*ebiten.Image, hub *EventHub, x, y float32, label string) *UiSprite {
+func NewUiSprite(imgs []*ebiten.Image, hub *EventHub, x, y float32, label string, screenWidth, screenHeight int) *UiSprite {
 	uis := UiSprite{Sprite: &Sprite{X: x, Y: y}}
-	uis.label = label
+	uis.Label = label
 	uis.EventHub = hub
 
 	uis.Img = &ebiten.Image{}
@@ -162,9 +171,15 @@ func NewUiSprite(imgs []*ebiten.Image, hub *EventHub, x, y float32, label string
 		uis.AltImg = imgs[2]
 	}
 
+	UiSpriteEventSub(hub, uis)
+
 	uis.state = Idle
 	uis.gameMode = Normal
 
+	return &uis
+}
+
+func UiSpriteEventSub(hub *EventHub, uis UiSprite) {
 	hub.Subscribe(ButtonClickedEvent{}, func(e Event) {
 		ev := e.(ButtonClickedEvent)
 		switch ev.ButtonText {
@@ -172,8 +187,6 @@ func NewUiSprite(imgs []*ebiten.Image, hub *EventHub, x, y float32, label string
 			uis.SwitchGameMode()
 		}
 	})
-
-	return &uis
 }
 
 func (us *UiSprite) SwitchGameMode() {
@@ -191,20 +204,29 @@ type SavePositionData struct {
 	name string
 }
 
-func (us *UiSprite) savePosition() {
+func (us *UiSprite) SavePosition() SavePositionData {
 	sp := SavePositionData{}
 	sp.X = us.X
 	sp.Y = us.Y
-	sp.name = us.label
+	sp.name = us.Label
+	return sp
+}
 
-	outputSave, err := json.Marshal(sp)
-	if err != nil {
-		log.Fatal(err)
+type FishFoodSprite struct {
+	*UiSprite
+}
+
+func (ff *FishFoodSprite) Draw(screen *ebiten.Image) {
+	opts := ebiten.DrawImageOptions{}
+	if ff.state == Idle || ff.state == Clicked {
+		opts.GeoM.Translate(float64(ff.X), float64(ff.Y))
+		screen.DrawImage(ff.Img, &opts)
+		opts.GeoM.Reset()
+	} else if ff.state == Selected || ff.state == Hovered {
+		if ff.HoverImg != nil {
+			opts.GeoM.Translate(float64(ff.X), float64(ff.Y))
+			opts.GeoM.Translate(float64(ff.AltOffsetX), float64(ff.AltOffsetY))
+			screen.DrawImage(ff.HoverImg, &opts)
+		}
 	}
-
-	err = os.WriteFile("../assets/data/spritePosition.json", outputSave, 999)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 }

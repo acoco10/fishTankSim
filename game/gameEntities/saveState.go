@@ -7,6 +7,7 @@ import (
 )
 
 type SavedFish struct {
+	Name      string  `json:"Name"`
 	Size      int     `json:"Size"`
 	Progress  float32 `json:"Progress"`
 	NextLevel float32 `json:"NextLevel"`

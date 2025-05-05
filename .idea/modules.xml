@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/fishTankWebGame.iml" filepath="$PROJECT_DIR$/.idea/fishTankWebGame.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../shaderTutorial/kage-desk/.idea/kage-desk.iml" filepath="$PROJECT_DIR$/../shaderTutorial/kage-desk/.idea/kage-desk.iml" />
     </modules>
   </component>
 </project>

@@ -5,16 +5,15 @@ import (
 	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"log"
 )
 
-func LoadImageAssetAsEbitenImage(assetName string) *ebiten.Image {
+func LoadImageAssetAsEbitenImage(assetName string) (*ebiten.Image, error) {
 	imgPath := fmt.Sprintf("images/%s.png", assetName)
 	img, _, err := ebitenutil.NewImageFromFileSystem(assets.ImagesDir, imgPath)
 	if err != nil {
-		log.Fatal(err)
+		return &ebiten.Image{}, err
 	}
-	return img
+	return img, nil
 }
 
 func DrawShader(sprite Sprite, sImg *ebiten.Image, s *ebiten.Shader, screen *ebiten.Image) {

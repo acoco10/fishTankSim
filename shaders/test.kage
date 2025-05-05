@@ -1,23 +1,48 @@
 //kage:unit pixels
 package main
 
-var Cursor vec2 // in [0, 1] ranges, built-in with kage-desk/display
+var OutlineColor vec4
+var DrawPointX float
+var DrawPointY float
 
-func Fragment(_ vec4, sourceCoords vec2, _ vec4) vec4 {
-	// as an example, we offset sourceCoords based on the cursor
-	// so we can go out of bounds and see the clamping in action
-	modifiedCoords := sourceCoords + (Cursor - vec2(0.5))*400.0
+func Fragment(targetCoords vec4, texCoord vec2, _ vec4) vec4 {
+	color := imageSrc0UnsafeAt(texCoord)
+    outline := false
+	if color.a > 0.0 {
+            for x := -1; x <= 1; x++ {
+                for y := -1; y <= 1; y++ {
+                    if x == 0 && y == 0 {
+                        continue
+                    }
+                    sampleCoord := texCoord + vec2(float(x), float(y))
+                    sample := imageSrc0UnsafeAt(sampleCoord)
+                    if sample.a == 0.0 {
+                        outline = true
+                    }
+                }
+           }
+    }
 
-	originSrc0, endSrc0 := GetSource0Region()
-	wrappedCoords := Wrap(modifiedCoords, originSrc0, endSrc0)
-	return imageSrc0UnsafeAt(wrappedCoords)
-}
+    halfRect := 200.0
+    rectx1 := DrawPointX + 180
+    rectx2 := DrawPointX + halfRect
+    recty1 := DrawPointY - 5
+    recty2 := DrawPointY + 5
 
-func GetSource0Region() (vec2, vec2) {
-	origin := imageSrc0Origin()
-	return origin, origin + imageSrc0Size()
-}
+    overlap := false
 
-func Wrap(coords vec2, origin, end vec2) vec2 {
-	return origin + mod(coords - origin, end - origin)
+    if (texCoord.x > rectx1 && texCoord.x < rectx2) && (texCoord.y > recty1 && texCoord.y < recty2){
+        overlap = true
+    }
+
+    if outline{
+        if overlap{
+            return OutlineColor2
+        }else{
+        return OutlineColor
+        }
+    }
+
+    return color
+
 }
