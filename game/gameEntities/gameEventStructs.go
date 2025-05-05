@@ -20,3 +20,13 @@ type PointGenerated struct {
 type SpriteHovered struct {
 	sprite *Sprite
 }
+
+type SendData struct {
+	DataFor string
+	Data    string
+}
+
+type RequestData struct {
+	DataType   string
+	RequestFor any
+}

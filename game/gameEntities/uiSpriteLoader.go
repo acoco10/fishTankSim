@@ -2,9 +2,9 @@ package gameEntities
 
 import (
 	"encoding/json"
+	"fishTankWebGame/assets"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
-	"os"
 )
 
 type UISpriteLabel string
@@ -19,7 +19,7 @@ var uiElements = []UISpriteLabel{Records, FishBook, FishFood}
 
 func loadUiSpritesImgs(label UISpriteLabel) ([]*ebiten.Image, error) {
 	var imgs []*ebiten.Image
-	tags := []string{"Main", "Alt", "Outline"}
+	tags := []string{"Main", "Outline", "Alt"}
 
 	for _, tag := range tags {
 		assetName := string(label) + tag
@@ -33,8 +33,8 @@ func loadUiSpritesImgs(label UISpriteLabel) ([]*ebiten.Image, error) {
 	return imgs, nil
 }
 
-func LoadUISprites(hub EventHub) ([]*UiSprite, error) {
-	var sprites []*UiSprite
+func LoadUISprites(hub EventHub, screenWidth, screenHeight int) ([]DrawableSprite, error) {
+	var sprites []DrawableSprite
 
 	spritePositions, err := loadSpritePositionData()
 	if err != nil {
@@ -48,8 +48,12 @@ func LoadUISprites(hub EventHub) ([]*UiSprite, error) {
 		if err != nil {
 			return sprites, err
 		}
-		sprite := NewUiSprite(imgs, &hub, x, y, string(elem))
-
+		sprite := NewUiSprite(imgs, &hub, x, y, string(elem), screenWidth, screenHeight)
+		if elem == FishFood {
+			s2 := FishFoodSprite{sprite}
+			sprites = append(sprites, &s2)
+			continue
+		}
 		sprites = append(sprites, sprite)
 
 	}
@@ -59,7 +63,7 @@ func LoadUISprites(hub EventHub) ([]*UiSprite, error) {
 
 func loadSpritePositionData() (map[string]*SavePositionData, error) {
 	var positions = make(map[string]*SavePositionData)
-	spritePosition, err := os.ReadFile("../assets/data/spritePosition.json")
+	spritePosition, err := assets.DataDir.ReadFile("data/spritePosition.json")
 	if err != nil {
 		return positions, err
 	}
