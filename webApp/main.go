@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
-	db2 "fishTankWebGame/webApp/db"
+	"fishTankWebGame/webApp/db"
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+
 	"io"
 	"log"
 	"net/http"
@@ -47,7 +48,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	if !db2.CheckLoginUser(u.Username, u.Password) {
+	if !db.CheckLoginUser(u.Username, u.Password) {
 		http.Error(w, `{"error":"Invalid login"}`, http.StatusUnauthorized)
 		return
 	}
@@ -75,7 +76,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	msg, err := db2.NewUser(u.Username, u.Password)
+	msg, err := db.NewUser(u.Username, u.Password)
 	if err != nil {
 		return
 	}
@@ -117,7 +118,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db2.Save(s.Username, string(data))
+	err = db.Save(s.Username, string(data))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -150,7 +151,7 @@ func loadHandler(w http.ResponseWriter, r *http.Request) {
 	var u User
 	json.NewDecoder(r.Body).Decode(&u)
 
-	dbSave, err := db2.LoadSave(u.Username)
+	dbSave, err := db.LoadSave(u.Username)
 
 	if err != nil {
 		log.Fatal(err)
