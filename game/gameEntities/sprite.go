@@ -18,6 +18,15 @@ func LoadOutlineShader() *ebiten.Shader {
 	return s
 }
 
+func LoadSolidColorShader() *ebiten.Shader {
+	sls := []byte(shaders.SolidColor)
+	s, err := ebiten.NewShader(sls)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return s
+}
+
 type Sprite struct {
 	Img          *ebiten.Image
 	X, Y         float32
@@ -51,17 +60,19 @@ type AnimatedSprite struct {
 	*animations.Animation
 	*spritesheet.SpriteSheet
 	frameImg *ebiten.Image
+	effect   *ebiten.Image
 }
 
-func (s Sprite) Coord() (x, y float32) {
+func (s *Sprite) Coord() (x, y float32) {
 	return s.X, s.Y
 }
 
-func (s Sprite) LoadShader(shader *ebiten.Shader) {
+func (s *Sprite) LoadShader(shader *ebiten.Shader) {
+	println("loading shader")
 	s.shader = shader
 }
 
-func (s Sprite) UnLoadShader() {
+func (s *Sprite) UnLoadShader() {
 	s.shader = nil
 }
 
@@ -82,6 +93,7 @@ func (as *AnimatedSprite) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptio
 	frameRect := as.SpriteSheet.Rect(frame)
 	img := as.Img.SubImage(frameRect).(*ebiten.Image)
 	if as.shader != nil {
+		println("shader not nil")
 		shaderOpts.Images[0] = img
 		shaderOpts.Uniforms = as.shaderParams
 		b := img.Bounds()
@@ -97,10 +109,15 @@ func NewAnimatedSprite() *AnimatedSprite {
 		&animations.Animation{},
 		&spritesheet.SpriteSheet{},
 		&ebiten.Image{},
+		nil,
 	}
 	return &as
 }
 
 func (as *AnimatedSprite) ChangeAnimationSpeed(newSpeed float32) {
 	as.Animation.SpeedInTPS = newSpeed
+}
+
+func (as *AnimatedSprite) TriggerEffect(image *ebiten.Image) {
+	as.effect = image
 }

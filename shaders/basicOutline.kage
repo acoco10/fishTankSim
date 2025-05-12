@@ -3,7 +3,7 @@ package main
 
 var OutlineColor vec4
 
-func Fragment(targetCoords vec4, texCoord vec2, _ vec4) vec4 {
+func Fragment(_ vec4, texCoord vec2, _ vec4) vec4 {
 	color := imageSrc0UnsafeAt(texCoord)
     outline := false
 	if color.a > 0.0 {

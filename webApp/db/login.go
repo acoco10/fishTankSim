@@ -3,16 +3,15 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
+
 	"golang.org/x/crypto/bcrypt"
 	"log"
-	"sync"
+	"os"
+
+	_ "github.com/lib/pq"
 )
 
-type Activities struct {
-	mu sync.Mutex
-	db *sql.DB
-}
+var DB *sql.DB
 
 const file string = "/Users/aidancoco/Desktop/projects/fishTankWebGame/webApp/db/users.db"
 
@@ -22,9 +21,11 @@ func main() {
 
 func NewUser(userName string, PW string) (string, error) {
 
-	db, err := sql.Open("sqlite3", file)
+	dsn := os.Getenv("DATABASE_URL")
+	var err error
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		log.Fatal(err)
+		return " ", err
 	}
 
 	defer db.Close()
@@ -58,7 +59,7 @@ func NewUser(userName string, PW string) (string, error) {
 }
 
 func addUser(db *sql.DB, userName string, hashedPW string) error {
-	stmt, err := db.Prepare("INSERT INTO users (username, password) VALUES (?, ?)")
+	stmt, err := db.Prepare("INSERT INTO users (username, password) VALUES ($1, $2)")
 	if err != nil {
 		return fmt.Errorf("prepare insert: %w", err)
 	}
@@ -84,16 +85,20 @@ func checkPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
-func CheckLoginUser(userName string, enteredPassword string) bool {
-	db, err := sql.Open("sqlite3", file)
+func CheckLoginUser(userName string, enteredPassword string) (bool, error) {
+	dsn := os.Getenv("DATABASE_URL")
+	var err error
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		log.Fatal(err)
+		return false, err
 	}
+
+	defer db.Close()
 
 	exists, err := checkIfUserExists(userName, db)
 	if !exists {
 		println("no user found with name", userName)
-		return false
+		return false, nil
 	}
 
 	hashPW, err := getPW(db, userName)
@@ -112,11 +117,11 @@ func CheckLoginUser(userName string, enteredPassword string) bool {
 
 	defer db.Close()
 
-	return checkPasswordHash(enteredPassword, hashPW)
+	return checkPasswordHash(enteredPassword, hashPW), nil
 }
 
 func getPW(db *sql.DB, userName string) (string, error) {
-	stmt, err := db.Prepare("SELECT PASSWORD FROM users WHERE USERNAME = ?")
+	stmt, err := db.Prepare("SELECT PASSWORD FROM users WHERE USERNAME = $1")
 	if err != nil {
 		return "", fmt.Errorf("prepare insert: %w", err)
 	}
@@ -138,7 +143,7 @@ func getPW(db *sql.DB, userName string) (string, error) {
 
 func checkIfUserExists(userName string, db *sql.DB) (bool, error) {
 	var exists bool
-	query := `SELECT EXISTS(SELECT 1 FROM users WHERE username = ? LIMIT 1)`
+	query := `SELECT EXISTS(SELECT 1 FROM users WHERE username = $1 LIMIT 1)`
 	err := db.QueryRow(query, userName).Scan(&exists)
 	if err != nil {
 		return false, err
@@ -149,7 +154,7 @@ func checkIfUserExists(userName string, db *sql.DB) (bool, error) {
 }
 
 func updateLastLogin(db *sql.DB, userID int) error {
-	query := `UPDATE users SET last_login = current_timestamp WHERE id = ?`
+	query := `UPDATE users SET last_login = current_timestamp WHERE id = $1`
 	_, err := db.Exec(query, userID)
 	if err != nil {
 		return fmt.Errorf("erorr updating logintime for userid %d, %w", userID, err)

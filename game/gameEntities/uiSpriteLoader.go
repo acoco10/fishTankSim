@@ -10,12 +10,13 @@ import (
 type UISpriteLabel string
 
 const (
-	Records  UISpriteLabel = "records"
-	FishFood UISpriteLabel = "fishFood"
-	FishBook UISpriteLabel = "book"
+	Records      UISpriteLabel = "records"
+	FishFood     UISpriteLabel = "fishFood"
+	FishBook     UISpriteLabel = "book"
+	SubmitButton UISpriteLabel = "submitButton"
 )
 
-var uiElements = []UISpriteLabel{Records, FishBook, FishFood}
+var uiElements = []UISpriteLabel{Records, FishBook, FishFood, SubmitButton}
 
 func loadUiSpritesImgs(label UISpriteLabel) ([]*ebiten.Image, error) {
 	var imgs []*ebiten.Image
@@ -25,7 +26,7 @@ func loadUiSpritesImgs(label UISpriteLabel) ([]*ebiten.Image, error) {
 		assetName := string(label) + tag
 		img, err := LoadImageAssetAsEbitenImage("uiSprites/" + assetName)
 		if err != nil {
-			log.Printf("%s not found for loading uiSprite %s, proceeding with loading other files. error msg: %s", assetName, string(label), err)
+			log.Printf("%s not found for loading UiSprite %s, proceeding with loading other files. error msg: %s", assetName, string(label), err)
 		} else {
 			imgs = append(imgs, img)
 		}
@@ -33,7 +34,7 @@ func loadUiSpritesImgs(label UISpriteLabel) ([]*ebiten.Image, error) {
 	return imgs, nil
 }
 
-func LoadUISprites(hub EventHub, screenWidth, screenHeight int) ([]DrawableSprite, error) {
+func LoadUISprites(spritesToLoad []UISpriteLabel, hub *EventHub, screenWidth, screenHeight int) ([]DrawableSprite, error) {
 	var sprites []DrawableSprite
 
 	spritePositions, err := loadSpritePositionData()
@@ -41,14 +42,14 @@ func LoadUISprites(hub EventHub, screenWidth, screenHeight int) ([]DrawableSprit
 		return nil, err
 	}
 
-	for _, elem := range uiElements {
+	for _, elem := range spritesToLoad {
 		x := spritePositions[string(elem)].X
 		y := spritePositions[string(elem)].Y
 		imgs, err := loadUiSpritesImgs(elem)
 		if err != nil {
 			return sprites, err
 		}
-		sprite := NewUiSprite(imgs, &hub, x, y, string(elem), screenWidth, screenHeight)
+		sprite := NewUiSprite(imgs, hub, x, y, string(elem), screenWidth, screenHeight)
 		if elem == FishFood {
 			s2 := FishFoodSprite{sprite}
 			sprites = append(sprites, &s2)

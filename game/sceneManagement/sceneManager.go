@@ -2,21 +2,24 @@ package sceneManagement
 
 import (
 	"fishTankWebGame/game/gameEntities"
+	"fishTankWebGame/game/soundFX"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
 type GameLog struct {
-	PlayerLoginId string
-	PreviousScene SceneId
-	Mode          GameMode
+	PlayerLoginId  string
+	PreviousScene  SceneId
+	Save           *gameEntities.SaveGameState
+	GlobalEventHub *gameEntities.EventHub
+	SongPlayer     *soundFX.SongPlayer
+	SoundPlayer    *soundFX.SongPlayer
 }
 
 type SceneId uint
 
 const (
 	FishTank SceneId = iota
-	StartingScreenNewSave
-	StartingScreenExistingSave
+	StartScene
 )
 
 type GameMode uint
@@ -28,7 +31,7 @@ const (
 type Scene interface {
 	Update() (SceneId, error)
 	Draw(screen *ebiten.Image)
-	FirstLoad(state gameEntities.SaveGameState)
+	FirstLoad(gameLog *GameLog)
 	OnEnter()
 	OnExit()
 	IsLoaded() bool

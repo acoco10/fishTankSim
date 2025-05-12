@@ -4,12 +4,15 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 )
 
 func Save(userName string, saveJson string) error {
-	db, err := sql.Open("sqlite3", file)
+	dsn := os.Getenv("DATABASE_URL")
+	var err error
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	defer db.Close()
@@ -44,7 +47,7 @@ func Save(userName string, saveJson string) error {
 
 func updateSave(db *sql.DB, userID int, saveJson string) error {
 	stmt, err := db.Prepare(
-		"UPDATE saves SET state_json = ? WHERE user_id = ?")
+		"UPDATE saves SET state_json = $1 WHERE user_id = $2")
 	if err != nil {
 		return fmt.Errorf("prepare insert: %w", err)
 	}
@@ -62,7 +65,7 @@ func updateSave(db *sql.DB, userID int, saveJson string) error {
 }
 
 func createSave(db *sql.DB, userID int, saveJson string) error {
-	stmt, err := db.Prepare("INSERT INTO saves (user_id, state_json) VALUES (?, ?)")
+	stmt, err := db.Prepare("INSERT INTO saves (user_id, state_json) VALUES ($1, $2)")
 	if err != nil {
 		return fmt.Errorf("prepare insert: %w", err)
 	}
@@ -79,7 +82,7 @@ func createSave(db *sql.DB, userID int, saveJson string) error {
 }
 
 func checkIfSaveExists(db *sql.DB, userId int) (bool, error) {
-	stmt, err := db.Prepare("SELECT EXISTS(SELECT 1 FROM saves WHERE user_id = ?)")
+	stmt, err := db.Prepare("SELECT EXISTS(SELECT 1 FROM saves WHERE user_id = $1)")
 	if err != nil {
 		return false, fmt.Errorf("prepare insert: %w", err)
 	}
@@ -98,7 +101,7 @@ func checkIfSaveExists(db *sql.DB, userId int) (bool, error) {
 }
 
 func getUserID(db *sql.DB, userName string) (int, error) {
-	stmt, err := db.Prepare("select id from users where username = ?")
+	stmt, err := db.Prepare("select id from users where username = $1")
 	if err != nil {
 		return 0, fmt.Errorf("prepare insert: %w", err)
 	}

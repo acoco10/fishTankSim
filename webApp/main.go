@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fishTankWebGame/webApp/db"
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"webApp/db"
 
 	"io"
 	"log"
@@ -47,14 +47,14 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	mu.Lock()
 	defer mu.Unlock()
-
-	if !db.CheckLoginUser(u.Username, u.Password) {
+	dbCheck, err := db.CheckLoginUser(u.Username, u.Password)
+	if !dbCheck {
 		http.Error(w, `{"error":"Invalid login"}`, http.StatusUnauthorized)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	err := json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
+	err = json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
 	if err != nil {
 		return
 	}
@@ -66,24 +66,34 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 func registerHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		log.Printf("Invalid method: %s at /register", r.Method)
 		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var u User
-	json.NewDecoder(r.Body).Decode(&u)
+	if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
+		log.Printf("Failed to decode request body: %v", err)
+		http.Error(w, `{"error":"Invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+	log.Printf("Register attempt: username=%s", u.Username)
 
 	mu.Lock()
 	defer mu.Unlock()
 
 	msg, err := db.NewUser(u.Username, u.Password)
 	if err != nil {
+		log.Printf("Failed to register user '%s': %v", u.Username, err)
+		http.Error(w, `{"error":"Registration failed"}`, http.StatusInternalServerError)
 		return
 	}
 
-	err = json.NewEncoder(w).Encode(map[string]string{"message": msg})
-	if err != nil {
-		return
+	log.Printf("User '%s' registered successfully", u.Username)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]string{"message": msg}); err != nil {
+		log.Printf("Failed to encode response for user '%s': %v", u.Username, err)
 	}
 }
 
@@ -178,8 +188,7 @@ func testWasmLocallyInitServer() {
 		w.Header().Set("Content-Type", "application/wasm")
 		http.ServeFile(w, r, "static/main.wasm")
 	})
-	log.Println("Server starting on :8080...")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
 }
 
 func generatePresignedURL() string {
@@ -207,7 +216,7 @@ func generatePresignedURL() string {
 func handleGetWasmURL(w http.ResponseWriter, r *http.Request) {
 	// Configuration
 
-	// Generate the presigned URL using utility function
+	// Generate the pre signed URL using utility function
 	wasmURL := generatePresignedURL()
 
 	fmt.Println("Pre-signed URL:", wasmURL)
@@ -228,12 +237,15 @@ func initServer() {
 	http.HandleFunc("/load", loadHandler)
 
 	http.HandleFunc("/get-wasm-url", handleGetWasmURL)
-	log.Println("Server starting on :8080...")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
 }
 
 func main() {
+	port := os.Getenv("PORT")
 
+	if port == "" {
+		log.Fatal("$PORT must be set")
+	}
 	var arg string
 
 	if len(os.Args) > 1 {
@@ -244,6 +256,14 @@ func main() {
 	if arg == "local" {
 		testWasmLocallyInitServer()
 	} else {
+
 		initServer()
+
+		log.Printf("Listening on :%s...", port)
+		err := http.ListenAndServe(":"+port, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 	}
 }

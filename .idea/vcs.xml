@@ -2,7 +2,11 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/wasmMain" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/webApp" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/webApp/Server" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../go_projects/ebiten ui pull" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../go_projects/ebiten ui pull/ebitenui" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../shaderTutorial/kage-desk" vcs="Git" />
   </component>
 </project>

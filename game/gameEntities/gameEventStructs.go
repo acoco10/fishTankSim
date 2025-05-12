@@ -30,3 +30,13 @@ type RequestData struct {
 	DataType   string
 	RequestFor any
 }
+
+type UISpriteAction struct {
+	UiSprite       string
+	UiSpriteAction string
+}
+
+type ButtonEvent struct {
+	ButtonText string
+	EType      string
+}

@@ -3,6 +3,7 @@ package gameEntities
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"math"
 )
 
 type DrawableSprite interface {
@@ -28,6 +29,7 @@ const (
 
 type UiSprite struct {
 	*Sprite
+	baseX, baseY           float32
 	HoverImg               *ebiten.Image
 	AltImg                 *ebiten.Image
 	AltOffsetX, AltOffsetY float32
@@ -63,12 +65,14 @@ func (us *UiSprite) Draw(screen *ebiten.Image) {
 }
 
 func (us *UiSprite) Update() {
+
 	switch us.gameMode {
 	case Normal:
 		us.UpdateNormal()
 	case Position:
 		us.UpdatePosition()
 	}
+
 }
 
 func (us *UiSprite) UpdatePosition() {
@@ -76,6 +80,7 @@ func (us *UiSprite) UpdatePosition() {
 	if us.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		us.XYUpdater = NewUpdater(us.Sprite)
 	}
+
 	if us.XYUpdater != nil {
 		us.XYUpdater.Update()
 	}
@@ -89,8 +94,13 @@ func (us *UiSprite) UpdatePosition() {
 }
 func (us *UiSprite) UpdateNormal() {
 	us.updateState()
+
 	if us.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && us.state == Selected {
 		us.XYUpdater = NewUpdater(us.Sprite)
+		ev := UISpriteAction{}
+		ev.UiSprite = us.Label
+		ev.UiSpriteAction = "picked up"
+		us.EventHub.Publish(ev)
 	}
 
 	if us.XYUpdater != nil {
@@ -100,29 +110,41 @@ func (us *UiSprite) UpdateNormal() {
 	x, y := ebiten.CursorPosition()
 
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && us.state == Clicked {
-		if us.AltImg != nil && us.stateWas != Clicked {
-			if us.AltImg != nil {
-				img := us.Sprite.Img
-				us.Sprite.Img = us.AltImg
-				us.AltImg = img
-			}
-		}
+
 		ev := MouseButtonPressed{
 			Point: &Point{X: float32(x), Y: float32(y), PType: Food},
 		}
+
 		us.EventHub.Publish(ev)
 	}
 
-	if us.stateWas == Clicked && us.state != Clicked {
-		if us.AltImg != nil {
-			img := us.Img
-			us.Sprite.Img = us.AltImg
-			us.AltImg = img
-		}
+	baseDis := math.Hypot(float64(us.X-us.baseX), float64(us.Y-us.baseY))
 
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		if us.state == Selected && baseDis < 100 && us.stateWas == Selected {
+			us.returnToBase()
+
+		}
+	}
+
+	if ebiten.IsKeyPressed(ebiten.KeyEscape) {
+		if baseDis != 0 {
+			us.returnToBase()
+		}
 	}
 
 	us.stateWas = us.state
+}
+
+func (us *UiSprite) returnToBase() {
+	us.state = Hovered
+	us.X = us.baseX
+	us.Y = us.baseY
+	ev := UISpriteAction{}
+	ev.UiSprite = us.Label
+	ev.UiSpriteAction = "put back"
+	us.EventHub.Publish(ev)
+	us.XYUpdater = nil
 }
 
 func (us *UiSprite) updateState() {
@@ -134,11 +156,14 @@ func (us *UiSprite) updateState() {
 		us.state = Hovered
 	}
 
-	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && us.state == Hovered {
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && us.state == Hovered {
 		us.state = Selected
 	}
+
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && us.state == Selected && us.stateWas == Selected {
-		us.state = Clicked
+		if us.Y < 200 {
+			us.state = Clicked
+		}
 	}
 
 	if us.state == Clicked && inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
@@ -148,6 +173,8 @@ func (us *UiSprite) updateState() {
 
 func NewUiSprite(imgs []*ebiten.Image, hub *EventHub, x, y float32, label string, screenWidth, screenHeight int) *UiSprite {
 	uis := UiSprite{Sprite: &Sprite{X: x, Y: y}}
+	uis.baseX = x
+	uis.baseY = y
 	uis.Label = label
 	uis.EventHub = hub
 
@@ -217,8 +244,24 @@ type FishFoodSprite struct {
 }
 
 func (ff *FishFoodSprite) Draw(screen *ebiten.Image) {
+
+	var paramaMapa = make(map[string]any)
+	sopts := ebiten.DrawRectShaderOptions{}
+	baseColor := [4]float64{0.2, 0.1, 0.05, 255}
+	paramaMapa["OutlineColor"] = baseColor
+
+	shader := LoadSolidColorShader()
+
+	sopts.GeoM.Translate(float64(ff.baseX), float64(ff.baseY))
+	b := ff.Img.Bounds()
+
+	sopts.Images[0] = ff.Img
+	sopts.Uniforms = paramaMapa
+
+	screen.DrawRectShader(b.Dx(), b.Dy(), shader, &sopts)
 	opts := ebiten.DrawImageOptions{}
-	if ff.state == Idle || ff.state == Clicked {
+
+	if ff.state == Idle {
 		opts.GeoM.Translate(float64(ff.X), float64(ff.Y))
 		screen.DrawImage(ff.Img, &opts)
 		opts.GeoM.Reset()
@@ -227,6 +270,12 @@ func (ff *FishFoodSprite) Draw(screen *ebiten.Image) {
 			opts.GeoM.Translate(float64(ff.X), float64(ff.Y))
 			opts.GeoM.Translate(float64(ff.AltOffsetX), float64(ff.AltOffsetY))
 			screen.DrawImage(ff.HoverImg, &opts)
+			opts.GeoM.Reset()
 		}
+	} else if ff.state == Clicked {
+		opts.GeoM.Translate(float64(ff.X), float64(ff.Y))
+		screen.DrawImage(ff.AltImg, &opts)
+		opts.GeoM.Reset()
 	}
+
 }

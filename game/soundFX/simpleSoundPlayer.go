@@ -21,12 +21,19 @@ func NewSongPlayer() (*SongPlayer, error) {
 	return &s, nil
 }
 
-func (s SongPlayer) Play(id resource.AudioID) {
+func (s *SongPlayer) Play(id resource.AudioID) {
+
 	sfx := s.Loader.LoadWAV(id).Player
 
 	err := sfx.Rewind()
 	if err != nil {
 		log.Printf("%q Rewind: %s", id, err)
 	}
+
+	s.Player = sfx
 	sfx.Play()
+}
+
+func (s *SongPlayer) Pause() {
+	s.Player.Pause()
 }

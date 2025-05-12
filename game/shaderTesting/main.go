@@ -3,8 +3,9 @@ package main
 import (
 	"fishTankWebGame/game/gameEntities"
 	"fishTankWebGame/game/shaderHelpers"
+	ui2 "fishTankWebGame/game/ui"
+	"github.com/ebitenui/ebitenui"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 	"image/color"
 	"log"
 )
@@ -21,8 +22,8 @@ const (
 // ... (rest of your import statements and setup)
 
 var (
-	outlineColor  = [4]float64{10, 10, 10, 255}           // Yellow outline
-	outlineColor2 = color.RGBA{R: 1, G: 50, B: 1, A: 255} // Yellow outline
+	outlineColor  = [4]float64{0.2, 0.1, 0.05, 255}        // Yellow outline
+	outlineColor2 = color.RGBA{R: 1, G: 255, B: 1, A: 255} // Yellow outline
 )
 
 const (
@@ -40,6 +41,8 @@ type Game struct {
 	drawPointY    float32
 	direction     Direction
 	shaderParams  map[string]any
+	ui            *ebitenui.UI
+	ehub          *gameEntities.EventHub
 }
 
 func newGame() *Game {
@@ -48,12 +51,14 @@ func newGame() *Game {
 	if err != nil {
 		log.Fatal(err)
 	}
+	g.ehub = gameEntities.NewEventHub()
+	g.ui, _, err = ui2.LoadMainFishMenu(10, 0, g.ehub)
 
 	g.img = img
 	g.drawPointX = 0
 	g.drawPointY = 0
 
-	outlineShader := gameEntities.LoadOutlineShader()
+	outlineShader := gameEntities.LoadSolidColorShader()
 	g.s = outlineShader
 	g.direction = Right
 
@@ -88,6 +93,7 @@ func UpdateDPoint(g *Game) {
 	if g.direction == Up {
 		g.drawPointY--
 	}
+	g.ui.Update()
 }
 
 func UpdateDirection(currentD Direction, x, y float32, xBound, yBound float32) Direction {
@@ -130,7 +136,7 @@ func (g *Game) Update() error {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.Black)
-
+	g.ui.Draw(screen)
 	opts := &ebiten.DrawRectShaderOptions{}
 	opts.Images[0] = g.img
 	opts.Uniforms = g.shaderParams
@@ -141,7 +147,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	//opts := &ebiten.DrawImageOptions{}
 	//screen.DrawImage(g.img, opts)
 
-	vector.StrokeCircle(screen, float32(g.drawPointX)+200, float32(g.drawPointY)+200, 10, 10, outlineColor2, true)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {

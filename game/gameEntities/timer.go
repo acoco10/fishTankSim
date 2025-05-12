@@ -56,5 +56,7 @@ func (t *Timer) TurnOn() {
 }
 
 func (t *Timer) TurnOff() {
+	t.Reset()
 	t.on = false
+	t.TimerState = Reset
 }

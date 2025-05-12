@@ -8,10 +8,6 @@ const (
 	OtherCreature
 )
 
-type ShowCoord interface {
-	Coord() (x, y float32)
-}
-
 type Point struct {
 	X, Y  float32
 	PType InterestPoint

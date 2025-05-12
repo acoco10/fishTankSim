@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/html" xmlns="http://www.w3.org/1999/html">
+<head>
+    <title>Fish Fish Fish!</title>
+    <meta charset="utf-8">
+    <style>
+        body {
+            background-color: #121212;
+            color: #f0f0f0;
+            font-family: sans-serif;
+            text-align: center;
+            margin-top: 20px;
+        }
+        textarea {
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            border: 1px solid #444;
+        }
+        canvas {
+            display: block;
+            margin: 20px auto;
+            border: 1px solid #333;
+        }
+    </style>
+
+</head>
+<body>
+<h1>Feed the Fish!</h1>
+<p id="welcome"></p>
+
+<canvas id="game" width="640" height="480"></canvas>
+
+<script src="../../wasmMain/wasm_exec.js"></script>
+<script>
+
+
+    const base = "http://localhost:8080";
+    const username = localStorage.getItem("username");
+    const password = localStorage.getItem("password")
+
+    const go = new Go();
+
+    fetch('/get-wasm-url')
+        .then(response => response.json())
+        .then(data => {
+            const wasmUrl = data.url; // Get the presigned URL
+            // Fetch and instantiate the WebAssembly module
+            WebAssembly.instantiateStreaming(fetch(wasmUrl), go.importObject)
+                .then(result => {
+                    console.log("WebAssembly module instantiated!");
+                    go.run(result.instance);
+                })
+                .catch(err => {
+                    console.error("Failed to execute WebAssembly:", err);
+                });
+        })
+        .catch(err => {
+            console.error("Error fetching presigned URL:", err);
+        });
+
+
+   /*
+    WebAssembly.instantiate(fetch(wasmUrl), go.importObject)
+        .then(async (result) => {
+            await go.run(result.instance);
+        })
+        .catch(err => {
+            console.error("Failed to instantiate WASM:", err);
+
+    });*/
+</script>
+<script>
+    window.saveGame = function (data) {
+        fetch(`${base}/save`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, state: data })
+        })
+            .then(() => console.log("FishScene saved!"))
+            .catch(err => {
+                console.warn("Failed to save game:", err.message);
+            });
+    }
+</script>
+<script>
+    window.loadSaveData = async function () {
+        try{
+        const res = await(
+        fetch(`${base}/load`, {
+            method: "POST",
+            body: JSON.stringify({ username, password})
+        }));
+        return await res.json();
+        } catch (err){
+            console.warn("Failed to load game:", err.message);
+            return null;
+        }
+    };
+
+</script>
+

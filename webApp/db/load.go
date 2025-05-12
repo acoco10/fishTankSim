@@ -3,13 +3,15 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"os"
 )
 
 func LoadSave(userName string) (string, error) {
-	db, err := sql.Open("sqlite3", file)
+	dsn := os.Getenv("DATABASE_URL")
+	var err error
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		log.Fatal(err)
+		return " ", err
 	}
 
 	defer db.Close()
@@ -29,7 +31,7 @@ func LoadSave(userName string) (string, error) {
 }
 
 func load(db *sql.DB, userID int) (string, error) {
-	stmt, err := db.Prepare("select  state_json from saves where user_id = ?")
+	stmt, err := db.Prepare("select  state_json from saves where user_id = $1")
 	if err != nil {
 		return "", fmt.Errorf("prepare insert: %w", err)
 	}

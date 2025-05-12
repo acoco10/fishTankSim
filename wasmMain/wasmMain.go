@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"fishTankWebGame/game"
-	"fishTankWebGame/game/gameEntities"
 	"fmt"
+	"github.com/acoco10/fishTankWebGame/game"
+	"github.com/acoco10/fishTankWebGame/game/gameEntities"
+	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
+	"github.com/acoco10/fishTankWebGame/game/soundFX"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
 	"syscall/js"
@@ -18,7 +20,6 @@ type GameState struct {
 func main() {
 	loadFunc := js.Global().Get("loadSaveData")
 	promise := loadFunc.Invoke()
-
 	// Wait for it
 	result, err := game.AwaitPromise(promise)
 	if err != nil {
@@ -28,6 +29,7 @@ func main() {
 	println("go result from promise:", result.String())
 
 	bytes := []byte(js.Global().Get("JSON").Call("stringify", result).String())
+
 	var data GameState
 	json.Unmarshal(bytes, &data)
 	var state gameEntities.SaveGameState
@@ -46,9 +48,23 @@ func main() {
 		println("fish", n, fish.Size)
 	}
 
-	g := game.NewGame(state)
+	gameLog := sceneManagement.GameLog{}
+	gameLog.Save = &state
+
+	eHub := gameEntities.NewEventHub()
+	gameLog.GlobalEventHub = eHub
+
+	sp, err := soundFX.NewSongPlayer()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	gameLog.SongPlayer = sp
+
+	g := game.NewGame(&gameLog)
 	err = ebiten.RunGame(g)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 }

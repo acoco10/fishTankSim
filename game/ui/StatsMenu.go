@@ -4,23 +4,22 @@ import (
 	"fishTankWebGame/assets"
 	"fishTankWebGame/game/gameEntities"
 	"fmt"
-	"github.com/ebitenui/ebitenui"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"image/color"
 )
 
 type TextBoxUi struct {
-	*ebitenui.UI
+	*widget.Container
 	text     *widget.TextArea
 	triggerd bool
 	eventhub *gameEntities.EventHub
 }
 
-func NewTextBlocKMenu(hub *gameEntities.EventHub) (*TextBoxUi, error) {
+func NewTextBlockContainer(hub *gameEntities.EventHub) (*TextBoxUi, error) {
 	t := &TextBoxUi{}
+
 	t.eventhub = hub
 	face, err := LoadFont(10)
 	if err != nil {
@@ -36,12 +35,19 @@ func NewTextBlocKMenu(hub *gameEntities.EventHub) (*TextBoxUi, error) {
 
 	// construct a new container that serves as the root of the UI hierarchy
 	rootContainer := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(eimage.NewNineSliceColor(color.White)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				VerticalPosition:   widget.AnchorLayoutPositionStart,
+				HorizontalPosition: widget.AnchorLayoutPositionStart,
+				StretchHorizontal:  false,
+				StretchVertical:    false,
+			}),
+		),
+		widget.ContainerOpts.BackgroundImage(eimage.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
 		// the container will use an anchor layout to layout its single child widget
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
 			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-			widget.RowLayoutOpts.Padding(
-				widget.Insets{Right: 670, Left: 0, Top: 100, Bottom: 0},
-			),
 		)),
 	)
 
@@ -51,17 +57,22 @@ func NewTextBlocKMenu(hub *gameEntities.EventHub) (*TextBoxUi, error) {
 	textarea := widget.NewTextArea(
 		widget.TextAreaOpts.ContainerOpts(
 			widget.ContainerOpts.WidgetOpts(
+				widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+					VerticalPosition:   widget.AnchorLayoutPositionStart,
+					HorizontalPosition: widget.AnchorLayoutPositionStart,
+					StretchHorizontal:  false,
+					StretchVertical:    false,
+				}),
 				//Set the layout data for the textarea
 				//including a max height to ensure the scroll bar is visible
 				widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-					Position:  widget.RowLayoutPositionCenter,
-					MaxWidth:  200,
-					MaxHeight: 600,
+					Position: widget.RowLayoutPositionCenter,
 				}),
 				//Set the minimum size for the widget
-				widget.WidgetOpts.MinSize(100, 100),
+				widget.WidgetOpts.MinSize(160, 120),
 			),
 		),
+
 		widget.TextAreaOpts.ControlWidgetSpacing(2),
 		widget.TextAreaOpts.ProcessBBCode(true),
 		widget.TextAreaOpts.FontColor(color.White),
@@ -108,15 +119,12 @@ func NewTextBlocKMenu(hub *gameEntities.EventHub) (*TextBoxUi, error) {
 	// add the textarea as a child of the container
 	rootContainer.AddChild(textarea)
 
-	ui := ebitenui.UI{
-		Container: rootContainer,
-	}
-
-	t.UI = &ui
+	t.Container = rootContainer
 
 	t.subs()
 
 	return t, nil
+
 }
 
 func (t *TextBoxUi) subs() {
@@ -124,15 +132,9 @@ func (t *TextBoxUi) subs() {
 		ev := e.(gameEntities.SendData)
 		if ev.DataFor == "statsMenu" {
 			t.UpdateTextArea(ev.Data)
-			t.Trigger()
+			t.text.GetWidget().Visibility = widget.Visibility_Show
 		}
 	})
-}
-
-func (t *TextBoxUi) Draw(screen *ebiten.Image) {
-	if t.triggerd {
-		t.UI.Draw(screen)
-	}
 }
 
 func (t *TextBoxUi) RequestData(target any) {

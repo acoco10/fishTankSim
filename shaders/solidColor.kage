@@ -1,0 +1,15 @@
+//kage:unit pixels
+package main
+
+var Resolution vec2
+var OutlineColor vec4
+
+func Fragment(position vec4, texCoord vec2, _ vec4) vec4 {
+   color := imageSrc0UnsafeAt(texCoord)
+
+    if color.a != 0.0 {
+        return OutlineColor
+    }else{
+    return vec4(0,0,0,0)
+    }
+}
