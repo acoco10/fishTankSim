@@ -1,8 +1,8 @@
 package gameEntities
 
 import (
-	"fishTankWebGame/assets"
 	"fmt"
+	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )

@@ -2,7 +2,7 @@ package debug
 
 import (
 	"encoding/json"
-	"fishTankWebGame/assets"
+	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"

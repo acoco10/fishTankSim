@@ -2,8 +2,8 @@ package soundFX
 
 import (
 	"bytes"
-	"fishTankWebGame/assets"
 	"fmt"
+	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	resource "github.com/quasilyte/ebitengine-resource"
 	"io"
@@ -57,7 +57,7 @@ func LoadSounds() (*resource.Loader, error) {
 
 		SoundData[name] = song
 		println("saving audio id:", resource.AudioID(i))
-		audioRegMap[resource.AudioID(i)] = resource.AudioInfo{Path: name, Volume: 0.2}
+		audioRegMap[resource.AudioID(i)] = resource.AudioInfo{Path: name, Volume: -0.5}
 
 	}
 

@@ -1,9 +1,9 @@
 package ui
 
 import (
-	"fishTankWebGame/assets"
-	"fishTankWebGame/game/gameEntities"
 	"fmt"
+	"github.com/acoco10/fishTankWebGame/assets"
+	"github.com/acoco10/fishTankWebGame/game/gameEntities"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"

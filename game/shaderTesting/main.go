@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fishTankWebGame/game/gameEntities"
-	"fishTankWebGame/game/shaderHelpers"
-	ui2 "fishTankWebGame/game/ui"
+	"github.com/acoco10/fishTankWebGame/game/gameEntities"
+	"github.com/acoco10/fishTankWebGame/game/shaderHelpers"
+	ui2 "github.com/acoco10/fishTankWebGame/game/ui"
 	"github.com/ebitenui/ebitenui"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image/color"

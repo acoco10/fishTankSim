@@ -2,12 +2,12 @@ package game
 
 import (
 	"encoding/json"
-	"fishTankWebGame/game/debug"
-	"fishTankWebGame/game/gameEntities"
-	"fishTankWebGame/game/sceneManagement"
-	"fishTankWebGame/game/soundFX"
-	"fishTankWebGame/game/ui"
 	"fmt"
+	"github.com/acoco10/fishTankWebGame/game/debug"
+	"github.com/acoco10/fishTankWebGame/game/gameEntities"
+	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
+	"github.com/acoco10/fishTankWebGame/game/soundFX"
+	"github.com/acoco10/fishTankWebGame/game/ui"
 	"github.com/ebitenui/ebitenui"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
@@ -49,17 +49,13 @@ const (
 )
 
 func NewFishScene(gameLog *sceneManagement.GameLog) *FishScene {
-
 	backGroundImgShelfHeight := 124
 
 	println("initiating game in ebiten NewFishScene()")
 
 	g := &FishScene{}
-
 	g.GameLog = gameLog
-
-	fishes := gameLog.Save
-
+	g.Creatures = []*gameEntities.Creature{}
 	collisionMap, err := debug.LoadCollisions()
 	if err != nil {
 		log.Fatal(err)
@@ -68,14 +64,6 @@ func NewFishScene(gameLog *sceneManagement.GameLog) *FishScene {
 	err = g.loadBackground()
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	for i, fish := range fishes.Fish {
-		println("saved fish: ", i, "size: ", fish.Size)
-	}
-
-	if len(fishes.Fish) == 0 {
-
 	}
 
 	g.debugRect = &debug.Rect{}
@@ -106,11 +94,6 @@ func NewFishScene(gameLog *sceneManagement.GameLog) *FishScene {
 	g.tankSize = tankRect
 	g.loaded = true
 
-	for _, fish := range fishes.Fish {
-		loadedFish := gameEntities.NewFish(g.eventHub, collisionMap["tank"], fish)
-		g.Creatures = append(g.Creatures, loadedFish)
-	}
-
 	g.gameMode = Normal
 
 	subs(g, collisionMap)
@@ -131,13 +114,27 @@ func NewFishScene(gameLog *sceneManagement.GameLog) *FishScene {
 
 func (g *FishScene) FirstLoad(gameLog *sceneManagement.GameLog) {
 	NewFishScene(gameLog)
+
 }
 
 func (g *FishScene) OnExit() {
 
 }
 
-func (g *FishScene) OnEnter() {
+func (g *FishScene) OnEnter(gameLog *sceneManagement.GameLog) {
+
+	collisionMap, err := debug.LoadCollisions()
+	if err != nil {
+		log.Fatal(err)
+	}
+	g.GameLog = gameLog
+	println("length of game log save = ", g.GameLog.Save)
+	fishes := g.GameLog.Save
+
+	for _, fish := range fishes.Fish {
+		loadedFish := gameEntities.NewFish(g.eventHub, collisionMap["tank"], fish)
+		g.Creatures = append(g.Creatures, loadedFish)
+	}
 	g.songTimer.TurnOn()
 }
 
@@ -227,11 +224,11 @@ func subs(g *FishScene, colMap map[string]debug.Rect) {
 		xCheck := ev.Point.X > float32(g.tankSize.Min.X)+100 && ev.Point.X < float32(g.tankSize.Max.X)
 		yCheck := ev.Point.Y < float32(g.tankSize.Min.Y)-20
 
-		if xCheck && yCheck {
+		if xCheck && yCheck && g.counter%19 == 0 {
 			x := rand.Float32() * 10
 			ev.Point.X = ev.Point.X - 50 + x
 			ev.Point.Y += 50
-			p := gameEntities.NewParticle(ev.Point, colMap["tank"])
+			p := gameEntities.NewParticle(ev.Point, colMap["tank"], g.eventHub)
 			g.particles = append(g.particles, &p)
 
 			pointEvent := gameEntities.PointGenerated{Point: ev.Point}
@@ -257,6 +254,13 @@ func subs(g *FishScene, colMap map[string]debug.Rect) {
 		case "Mode":
 			println("Mode button event received")
 			g.SwitchGameMode()
+		}
+	})
+
+	g.eventHub.Subscribe(gameEntities.SendData{}, func(e gameEntities.Event) {
+		ev := e.(gameEntities.SendData)
+		if ev.DataFor == "soundFx" && ev.Data == "particle entered water" {
+			g.GameLog.SoundPlayer.Play(soundFX.PlopSound)
 		}
 	})
 

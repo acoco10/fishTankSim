@@ -1,7 +1,7 @@
 package gameEntities
 
 import (
-	"fishTankWebGame/game/debug"
+	"github.com/acoco10/fishTankWebGame/game/debug"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
 	"math/rand"

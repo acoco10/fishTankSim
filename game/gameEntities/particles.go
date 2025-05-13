@@ -1,7 +1,7 @@
 package gameEntities
 
 import (
-	"fishTankWebGame/game/debug"
+	"github.com/acoco10/fishTankWebGame/game/debug"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"image/color"
@@ -16,6 +16,7 @@ type Particle struct {
 	waterLevel        float32
 	floorLevel        float32
 	underWaterCounter int
+	eventHub          *EventHub
 }
 
 func (p *Particle) float() {
@@ -41,7 +42,12 @@ func (p *Particle) float() {
 
 func (p *Particle) Update() {
 	p.counter++
-	if !p.underWater && p.Y > p.waterLevel {
+
+	if !p.underWater && p.Y > p.waterLevel+10 {
+		ev := SendData{Data: "particle entered water",
+			DataFor: "soundFx"}
+		p.eventHub.Publish(ev)
+
 		initialNoise := math.Sin(rand.Float64()*10) * 30
 		p.X += float32(initialNoise)
 		p.underWater = true
@@ -56,7 +62,7 @@ func (p *Particle) Draw(screen *ebiten.Image) {
 	vector.DrawFilledCircle(screen, p.X, p.Y, 2, clr, false)
 }
 
-func NewParticle(point *Point, rect debug.Rect) Particle {
+func NewParticle(point *Point, rect debug.Rect, hub *EventHub) Particle {
 
 	p := Particle{
 		point,
@@ -65,6 +71,7 @@ func NewParticle(point *Point, rect debug.Rect) Particle {
 		rect.Y1,
 		rect.Y2,
 		0,
+		hub,
 	}
 
 	return p

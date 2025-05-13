@@ -5,34 +5,70 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+type UserType int8
+
+const (
+	NewUser UserType = iota
+	ExistingUser
+)
+
 type Game struct {
 	sceneMap      map[sceneManagement.SceneId]sceneManagement.Scene
 	activeSceneId sceneManagement.SceneId
 	gameLog       *sceneManagement.GameLog
 }
 
-func NewGame(log *sceneManagement.GameLog) *Game {
+func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
 
-	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+	switch userType {
+	case NewUser:
+		ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
-	activeSceneId := sceneManagement.StartScene
+		activeSceneId := sceneManagement.StartScene
 
-	ebiten.SetWindowSize(ScreenWidth, ScreenHeight)
+		ebiten.SetWindowSize(ScreenWidth, ScreenHeight)
 
-	sceneMap := map[sceneManagement.SceneId]sceneManagement.Scene{
-		sceneManagement.StartScene: NewStartScene(log),
-		sceneManagement.FishTank:   NewFishScene(log),
+		sceneMap := map[sceneManagement.SceneId]sceneManagement.Scene{
+			sceneManagement.StartScene: NewStartScene(log),
+			sceneManagement.FishTank:   NewFishScene(log),
+		}
+
+		game := &Game{
+			sceneMap,
+			activeSceneId,
+			log,
+		}
+
+		sceneMap[activeSceneId].FirstLoad(game.gameLog)
+
+		return game
+	case ExistingUser:
+
+		println("existing user save = ", log.Save.Fish[0].FishType)
+		ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+
+		activeSceneId := sceneManagement.FishTank
+
+		ebiten.SetWindowSize(ScreenWidth, ScreenHeight)
+
+		sceneMap := map[sceneManagement.SceneId]sceneManagement.Scene{
+			sceneManagement.FishTank: NewFishScene(log),
+		}
+
+		game := &Game{
+			sceneMap,
+			activeSceneId,
+			log,
+		}
+
+		sceneMap[activeSceneId].FirstLoad(game.gameLog)
+
+		sceneMap[activeSceneId].OnEnter(log)
+
+		return game
 	}
 
-	game := &Game{
-		sceneMap,
-		activeSceneId,
-		log,
-	}
-
-	sceneMap[activeSceneId].FirstLoad(game.gameLog)
-
-	return game
+	return nil
 }
 
 func (g *Game) Update() error {
@@ -49,7 +85,7 @@ func (g *Game) Update() error {
 		if !nextScene.IsLoaded() {
 			nextScene.FirstLoad(g.gameLog)
 		}
-		nextScene.OnEnter()
+		nextScene.OnEnter(g.gameLog)
 	}
 	g.activeSceneId = nextSceneId
 	return nil

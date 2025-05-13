@@ -2,12 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"fishTankWebGame/assets"
-	"fishTankWebGame/game"
-	"fishTankWebGame/game/gameEntities"
-	"fishTankWebGame/game/sceneManagement"
-	"fishTankWebGame/game/soundFX"
 	"fmt"
+	"github.com/acoco10/fishTankWebGame/assets"
+	"github.com/acoco10/fishTankWebGame/game"
+	"github.com/acoco10/fishTankWebGame/game/gameEntities"
+	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
+	"github.com/acoco10/fishTankWebGame/game/soundFX"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
 )
@@ -38,9 +38,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	gameLog := sceneManagement.GameLog{}
+	gameLog := sceneManagement.GameLog{Save: &gameEntities.SaveGameState{Fish: []gameEntities.SavedFish{}}}
 	gameLog.Save = &state
-
 	eHub := gameEntities.NewEventHub()
 	gameLog.GlobalEventHub = eHub
 
@@ -50,7 +49,6 @@ func main() {
 	}
 
 	soundP, err := soundFX.NewSongPlayer()
-
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -58,7 +56,7 @@ func main() {
 	gameLog.SongPlayer = songP
 	gameLog.SoundPlayer = soundP
 
-	g := game.NewGame(&gameLog)
+	g := game.NewGame(&gameLog, game.ExistingUser)
 	err = ebiten.RunGame(g)
 	if err != nil {
 		log.Fatal(err)

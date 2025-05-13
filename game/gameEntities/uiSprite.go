@@ -96,11 +96,14 @@ func (us *UiSprite) UpdateNormal() {
 	us.updateState()
 
 	if us.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && us.state == Selected {
+
+		if us.XYUpdater == nil {
+			ev := UISpriteAction{}
+			ev.UiSprite = us.Label
+			ev.UiSpriteAction = "picked up"
+			us.EventHub.Publish(ev)
+		}
 		us.XYUpdater = NewUpdater(us.Sprite)
-		ev := UISpriteAction{}
-		ev.UiSprite = us.Label
-		ev.UiSpriteAction = "picked up"
-		us.EventHub.Publish(ev)
 	}
 
 	if us.XYUpdater != nil {

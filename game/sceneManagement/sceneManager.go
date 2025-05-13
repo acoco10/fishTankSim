@@ -1,8 +1,8 @@
 package sceneManagement
 
 import (
-	"fishTankWebGame/game/gameEntities"
-	"fishTankWebGame/game/soundFX"
+	"github.com/acoco10/fishTankWebGame/game/gameEntities"
+	"github.com/acoco10/fishTankWebGame/game/soundFX"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
@@ -32,7 +32,7 @@ type Scene interface {
 	Update() (SceneId, error)
 	Draw(screen *ebiten.Image)
 	FirstLoad(gameLog *GameLog)
-	OnEnter()
+	OnEnter(gameLog *GameLog)
 	OnExit()
 	IsLoaded() bool
 }

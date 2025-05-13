@@ -1,9 +1,9 @@
 package gameEntities
 
 import (
-	"fishTankWebGame/shaders"
 	"github.com/acoco10/QuickDrawAdventure/animations"
 	"github.com/acoco10/QuickDrawAdventure/spriteSheet"
+	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image"
 	"log"
@@ -93,7 +93,6 @@ func (as *AnimatedSprite) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptio
 	frameRect := as.SpriteSheet.Rect(frame)
 	img := as.Img.SubImage(frameRect).(*ebiten.Image)
 	if as.shader != nil {
-		println("shader not nil")
 		shaderOpts.Images[0] = img
 		shaderOpts.Uniforms = as.shaderParams
 		b := img.Bounds()

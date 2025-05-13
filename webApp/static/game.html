@@ -1,40 +1,27 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/html" xmlns="http://www.w3.org/1999/html">
+<html xmlns="http://www.w3.org/1999/html" xmlns="http://www.w3.org/1999/html" lang="en">
 <head>
-    <title>Fish Fish Fish!</title>
-    <meta charset="utf-8">
-    <style>
-        body {
-            background-color: #121212;
-            color: #f0f0f0;
-            font-family: sans-serif;
-            text-align: center;
-            margin-top: 20px;
-        }
-        textarea {
-            background-color: #1e1e1e;
-            color: #e0e0e0;
-            border: 1px solid #444;
-        }
-        canvas {
-            display: block;
-            margin: 20px auto;
-            border: 1px solid #333;
-        }
-    </style>
-
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link href="css/loading.css" type="text/css" rel="stylesheet">
+    <meta charset="UTF-8">
 </head>
 <body>
-<h1>Feed the Fish!</h1>
-<p id="welcome"></p>
+<div class ="page-wrapper">
+    <img src="images/fishfishfishLogo.png" alt="FishLogo" class="header-image"/>
+    <div id="loadingScreen">
+        <div class="sprite-loader"></div>
+        <h1 style="color: #e2f0ef;">Loading...</h1>
+    </div>
+</div>
+</body>
 
 <canvas id="game" width="640" height="480"></canvas>
 
-<script src="../../wasmMain/wasm_exec.js"></script>
+<script src="wasm_exec.js"></script>
+
 <script>
-
-
-    const base = "http://localhost:8080";
+    const base = `${window.location.protocol}//${window.location.host}`;
     const username = localStorage.getItem("username");
     const password = localStorage.getItem("password")
 

@@ -98,25 +98,31 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func saveHandler(w http.ResponseWriter, r *http.Request) {
+
+	println(">>> Method received:", r.Method)
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
 	println("trying to save game")
 	var s GameState
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, "Error reading save file"+string(err.Error()), http.StatusInternalServerError)
+		return
 	}
 	b := strings.ReplaceAll(string(body), "\\\"", "\"")
 	b = strings.ReplaceAll(string(b), "\"[", "[")
 	b = strings.ReplaceAll(string(b), "]\"", "]")
-	println(b)
+	println("save JSON:\n", b)
 
 	err = json.Unmarshal([]byte(b), &s)
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, "Error marshalling json for save"+string(err.Error()), http.StatusInternalServerError)
+		return
 	}
 
 	mu.Lock()
@@ -124,17 +130,11 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
-		http.Error(w, "Could not encode JSON", http.StatusInternalServerError)
+		http.Error(w, "Could not encode JSON"+string(err.Error()), http.StatusInternalServerError)
 		return
 	}
 
 	err = db.Save(s.Username, string(data))
-	if err != nil {
-		log.Fatal(err)
-	}
-	fileName := fmt.Sprintf("save%s.json", s.Username)
-
-	err = os.WriteFile("../assets/data/"+fileName, data, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -150,6 +150,7 @@ func loadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Only post allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
 	println("checking for save")
 	//username := r.URL.Query().Get("user")
 

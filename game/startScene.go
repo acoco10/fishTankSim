@@ -1,11 +1,11 @@
 package game
 
 import (
-	"fishTankWebGame/game/gameEntities"
-	"fishTankWebGame/game/sceneManagement"
-	"fishTankWebGame/game/soundFX"
-	"fishTankWebGame/game/ui"
 	"fmt"
+	"github.com/acoco10/fishTankWebGame/game/gameEntities"
+	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
+	"github.com/acoco10/fishTankWebGame/game/soundFX"
+	"github.com/acoco10/fishTankWebGame/game/ui"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image/color"
@@ -80,7 +80,7 @@ func (s *StartScene) FirstLoad(gameLog *sceneManagement.GameLog) {
 
 }
 
-func (s *StartScene) OnEnter() {
+func (s *StartScene) OnEnter(gameLog *sceneManagement.GameLog) {
 
 }
 
@@ -111,14 +111,16 @@ func (s *StartScene) subs(gameLog *sceneManagement.GameLog) {
 		switch ev.ButtonText {
 		case "Common Molly":
 			gameLog.SoundPlayer.Play(soundFX.SelectSound2)
-			gameLog.Save.Fish[0].FishType = "mollyFish"
+			saveFish := gameEntities.SavedFish{FishType: "mollyFish", Progress: 0, Size: 1}
+			gameLog.Save.Fish = append(gameLog.Save.Fish, saveFish)
 			s.ui.TextInputContainer.GetWidget().Disabled = false
 			s.ui.TextInputContainer.GetWidget().Visibility = widget.Visibility_Show
 			s.ui.TextInput.Focus(true)
 			s.ui.SelectSpriteOptions[ev.ButtonText].LoadShader(ols)
 		case "Goldfish":
 			gameLog.SoundPlayer.Play(soundFX.SelectSound2)
-			gameLog.Save.Fish[0].FishType = "fish"
+			saveFish := gameEntities.SavedFish{FishType: "fish", Progress: 0, Size: 1}
+			gameLog.Save.Fish = append(gameLog.Save.Fish, saveFish)
 			s.ui.TextInputContainer.GetWidget().Disabled = false
 			s.ui.TextInputContainer.GetWidget().Visibility = widget.Visibility_Show
 			s.ui.TextInput.Focus(true)

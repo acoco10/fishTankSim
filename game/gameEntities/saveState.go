@@ -2,7 +2,7 @@ package gameEntities
 
 import (
 	"encoding/json"
-	"fishTankWebGame/assets"
+	"github.com/acoco10/fishTankWebGame/assets"
 	"log"
 )
 

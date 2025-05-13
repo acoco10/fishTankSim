@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"fishTankWebGame/game/gameEntities"
+	"github.com/acoco10/fishTankWebGame/game/gameEntities"
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/widget"
 	"image/color"
