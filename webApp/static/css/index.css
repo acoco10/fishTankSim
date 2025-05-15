@@ -63,7 +63,7 @@ button:hover {
 }
 
 .header-image {
-
+    image-rendering: pixelated;
     width: 500px; /* adjust as needed */
     margin-bottom: 20px;
     object-fit: contain;

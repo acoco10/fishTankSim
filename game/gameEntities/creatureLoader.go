@@ -14,7 +14,7 @@ func LoadFishSprite(creatureType FishList, creatureLvl int) *AnimatedSprite {
 
 	shaderParams := make(map[string]any)
 	shaderParams["OutlineColor"] = [4]float64{255, 255, 0, 255}
-	c.shaderParams = shaderParams
+	c.ShaderParams = shaderParams
 
 	img, err := LoadFishImg(creatureType, creatureLvl)
 	if err != nil {

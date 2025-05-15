@@ -5,6 +5,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 )
 
 func LoadImageAssetAsEbitenImage(assetName string) (*ebiten.Image, error) {
@@ -55,4 +56,23 @@ func (up *XYUpdater) Update() {
 	x, y := ebiten.CursorPosition()
 	up.Sprite.X = float32(x) - up.offSetX
 	up.Sprite.Y = float32(y) - up.offSetY
+}
+
+func ApplyShaderToText(screen *ebiten.Image, inputText string, face text.Face) {
+
+	//just an idea/ expirement with offscreen rendering
+	dOpts := text.DrawOptions{}
+	//dOpts.GeoM.Translate(ScreenWidth/2-float64(len(debugText)*6), ScreenHeight/10)
+	offScreen := ebiten.NewImage(400, 100)
+	text.Draw(offScreen, inputText, face, &dOpts)
+	shader := LoadOutlineShader()
+	sOpts := ebiten.DrawRectShaderOptions{}
+	sOpts.GeoM.Translate(100, 100)
+	sOpts.Images[0] = offScreen
+	var paramaMapa = make(map[string]any)
+	clrArr := [4]float64{0.2, 0.6, 0.05, 255}
+	paramaMapa["OutlineColor"] = clrArr
+	sOpts.Uniforms = paramaMapa
+
+	screen.DrawRectShader(400, 100, shader, &sOpts)
 }

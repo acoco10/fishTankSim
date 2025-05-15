@@ -9,6 +9,8 @@ import (
 	"math/rand"
 )
 
+var n int = 0
+
 type Particle struct {
 	*Point
 	counter           int
@@ -62,8 +64,9 @@ func (p *Particle) Draw(screen *ebiten.Image) {
 	vector.DrawFilledCircle(screen, p.X, p.Y, 2, clr, false)
 }
 
-func NewParticle(point *Point, rect debug.Rect, hub *EventHub) Particle {
-
+func NewParticle(point *Point, rect debug.Rect, hub *EventHub) *Particle {
+	println("calling new particle function", n)
+	n++
 	p := Particle{
 		point,
 		0,
@@ -73,6 +76,7 @@ func NewParticle(point *Point, rect debug.Rect, hub *EventHub) Particle {
 		0,
 		hub,
 	}
-
-	return p
+	pointEvent := PointGenerated{Point: point, Source: "new particle function"}
+	p.eventHub.Publish(pointEvent)
+	return &p
 }

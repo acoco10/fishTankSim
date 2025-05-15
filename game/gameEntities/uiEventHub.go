@@ -1,6 +1,7 @@
 package gameEntities
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -19,6 +20,7 @@ func NewEventHub() *EventHub {
 }
 
 func (h *EventHub) Subscribe(eventType Event, handler Handler) {
+	fmt.Printf("Subscribed to event: %T\n", eventType)
 	t := reflect.TypeOf(eventType).String()
 	h.subscribers[t] = append(h.subscribers[t], handler)
 }

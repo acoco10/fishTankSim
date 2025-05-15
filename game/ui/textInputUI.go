@@ -37,7 +37,7 @@ func NewTextInput(ehub *gameEntities.EventHub) (*widget.Container, *widget.TextI
 			}),
 		)))
 
-	face, err := LoadFont(20)
+	face, err := LoadFont(20, "nk57")
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -70,7 +70,6 @@ func NewTextInput(ehub *gameEntities.EventHub) (*widget.Container, *widget.TextI
 	)
 
 	textInput := widget.NewTextInput(
-
 		widget.TextInputOpts.WidgetOpts(
 			//Set the layout information to center the textbox in the parent
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{

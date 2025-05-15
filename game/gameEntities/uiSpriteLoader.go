@@ -10,13 +10,11 @@ import (
 type UISpriteLabel string
 
 const (
-	Records      UISpriteLabel = "records"
-	FishFood     UISpriteLabel = "fishFood"
-	FishBook     UISpriteLabel = "book"
-	SubmitButton UISpriteLabel = "submitButton"
+	Records    UISpriteLabel = "records"
+	FishFood   UISpriteLabel = "fishFood"
+	FishBook   UISpriteLabel = "book"
+	WhiteBoard UISpriteLabel = "whiteBoard"
 )
-
-var uiElements = []UISpriteLabel{Records, FishBook, FishFood, SubmitButton}
 
 func loadUiSpritesImgs(label UISpriteLabel) ([]*ebiten.Image, error) {
 	var imgs []*ebiten.Image
@@ -51,8 +49,13 @@ func LoadUISprites(spritesToLoad []UISpriteLabel, hub *EventHub, screenWidth, sc
 		}
 		sprite := NewUiSprite(imgs, hub, x, y, string(elem), screenWidth, screenHeight)
 		if elem == FishFood {
-			s2 := FishFoodSprite{sprite}
-			sprites = append(sprites, &s2)
+			ffSprite := FishFoodSprite{sprite}
+			sprites = append(sprites, &ffSprite)
+			continue
+		}
+		if elem == WhiteBoard {
+			wbSprite := WhiteBoardSprite{UiSprite: sprite}
+			sprites = append(sprites, &wbSprite)
 			continue
 		}
 		sprites = append(sprites, sprite)

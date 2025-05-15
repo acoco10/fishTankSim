@@ -54,7 +54,7 @@ func LoadStartMenuUI(startMenu *StartMenu) error {
 
 	headerText := "Pick Your Starter Fish!"
 
-	face, err := LoadFont(54)
+	face, err := LoadFont(54, "nk57")
 
 	if err != nil {
 		return err

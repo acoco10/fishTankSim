@@ -11,7 +11,9 @@ import (
 func CreatureEventSubscriptions(c *Creature) {
 	c.eventHub.Subscribe(PointGenerated{}, func(e Event) {
 		ev := e.(PointGenerated)
-		if ev.Point.PType == Food {
+		println("pointer code for generate point =", ev.Point)
+		if ev.Point.PType == Food && !c.tickClicked {
+			c.tickClicked = true
 			if c.hunger > 0 {
 				c.AddTargetPointToQueue(ev.Point)
 				c.sortPoints()
@@ -56,6 +58,8 @@ func (c *Creature) ownPointReached(ev CreatureReachedPoint) {
 		if c.energy == 0 {
 			c.state = Resting
 		}
+		//newTarg := c.RandomTarget()
+		//c.pointQueue = append(c.pointQueue, newTarg)
 		c.CalcSpeed()
 		//other creature behaviour
 	}
@@ -79,7 +83,6 @@ func (c *Creature) otherFishPoint(ev CreatureReachedPoint) {
 		case Food:
 			c.pointQueue[pointIndex] = c.pointQueue[endIndex]
 			c.pointQueue = c.pointQueue[0:endIndex]
-
 		default:
 			//placeholder, no modification when another Fish reaches their point that's not food as of now
 		}
@@ -96,11 +99,11 @@ func (c *Creature) CalcSpeed() {
 		if c.pointQueue[0].PType == Food {
 			c.speed = c.maxSpeed
 		} else {
-			c.speed = rand.Float32()*c.maxSpeed + 0.5*(c.energy/c.maxEnergy)
+			c.speed = rand.Float32()*c.maxSpeed + 0.7
 		}
 	}
 
-	fmt.Printf("random speed generated = %f", c.speed)
+	fmt.Printf("random speed generated = %f\n", c.speed)
 
 }
 
@@ -118,6 +121,7 @@ func (c *Creature) Type() InterestPoint {
 func (c *Creature) sortPoints() {
 
 	sort.Slice(c.pointQueue, func(i, j int) bool {
+
 		xI, yI := c.pointQueue[i].Coord()
 		xJ, yJ := c.pointQueue[j].Coord()
 
@@ -302,17 +306,18 @@ func (c *Creature) TranSlateFishOpts() *ebiten.DrawImageOptions {
 
 func FlipSprite(spriteWidth float64, opts *ebiten.DrawImageOptions) {
 	opts.GeoM.Scale(-1, 1) // flip horizontally
-	opts.GeoM.Translate(spriteWidth/2, 0)
+	opts.GeoM.Translate(spriteWidth, 0)
 }
 
 func (c *Creature) AddTargetPointToQueue(point *Point) {
-
 	c.pointQueue = append(c.pointQueue, point)
 }
 
 func (c *Creature) publishStats(sendTo string) {
 	ev := SendData{}
 	ev.DataFor = sendTo
+
+	var targetPoint string
 
 	var state string
 	if c.state == Resting {
@@ -325,6 +330,10 @@ func (c *Creature) publishStats(sendTo string) {
 		state = "eating"
 	}
 
+	if len(c.pointQueue) > 0 {
+		targetPoint = fmt.Sprintf("Target Point: %f, %f", c.pointQueue[0].X, c.pointQueue[0].Y)
+	}
+
 	nameString := fmt.Sprintf("Name: %s\n", c.name)
 	hungerString := fmt.Sprintf("Hunger : %f/%f\n", c.hunger, c.maxHunger)
 	energyString := fmt.Sprintf("Energy : %f/%f\n", c.energy, c.maxEnergy)
@@ -334,6 +343,10 @@ func (c *Creature) publishStats(sendTo string) {
 	speedString := fmt.Sprintf("Speed: %f/%f\n", c.speed, c.maxSpeed)
 
 	ev.Data = nameString + stateString + SizeString + hungerString + energyString + experienceString + speedString
+
+	if targetPoint != "" {
+		ev.Data += targetPoint
+	}
 
 	c.eventHub.Publish(ev)
 }

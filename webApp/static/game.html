@@ -77,7 +77,8 @@
             method: "POST",
             body: JSON.stringify({ username, password})
         }));
-        return await res.json();
+        return await res.json()
+        .then(() => console.log("FishScene loaded!", res.json()))
         } catch (err){
             console.warn("Failed to load game:", err.message);
             return null;

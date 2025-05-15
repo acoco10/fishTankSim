@@ -11,14 +11,6 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var DB *sql.DB
-
-const file string = "/Users/aidancoco/Desktop/projects/fishTankWebGame/webApp/db/users.db"
-
-func main() {
-
-}
-
 func NewUser(userName string, PW string) (string, error) {
 
 	dsn := os.Getenv("DATABASE_URL")

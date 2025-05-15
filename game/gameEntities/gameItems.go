@@ -6,6 +6,7 @@ const (
 	Food InterestPoint = iota
 	Structure
 	OtherCreature
+	DrawPoint
 )
 
 type Point struct {
@@ -13,10 +14,17 @@ type Point struct {
 	PType InterestPoint
 }
 
-func (p Point) Coord() (x, y float32) {
+func (p *Point) Coord() (float32, float32) {
 	return p.X, p.Y
 }
 
-func (p Point) Type() InterestPoint {
-	return p.PType
+func (p *Point) Clone() *Point {
+	if p == nil {
+		return nil
+	}
+	return &Point{
+		X:     p.X,
+		Y:     p.Y,
+		PType: p.PType,
+	}
 }

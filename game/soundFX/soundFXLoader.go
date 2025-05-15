@@ -17,6 +17,7 @@ const (
 	PlopSound         resource.AudioID = iota
 	PouringFood       resource.AudioID = iota
 	SelectSound       resource.AudioID = iota
+	SuccessMusic      resource.AudioID = iota
 	TropicalHouse     resource.AudioID = iota
 	WaterBubbles      resource.AudioID = iota
 	SelectSound2      resource.AudioID = iota
@@ -57,7 +58,7 @@ func LoadSounds() (*resource.Loader, error) {
 
 		SoundData[name] = song
 		println("saving audio id:", resource.AudioID(i))
-		audioRegMap[resource.AudioID(i)] = resource.AudioInfo{Path: name, Volume: -0.5}
+		audioRegMap[resource.AudioID(i)] = resource.AudioInfo{Path: name, Volume: 0.0}
 
 	}
 

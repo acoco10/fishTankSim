@@ -10,3 +10,6 @@ var Test string
 
 //go:embed solidColor.kage
 var SolidColor string
+
+//go:embed pulseOutline.kage
+var PulseOutline string

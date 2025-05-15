@@ -54,7 +54,7 @@ func updateSave(db *sql.DB, userID int, saveJson string) error {
 
 	defer stmt.Close()
 
-	res, err := stmt.Exec(userID, saveJson)
+	res, err := stmt.Exec(saveJson, userID)
 	if err != nil {
 		return fmt.Errorf("execute update: %w", err)
 	}

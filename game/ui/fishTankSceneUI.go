@@ -25,19 +25,32 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *gameEntities.EventHub) (*
 		//widget.ContainerOpts.BackgroundImage(nineSliceImage),
 		// the container will use a plain color as its background
 		// the container will use an anchor layout to layout its single child widget
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-			widget.RowLayoutOpts.Spacing(20),
-			widget.RowLayoutOpts.Padding(
-				widget.Insets{Right: 0, Left: 50, Top: 100, Bottom: 20}),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+	)
+
+	buttonContainer := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(
+				widget.AnchorLayoutData{
+					HorizontalPosition: widget.AnchorLayoutPositionStart,
+					VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				}),
 		),
-		),
+		widget.ContainerOpts.Layout(
+			widget.NewRowLayout(
+				widget.RowLayoutOpts.Spacing(20),
+				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+				widget.RowLayoutOpts.Padding(widget.Insets{Right: 0, Left: 50, Top: 100, Bottom: 0}),
+			)),
 	)
 
 	button := LoadSubmitButton("Save", eHub, 12)
 	modeButton := LoadSubmitButton("Mode", eHub, 12)
 
-	fishStats, err := NewTextBlockContainer(eHub)
+	buttonContainer.AddChild(button)
+	buttonContainer.AddChild(modeButton)
+
+	fishStats, err := NewTextBlock(eHub, StatsMenu)
 
 	if err != nil {
 		return nil, nil, err
@@ -45,9 +58,16 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *gameEntities.EventHub) (*
 
 	fishStats.text.GetWidget().Visibility = widget.Visibility_Hide
 
+	notePad, err := NewTextBlock(eHub, NotePad)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	notePad.text.SetText("To Do:")
+
 	rootContainer.AddChild(fishStats)
-	rootContainer.AddChild(button)
-	rootContainer.AddChild(modeButton)
+	rootContainer.AddChild(notePad)
+	rootContainer.AddChild(buttonContainer)
 
 	// construct the UI
 	ui := ebitenui.UI{
@@ -128,12 +148,23 @@ func loadSpriteSelectButtonImage(t string) (*widget.ButtonImage, error) {
 	}
 }
 
-func LoadFont(size float64) (text.Face, error) {
-	loadedFont, err := assets.FontsDir.ReadFile("fonts/nk57.otf")
-	if err != nil {
-		return nil, err
+func LoadFont(size float64, fontName string) (text.Face, error) {
+	var font []byte
+	switch fontName {
+	case "nk57":
+		loadedFont, err := assets.FontsDir.ReadFile("fonts/nk57.otf")
+		if err != nil {
+			return nil, err
+		}
+		font = loadedFont
+	case "rockSalt":
+		loadedFont, err := assets.FontsDir.ReadFile("fonts/RockSalt.ttf")
+		if err != nil {
+			return nil, err
+		}
+		font = loadedFont
 	}
-	s, err := text.NewGoTextFaceSource(bytes.NewReader(loadedFont))
+	s, err := text.NewGoTextFaceSource(bytes.NewReader(font))
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
@@ -152,7 +183,7 @@ func LoadSpriteSelectButton(buttonText string, hub *gameEntities.EventHub, fontS
 		log.Fatal(err)
 	}
 
-	face, err := LoadFont(fontSize)
+	face, err := LoadFont(fontSize, "nk57")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -246,7 +277,7 @@ func LoadSubmitButton(buttonText string, hub *gameEntities.EventHub, fontSize fl
 		log.Fatal(err)
 	}
 
-	face, err := LoadFont(fontSize)
+	face, err := LoadFont(fontSize, "nk57")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -261,6 +292,7 @@ func LoadSubmitButton(buttonText string, hub *gameEntities.EventHub, fontSize fl
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,
 				VerticalPosition:   widget.AnchorLayoutPositionCenter,
 			}),
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter}),
 		),
 		// specify the images to use
 		widget.ButtonOpts.Image(buttonImage),
@@ -317,7 +349,7 @@ func LoadButton(buttonText string, hub *gameEntities.EventHub, fontSize float64)
 		log.Fatal(err)
 	}
 
-	face, err := LoadFont(fontSize)
+	face, err := LoadFont(fontSize, "nk57")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -400,4 +432,41 @@ func LoadButton(buttonText string, hub *gameEntities.EventHub, fontSize float64)
 		}),
 	)
 	return button
+}
+
+func LoadHeader(headerText string, face text.Face) *widget.Container {
+	headerContainer := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				VerticalPosition:   widget.AnchorLayoutPositionStart,
+				HorizontalPosition: widget.AnchorLayoutPositionStart,
+				StretchHorizontal:  false,
+				StretchVertical:    false,
+			}),
+		),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+	)
+
+	headerLbl := widget.NewText(
+		widget.TextOpts.Text(headerText, face, color.RGBA{R: 0, G: 160, B: 0, A: 255}),
+		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				VerticalPosition:   widget.AnchorLayoutPositionStart,
+				HorizontalPosition: widget.AnchorLayoutPositionEnd,
+				StretchHorizontal:  false,
+				StretchVertical:    false,
+			}),
+		),
+		widget.TextOpts.Insets(widget.Insets{
+			Left:   30,
+			Right:  10,
+			Top:    50,
+			Bottom: 600,
+		}),
+	)
+
+	headerContainer.AddChild(headerLbl)
+
+	return headerContainer
 }

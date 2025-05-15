@@ -14,7 +14,13 @@ type MouseButtonPressed struct {
 }
 
 type PointGenerated struct {
-	Point *Point
+	Point  *Point
+	Source string
+}
+
+type DrawGraphic struct {
+	Point   *Point
+	Graphic DrawableSprite
 }
 
 type SpriteHovered struct {
@@ -39,4 +45,17 @@ type UISpriteAction struct {
 type ButtonEvent struct {
 	ButtonText string
 	EType      string
+}
+
+type FishEvent struct {
+	fish  *Creature
+	event string
+}
+
+type TaskRequirementsCompleted struct {
+	task string
+}
+
+type TaskCompleted struct {
+	task string
 }

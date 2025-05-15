@@ -165,14 +165,14 @@ func loadHandler(w http.ResponseWriter, r *http.Request) {
 	dbSave, err := db.LoadSave(u.Username)
 
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, "Could not load save from db:"+string(err.Error()), http.StatusInternalServerError)
 	}
 
 	_, err = w.Write([]byte(dbSave))
 	//w.Header().Set("Content-Type", "application/json")
 	//err = json.NewEncoder(w).Encode(save)
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, "Could write save to json from db:"+string(err.Error()), http.StatusInternalServerError)
 	}
 }
 

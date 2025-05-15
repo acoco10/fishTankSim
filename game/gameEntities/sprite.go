@@ -18,6 +18,15 @@ func LoadOutlineShader() *ebiten.Shader {
 	return s
 }
 
+func LoadPulseOutlineShader() *ebiten.Shader {
+	ols := []byte(shaders.PulseOutline)
+	s, err := ebiten.NewShader(ols)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return s
+}
+
 func LoadSolidColorShader() *ebiten.Shader {
 	sls := []byte(shaders.SolidColor)
 	s, err := ebiten.NewShader(sls)
@@ -28,14 +37,21 @@ func LoadSolidColorShader() *ebiten.Shader {
 }
 
 type Sprite struct {
-	Img          *ebiten.Image
-	X, Y         float32
-	Dy, Dx       float32
-	shader       *ebiten.Shader
-	shaderParams map[string]any
+	Img                *ebiten.Image
+	X, Y               float32
+	Dy, Dx             float32
+	Shader             *ebiten.Shader
+	ShaderParams       map[string]any
+	UpdateShaderParams func(map[string]any) map[string]any
 }
 
-func (s Sprite) SpriteHovered() bool {
+func (s *Sprite) UpdateShader() {
+	if s.UpdateShaderParams != nil {
+		s.ShaderParams = s.UpdateShaderParams(s.ShaderParams)
+	}
+}
+
+func (s *Sprite) SpriteHovered() bool {
 	x, y := ebiten.CursorPosition()
 	point := image.Point{x, y}
 	rect := s.Img.Bounds()
@@ -69,11 +85,11 @@ func (s *Sprite) Coord() (x, y float32) {
 
 func (s *Sprite) LoadShader(shader *ebiten.Shader) {
 	println("loading shader")
-	s.shader = shader
+	s.Shader = shader
 }
 
 func (s *Sprite) UnLoadShader() {
-	s.shader = nil
+	s.Shader = nil
 }
 
 func (as *AnimatedSprite) Update() {
@@ -92,11 +108,11 @@ func (as *AnimatedSprite) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptio
 	frame := as.Frame()
 	frameRect := as.SpriteSheet.Rect(frame)
 	img := as.Img.SubImage(frameRect).(*ebiten.Image)
-	if as.shader != nil {
+	if as.Shader != nil {
 		shaderOpts.Images[0] = img
-		shaderOpts.Uniforms = as.shaderParams
+		shaderOpts.Uniforms = as.ShaderParams
 		b := img.Bounds()
-		screen.DrawRectShader(b.Dx(), b.Dy(), as.shader, shaderOpts)
+		screen.DrawRectShader(b.Dx(), b.Dy(), as.Shader, shaderOpts)
 		return
 	}
 	screen.DrawImage(img, opts)

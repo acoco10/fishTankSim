@@ -36,6 +36,7 @@ type Creature struct {
 	timers         map[FishState]*Timer
 	state          FishState
 	selected       bool
+	tickClicked    bool
 	*FishStats
 	*AnimatedSprite
 }
@@ -66,6 +67,7 @@ func NewFish(hub *EventHub, tankSize debug.Rect, saveData SavedFish) *Creature {
 		timers,
 		Swimming,
 		false,
+		false,
 		fs,
 		NewAnimatedSprite(),
 	}
@@ -74,7 +76,7 @@ func NewFish(hub *EventHub, tankSize debug.Rect, saveData SavedFish) *Creature {
 
 	shaderParams := make(map[string]any)
 	shaderParams["OutlineColor"] = [4]float64{255, 255, 0, 255}
-	c.shaderParams = shaderParams
+	c.ShaderParams = shaderParams
 	firstPoint := c.RandomTarget()
 	c.AddTargetPointToQueue(firstPoint)
 
@@ -87,6 +89,7 @@ func NewFish(hub *EventHub, tankSize debug.Rect, saveData SavedFish) *Creature {
 }
 
 func (c *Creature) Update() {
+	c.tickClicked = false
 	switch c.state {
 
 	case Swimming:
@@ -103,16 +106,18 @@ func (c *Creature) Update() {
 
 	if c.selected {
 		c.publishStats("statsMenu")
-		if ebiten.IsKeyPressed(ebiten.KeyEscape) {
+		if ebiten.IsKeyPressed(ebiten.KeyEscape) || ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && !c.SpriteHovered() {
 			c.selected = false
-			c.shader = nil
+			c.Shader = nil
+			ev := SendData{Data: "fish deselect", DataFor: "statsMenu"}
+			c.eventHub.Publish(ev)
 		}
 	}
 
 	if c.SpriteHovered() {
 		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 			c.selected = true
-			c.shader = LoadOutlineShader()
+			c.Shader = LoadOutlineShader()
 		}
 	}
 

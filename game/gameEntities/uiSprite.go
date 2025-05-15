@@ -1,6 +1,7 @@
 package gameEntities
 
 import (
+	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"math"
@@ -38,6 +39,7 @@ type UiSprite struct {
 	state    uiSpriteState
 	stateWas uiSpriteState
 	gameMode
+	clicked                   bool
 	Label                     string
 	screenHeight, screenWidth int
 }
@@ -46,13 +48,13 @@ func (us *UiSprite) Draw(screen *ebiten.Image) {
 	opts := ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(float64(us.X), float64(us.Y))
 	screen.DrawImage(us.Img, &opts)
-	if us.shader != nil {
+	if us.Shader != nil {
 		shaderOpts := &ebiten.DrawRectShaderOptions{}
-		shaderOpts.Uniforms = us.shaderParams
+		shaderOpts.Uniforms = us.ShaderParams
 		shaderOpts.GeoM.Translate(float64(us.X), float64(us.Y))
 		shaderOpts.Images[0] = us.Img
 		b := us.Img.Bounds().Max
-		screen.DrawRectShader(b.X, b.Y, us.shader, shaderOpts)
+		screen.DrawRectShader(b.X, b.Y, us.Shader, shaderOpts)
 		return
 	}
 	if us.state == Selected || us.state == Hovered {
@@ -93,6 +95,8 @@ func (us *UiSprite) UpdatePosition() {
 
 }
 func (us *UiSprite) UpdateNormal() {
+	us.clicked = false
+
 	us.updateState()
 
 	if us.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && us.state == Selected {
@@ -112,12 +116,11 @@ func (us *UiSprite) UpdateNormal() {
 
 	x, y := ebiten.CursorPosition()
 
-	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && us.state == Clicked {
-
+	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && us.state == Clicked && !us.clicked {
+		us.clicked = true
 		ev := MouseButtonPressed{
 			Point: &Point{X: float32(x), Y: float32(y), PType: Food},
 		}
-
 		us.EventHub.Publish(ev)
 	}
 
@@ -126,7 +129,6 @@ func (us *UiSprite) UpdateNormal() {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		if us.state == Selected && baseDis < 100 && us.stateWas == Selected {
 			us.returnToBase()
-
 		}
 	}
 
@@ -175,7 +177,11 @@ func (us *UiSprite) updateState() {
 }
 
 func NewUiSprite(imgs []*ebiten.Image, hub *EventHub, x, y float32, label string, screenWidth, screenHeight int) *UiSprite {
+
+	var paramaMappa = make(map[string]any)
+
 	uis := UiSprite{Sprite: &Sprite{X: x, Y: y}}
+	uis.ShaderParams = paramaMappa
 	uis.baseX = x
 	uis.baseY = y
 	uis.Label = label
@@ -201,7 +207,7 @@ func NewUiSprite(imgs []*ebiten.Image, hub *EventHub, x, y float32, label string
 		uis.AltImg = imgs[2]
 	}
 
-	UiSpriteEventSub(hub, uis)
+	Subs(hub, uis)
 
 	uis.state = Idle
 	uis.gameMode = Normal
@@ -209,7 +215,7 @@ func NewUiSprite(imgs []*ebiten.Image, hub *EventHub, x, y float32, label string
 	return &uis
 }
 
-func UiSpriteEventSub(hub *EventHub, uis UiSprite) {
+func Subs(hub *EventHub, uis UiSprite) {
 	hub.Subscribe(ButtonClickedEvent{}, func(e Event) {
 		ev := e.(ButtonClickedEvent)
 		switch ev.ButtonText {
@@ -217,6 +223,30 @@ func UiSpriteEventSub(hub *EventHub, uis UiSprite) {
 			uis.SwitchGameMode()
 		}
 	})
+
+	switch uis.Label {
+	case "whiteBoard":
+		whiteBoardSubs(hub, uis)
+	}
+
+}
+
+func whiteBoardSubs(hub *EventHub, uis UiSprite) {
+	hub.Subscribe(TaskRequirementsCompleted{}, func(e Event) {
+		ols := LoadPulseOutlineShader()
+		uis.Shader = ols
+		uis.ShaderParams["OutlineColor"] = [4]float64{0.2, 0.7, 0.2, 255}
+		uis.ShaderParams["OutlineColor2"] = [4]float64{0.1, 0.9, 0.1, 255}
+		uis.ShaderParams["Counter"] = 0
+		uis.UpdateShaderParams = shaders.UpdatePulse
+	})
+	hub.Subscribe(SendData{}, func(e Event) {
+		ev := e.(SendData)
+		if ev.DataFor == "whiteBoard" {
+
+		}
+	})
+
 }
 
 func (us *UiSprite) SwitchGameMode() {
