@@ -23,11 +23,13 @@
 
     <script>
         const base = `${window.location.protocol}//${window.location.host}`;
+        const herokuURL = "https://blooming-springs-06199-0958fad0a895.herokuapp.com"
+        let newUser = false
 
         function register() {
             const username = document.getElementById("username").value;
             const password = document.getElementById("password").value;
-            fetch(base + "/register", {
+            fetch(herokuURL + "/register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, password })
@@ -35,6 +37,7 @@
                 .then(res => res.text())
                 .then(text => {
                     if (text.includes("Registered")) {
+                        newUser = true
                         document.getElementById("authMessage").style.color = "#4caf50";
                         document.getElementById("authMessage").innerText = "Registered successfully!";
                     } else {
@@ -50,7 +53,7 @@
         function login() {
             const username = document.getElementById("username").value;
             const password = document.getElementById("password").value;
-            fetch(base + "/login", {
+            fetch(herokuURL + "/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, password })
@@ -62,6 +65,7 @@
                 .then(() => {
                     localStorage.setItem("username", username);
                     window.location.href = "game.html";
+                    localStorage.setItem("newUser", JSON.stringify(false));
                 })
                 .catch(err => {
                     document.getElementById("authMessage").style.color = "#f44336";

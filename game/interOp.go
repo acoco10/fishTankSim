@@ -10,8 +10,8 @@ import (
 
 var gameStarted = false
 
-func SaveToBackend(data string) {
-	js.Global().Call("saveGame", data)
+func SaveToBackend(data []byte) {
+	js.Global().Call("saveGame", string(data))
 }
 
 func LoadSaveDataFromJS(this js.Value, args []js.Value) interface{} {

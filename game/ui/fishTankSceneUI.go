@@ -3,6 +3,7 @@ package ui
 import (
 	"bytes"
 	"github.com/acoco10/fishTankWebGame/assets"
+	"github.com/acoco10/fishTankWebGame/game/eventSytem"
 	"github.com/acoco10/fishTankWebGame/game/gameEntities"
 	"github.com/ebitenui/ebitenui"
 	eimage "github.com/ebitenui/ebitenui/image"
@@ -19,7 +20,7 @@ const (
 	SpriteSelectButton
 )
 
-func LoadMainFishMenu(gameWidth, gameHeight int, eHub *gameEntities.EventHub) (*ebitenui.UI, *TextBoxUi, error) {
+func LoadMainFishMenu(gameWidth, gameHeight int, eHub *events.EventHub) (*ebitenui.UI, *TextBoxUi, error) {
 
 	rootContainer := widget.NewContainer(
 		//widget.ContainerOpts.BackgroundImage(nineSliceImage),
@@ -79,13 +80,13 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *gameEntities.EventHub) (*
 
 func loadSubmitButtonImage() (*widget.ButtonImage, error) {
 
-	img, err := gameEntities.LoadImageAssetAsEbitenImage("menuAssets/submitButton3")
+	img, err := entities.LoadImageAssetAsEbitenImage("menuAssets/submitButton3")
 
 	if err != nil {
 		return nil, err
 	}
 
-	imgClicked, err := gameEntities.LoadImageAssetAsEbitenImage("menuAssets/submitButtonAlt")
+	imgClicked, err := entities.LoadImageAssetAsEbitenImage("menuAssets/submitButtonAlt")
 
 	if err != nil {
 		return nil, err
@@ -112,13 +113,13 @@ func loadSubmitButtonImage() (*widget.ButtonImage, error) {
 
 func loadSpriteSelectButtonImage(t string) (*widget.ButtonImage, error) {
 
-	img, err := gameEntities.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButton")
+	img, err := entities.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButton")
 
 	if err != nil {
 		return nil, err
 	}
 
-	imgClicked, err := gameEntities.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButtonAlt")
+	imgClicked, err := entities.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButtonAlt")
 
 	if err != nil {
 		return nil, err
@@ -176,7 +177,7 @@ func LoadFont(size float64, fontName string) (text.Face, error) {
 	}, nil
 }
 
-func LoadSpriteSelectButton(buttonText string, hub *gameEntities.EventHub, fontSize float64) *widget.Button {
+func LoadSpriteSelectButton(buttonText string, hub *events.EventHub, fontSize float64) *widget.Button {
 	//load a generic button labeled with button text string that will send a button clicked event to event hub
 	buttonImage, err := loadSpriteSelectButtonImage(buttonText)
 	if err != nil {
@@ -231,7 +232,7 @@ func LoadSpriteSelectButton(buttonText string, hub *gameEntities.EventHub, fontS
 		// add a handler that reacts to clicking the button
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			if button.GetWidget().Disabled == false {
-				ev := gameEntities.ButtonClickedEvent{
+				ev := entities.ButtonClickedEvent{
 					buttonText,
 				}
 				hub.Publish(ev)
@@ -243,7 +244,7 @@ func LoadSpriteSelectButton(buttonText string, hub *gameEntities.EventHub, fontS
 		widget.ButtonOpts.CursorEnteredHandler(func(args *widget.ButtonHoverEventArgs) {
 			//If we moved the Text because we clicked on this button previously, move the text down and right
 			if button.GetWidget().Disabled == false {
-				ev := gameEntities.ButtonEvent{
+				ev := entities.ButtonEvent{
 					buttonText,
 					"cursor entered",
 				}
@@ -261,7 +262,7 @@ func LoadSpriteSelectButton(buttonText string, hub *gameEntities.EventHub, fontS
 			//Reset the Text inset if the cursor is no longer over the button
 			button.Text().Inset.Top = 0
 			button.Text().Inset.Left = 0
-			ev := gameEntities.ButtonEvent{
+			ev := entities.ButtonEvent{
 				buttonText,
 				"cursor exited",
 			}
@@ -270,7 +271,7 @@ func LoadSpriteSelectButton(buttonText string, hub *gameEntities.EventHub, fontS
 	)
 	return button
 }
-func LoadSubmitButton(buttonText string, hub *gameEntities.EventHub, fontSize float64) *widget.Button {
+func LoadSubmitButton(buttonText string, hub *events.EventHub, fontSize float64) *widget.Button {
 	//load a generic button labeled with button text string that will send a button clicked event to event hub
 	buttonImage, err := loadSubmitButtonImage()
 	if err != nil {
@@ -317,7 +318,7 @@ func LoadSubmitButton(buttonText string, hub *gameEntities.EventHub, fontSize fl
 			println("button event generated for", buttonText)
 			button.Text().Inset.Top = 2
 			button.Text().Inset.Left = -2
-			ev := gameEntities.ButtonClickedEvent{
+			ev := entities.ButtonClickedEvent{
 				ButtonText: buttonText,
 			}
 			hub.Publish(ev)
@@ -342,7 +343,7 @@ func LoadSubmitButton(buttonText string, hub *gameEntities.EventHub, fontSize fl
 	return button
 }
 
-func LoadButton(buttonText string, hub *gameEntities.EventHub, fontSize float64) *widget.Button {
+func LoadButton(buttonText string, hub *events.EventHub, fontSize float64) *widget.Button {
 	//load a generic button labeled with button text string that will send a button clicked event to event hub
 	buttonImage, err := loadSubmitButtonImage()
 	if err != nil {
@@ -387,7 +388,7 @@ func LoadButton(buttonText string, hub *gameEntities.EventHub, fontSize float64)
 		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
 			println("button event generated for", buttonText)
 
-			ev := gameEntities.ButtonClickedEvent{
+			ev := entities.ButtonClickedEvent{
 				ButtonText: buttonText,
 			}
 			hub.Publish(ev)
@@ -402,7 +403,7 @@ func LoadButton(buttonText string, hub *gameEntities.EventHub, fontSize float64)
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("button event generated for", buttonText)
 
-			ev := gameEntities.ButtonClickedEvent{
+			ev := entities.ButtonClickedEvent{
 				ButtonText: buttonText,
 			}
 

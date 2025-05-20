@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/acoco10/fishTankWebGame/game/eventSytem"
 	"github.com/acoco10/fishTankWebGame/game/gameEntities"
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/widget"
@@ -13,14 +14,14 @@ type StartMenu struct {
 	TextInputContainer  *widget.Container
 	TextInput           *widget.TextInput
 	TextInputButton     *widget.Button
-	SelectSpriteOptions map[string]*gameEntities.AnimatedSprite
-	SelectedAnimations  map[string]*gameEntities.AnimatedSprite
-	SelectSpritesToDraw []*gameEntities.AnimatedSprite
-	eventHub            *gameEntities.EventHub
+	SelectSpriteOptions map[string]*entities.AnimatedSprite
+	SelectedAnimations  map[string]*entities.AnimatedSprite
+	SelectSpritesToDraw []*entities.AnimatedSprite
+	eventHub            *events.EventHub
 	fishButtons         map[string]*widget.Button
 }
 
-func LoadStartMenu(hub *gameEntities.EventHub) (*StartMenu, error) {
+func LoadStartMenu(hub *events.EventHub) (*StartMenu, error) {
 	s := StartMenu{}
 	s.eventHub = hub
 
@@ -189,8 +190,9 @@ func LoadStartMenuUI(startMenu *StartMenu) error {
 }
 
 func (s *StartMenu) subs() {
-	s.eventHub.Subscribe(gameEntities.ButtonClickedEvent{}, func(e gameEntities.Event) {
-		ev := e.(gameEntities.ButtonClickedEvent)
+
+	s.eventHub.Subscribe(entities.ButtonClickedEvent{}, func(e events.Event) {
+		ev := e.(entities.ButtonClickedEvent)
 		if ev.ButtonText == "Common Molly" {
 
 			s.HideAndDisableSelectButtons()
@@ -200,18 +202,15 @@ func (s *StartMenu) subs() {
 
 			s.fishButtons["Selected Button"].Press()
 
-			s.SelectSpritesToDraw = []*gameEntities.AnimatedSprite{}
+			s.SelectSpritesToDraw = []*entities.AnimatedSprite{}
 			s.SelectSpriteOptions["Common Molly"].X -= 70
 
 			copyAs := *s.SelectSpriteOptions["Common Molly"]
-			ols := gameEntities.LoadOutlineShader()
+			ols := entities.LoadOutlineShader()
 			copyAs.LoadShader(ols)
 			s.SelectSpritesToDraw = append(s.SelectSpritesToDraw, &copyAs)
 		}
-	})
 
-	s.eventHub.Subscribe(gameEntities.ButtonClickedEvent{}, func(e gameEntities.Event) {
-		ev := e.(gameEntities.ButtonClickedEvent)
 		if ev.ButtonText == "Goldfish" {
 
 			s.HideAndDisableSelectButtons()
@@ -220,16 +219,17 @@ func (s *StartMenu) subs() {
 			s.fishButtons["Selected Button"].Text().Label = "Goldfish"
 
 			s.fishButtons["Selected Button"].Press()
-			s.SelectSpritesToDraw = []*gameEntities.AnimatedSprite{}
+			s.SelectSpritesToDraw = []*entities.AnimatedSprite{}
 			s.SelectSpriteOptions["Goldfish"].X += 70
 			s.SelectSpritesToDraw = append(s.SelectSpritesToDraw, s.SelectSpriteOptions["Goldfish"])
 
 			copyAs := *s.SelectSpriteOptions["Goldfish"]
-			ols := gameEntities.LoadOutlineShader()
+			ols := entities.LoadOutlineShader()
 			copyAs.LoadShader(ols)
 			s.SelectSpritesToDraw = append(s.SelectSpritesToDraw, &copyAs)
 		}
 	})
+
 }
 
 func (s *StartMenu) HideAndDisableSelectButtons() {
@@ -240,11 +240,11 @@ func (s *StartMenu) HideAndDisableSelectButtons() {
 	s.fishButtons["Goldfish"].GetWidget().Disabled = true
 }
 
-func LoadAnimatedSelectSprites() (map[string]*gameEntities.AnimatedSprite, error) {
+func LoadAnimatedSelectSprites() (map[string]*entities.AnimatedSprite, error) {
 
-	fishOptions := make(map[string]*gameEntities.AnimatedSprite)
+	fishOptions := make(map[string]*entities.AnimatedSprite)
 
-	fishSprite := gameEntities.LoadFishSprite(gameEntities.Fish, 1)
+	fishSprite := entities.LoadFishSprite(entities.Fish, 1)
 
 	//scaledImg := ebiten.NewImage(fishSprite.Img.Bounds().Dx()*4, fishSprite.Img.Bounds().Dy()*4)
 
@@ -259,7 +259,7 @@ func LoadAnimatedSelectSprites() (map[string]*gameEntities.AnimatedSprite, error
 	fishSprite.X = 355
 	fishSprite.Y = 260
 
-	mollyFishSprite := gameEntities.LoadFishSprite(gameEntities.MollyFish, 1)
+	mollyFishSprite := entities.LoadFishSprite(entities.MollyFish, 1)
 	mollyFishSprite.Animation.SpeedInTPS = 10
 
 	mollyFishSprite.X = 490
@@ -271,10 +271,10 @@ func LoadAnimatedSelectSprites() (map[string]*gameEntities.AnimatedSprite, error
 	return fishOptions, nil
 }
 
-func loadSelectedAnimations() (map[string]*gameEntities.AnimatedSprite, error) {
-	fishOptions := make(map[string]*gameEntities.AnimatedSprite)
+func loadSelectedAnimations() (map[string]*entities.AnimatedSprite, error) {
+	fishOptions := make(map[string]*entities.AnimatedSprite)
 
-	mollyFishSprite, err := gameEntities.LoadFishSpriteAltAnimations(gameEntities.MollyFish)
+	mollyFishSprite, err := entities.LoadFishSpriteAltAnimations(entities.MollyFish)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -289,5 +289,5 @@ func loadSelectedAnimations() (map[string]*gameEntities.AnimatedSprite, error) {
 }
 
 func (s *StartMenu) PlaySelectedAnimation(selected string) {
-	s.SelectSpritesToDraw = []*gameEntities.AnimatedSprite{s.SelectedAnimations[selected]}
+	s.SelectSpritesToDraw = []*entities.AnimatedSprite{s.SelectedAnimations[selected]}
 }

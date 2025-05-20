@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/assets"
+	"github.com/acoco10/fishTankWebGame/game/eventSytem"
 	"github.com/acoco10/fishTankWebGame/game/gameEntities"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
@@ -25,7 +26,7 @@ type TextBoxUi struct {
 	*widget.Container
 	text     *widget.TextArea
 	triggerd bool
-	eventhub *gameEntities.EventHub
+	eventhub *events.EventHub
 }
 
 func LoadBackgroundImageForTextInput(boxType TextBoxType) *widget.ScrollContainerImage {
@@ -62,7 +63,7 @@ func LoadBackgroundImageForTextInput(boxType TextBoxType) *widget.ScrollContaine
 	return nil
 }
 
-func NewTextBlock(hub *gameEntities.EventHub, tp TextBoxType) (*TextBoxUi, error) {
+func NewTextBlock(hub *events.EventHub, tp TextBoxType) (*TextBoxUi, error) {
 	t := &TextBoxUi{}
 
 	t.eventhub = hub
@@ -148,7 +149,7 @@ func LoadFontByType(tp TextBoxType) (text2.Face, color.Color, error) {
 		face = lFace
 		clr = color.White
 	case NotePad:
-		lFace, err := LoadFont(16, "rockSalt")
+		lFace, err := LoadFont(10, "rockSalt")
 		if err != nil {
 			return face, clr, err
 		}
@@ -158,7 +159,7 @@ func LoadFontByType(tp TextBoxType) (text2.Face, color.Color, error) {
 	return face, clr, nil
 }
 
-func NewTextBlockContainer(hub *gameEntities.EventHub, backGroundImg *widget.ScrollContainerImage, tp TextBoxType) (*widget.Container, *widget.TextArea, error) {
+func NewTextBlockContainer(hub *events.EventHub, backGroundImg *widget.ScrollContainerImage, tp TextBoxType) (*widget.Container, *widget.TextArea, error) {
 	t := &TextBoxUi{}
 
 	t.eventhub = hub
@@ -252,8 +253,8 @@ func NewTextBlockContainer(hub *gameEntities.EventHub, backGroundImg *widget.Scr
 func (t *TextBoxUi) subs(tp TextBoxType) {
 	switch tp {
 	case StatsMenu:
-		t.eventhub.Subscribe(gameEntities.SendData{}, func(e gameEntities.Event) {
-			ev := e.(gameEntities.SendData)
+		t.eventhub.Subscribe(entities.SendData{}, func(e events.Event) {
+			ev := e.(entities.SendData)
 			if ev.DataFor == "statsMenu" {
 				switch ev.Data {
 				case "fish deselect":
@@ -266,21 +267,20 @@ func (t *TextBoxUi) subs(tp TextBoxType) {
 		})
 
 	case NotePad:
-		t.eventhub.Subscribe(gameEntities.SendData{}, func(e gameEntities.Event) {
-			ev := e.(gameEntities.SendData)
-			if ev.DataFor == "whiteBoard" {
-				t.AppendTextArea(ev.Data)
-			}
+		t.eventhub.Subscribe(entities.TaskCreated{}, func(e events.Event) {
+			ev := e.(entities.TaskCreated)
+			println("appending data to white board")
+			t.AppendTextArea(ev.Task.Text)
 		})
 
-		t.eventhub.Subscribe(gameEntities.TaskCompleted{}, func(e gameEntities.Event) {
-			//ev := e.(gameEntities.TaskCompleted)
+		t.eventhub.Subscribe(entities.TaskCompleted{}, func(e events.Event) {
+			//ev := e.(entities.TaskCompleted)
 		})
 	}
 }
 
 func (t *TextBoxUi) RequestData(target any) {
-	ev := &gameEntities.RequestData{}
+	ev := &entities.RequestData{}
 	ev.RequestFor = target
 	t.eventhub.Publish(ev)
 }
@@ -289,7 +289,28 @@ func (t *TextBoxUi) UpdateTextArea(text string) {
 	t.text.SetText(text)
 }
 
+func FindFirstSpaceBeforeIndex(str string, index int) int {
+	//haha this baby is recursive
+	if index < 0 {
+		return -1 // No space found
+	}
+
+	if str[index] == ' ' {
+		println(str[index])
+		return index
+	}
+
+	index--
+	return FindFirstSpaceBeforeIndex(str, index)
+}
+
 func (t *TextBoxUi) AppendTextArea(text string) {
+
+	if len(text) > 35 {
+		i := FindFirstSpaceBeforeIndex(text, 35)
+		text = text[:i] + "\n" + text[i:]
+	}
+
 	t.text.AppendText("\n" + text)
 }
 

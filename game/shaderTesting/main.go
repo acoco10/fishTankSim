@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/acoco10/fishTankWebGame/game/eventSytem"
 	"github.com/acoco10/fishTankWebGame/game/gameEntities"
 	"github.com/acoco10/fishTankWebGame/game/shaderHelpers"
 	ui2 "github.com/acoco10/fishTankWebGame/game/ui"
@@ -34,36 +35,36 @@ const (
 type Game struct {
 	img *ebiten.Image
 	s   *ebiten.Shader
-	*gameEntities.Timer
-	pulseDuration *gameEntities.Timer
+	*entities.Timer
+	pulseDuration *entities.Timer
 	pulse         bool
 	drawPointX    float32
 	drawPointY    float32
 	direction     Direction
 	shaderParams  map[string]any
 	ui            *ebitenui.UI
-	ehub          *gameEntities.EventHub
+	ehub          *events.EventHub
 }
 
 func newGame() *Game {
 	g := Game{}
-	img, err := gameEntities.LoadImageAssetAsEbitenImage("uiSprites/fishFoodMain")
+	img, err := entities.LoadImageAssetAsEbitenImage("uiSprites/fishFoodMain")
 	if err != nil {
 		log.Fatal(err)
 	}
-	g.ehub = gameEntities.NewEventHub()
+	g.ehub = events.NewEventHub()
 	g.ui, _, err = ui2.LoadMainFishMenu(10, 0, g.ehub)
 
 	g.img = img
 	g.drawPointX = 0
 	g.drawPointY = 0
 
-	outlineShader := gameEntities.LoadSolidColorShader()
+	outlineShader := entities.LoadSolidColorShader()
 	g.s = outlineShader
 	g.direction = Right
 
-	g.Timer = gameEntities.NewTimer(1)
-	g.pulseDuration = gameEntities.NewTimer(0.3)
+	g.Timer = entities.NewTimer(1)
+	g.pulseDuration = entities.NewTimer(0.3)
 	g.Timer.TurnOn()
 
 	clrArr := outlineColor

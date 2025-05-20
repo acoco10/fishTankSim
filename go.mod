@@ -4,14 +4,12 @@ go 1.23.1
 
 require (
 	github.com/acoco10/QuickDrawAdventure v0.0.0-20250403012329-ad0f19c2df53
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.79.3
 	github.com/ebitenui/ebitenui v0.6.2
 	github.com/hajimehoshi/ebiten/v2 v2.8.7
 	github.com/quasilyte/ebitengine-resource v0.5.0
 )
 
 require (
-	github.com/aws/smithy-go v1.22.2 // indirect
 	github.com/ebitengine/gomobile v0.0.0-20250209143333-6071a2a2351c // indirect
 	github.com/ebitengine/hideconsole v1.0.0 // indirect
 	github.com/ebitengine/oto/v3 v3.3.3 // indirect

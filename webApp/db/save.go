@@ -110,6 +110,7 @@ func getUserID(db *sql.DB, userName string) (int, error) {
 	var id int
 
 	err = stmt.QueryRow(userName).Scan(&id)
+
 	if err != nil {
 		return 0, fmt.Errorf("error pulling user Id %s: %w", userName, err)
 	}

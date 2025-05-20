@@ -3,7 +3,7 @@
 
 package game
 
-func SaveToBackend(data string) {
+func SaveToBackend(data []byte) {
 	// No-op: Only used in WASM build
 }
 

@@ -1,13 +1,14 @@
 package ui
 
 import (
+	"github.com/acoco10/fishTankWebGame/game/eventSytem"
 	"github.com/acoco10/fishTankWebGame/game/gameEntities"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"image/color"
 )
 
-func NewTextInput(ehub *gameEntities.EventHub) (*widget.Container, *widget.TextInput, *widget.Button, error) {
+func NewTextInput(ehub *events.EventHub) (*widget.Container, *widget.TextInput, *widget.Button, error) {
 
 	img, err := loadTextInputImage()
 
@@ -52,7 +53,9 @@ func NewTextInput(ehub *gameEntities.EventHub) (*widget.Container, *widget.TextI
 			}),
 		),
 		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.MinSize(100, 50)),
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout(widget.AnchorLayoutOpts.Padding(
+			widget.Insets{Right: 0, Left: 0, Top: 12, Bottom: 0},
+		))),
 	)
 
 	textContainer := widget.NewContainer(
@@ -109,7 +112,7 @@ func NewTextInput(ehub *gameEntities.EventHub) (*widget.Container, *widget.TextI
 		//This is called when the user hits the "Enter" key.
 		//There are other options that can configure this behavior
 		widget.TextInputOpts.SubmitHandler(func(args *widget.TextInputChangedEventArgs) {
-			ev := gameEntities.SendData{
+			ev := entities.SendData{
 				DataFor: "Name Input",
 				Data:    args.InputText,
 			}
@@ -134,7 +137,7 @@ func NewTextInput(ehub *gameEntities.EventHub) (*widget.Container, *widget.TextI
 }
 
 func loadTextInputImage() (*widget.TextInputImage, error) {
-	img, err := gameEntities.LoadImageAssetAsEbitenImage("menuAssets/textInputBox")
+	img, err := entities.LoadImageAssetAsEbitenImage("menuAssets/textInputBox")
 
 	if err != nil {
 		return nil, err

@@ -21,30 +21,23 @@
 <script src="wasm_exec.js"></script>
 
 <script>
+    let lastSaveTime = 0;
     const base = `${window.location.protocol}//${window.location.host}`;
     const username = localStorage.getItem("username");
-    const password = localStorage.getItem("password")
+    const password = localStorage.getItem("password");
+    const herokuURL = "https://blooming-springs-06199-0958fad0a895.herokuapp.com"
+    const isNewUser = JSON.parse(localStorage.getItem("newUser"));
 
     const go = new Go();
 
-    fetch('/get-wasm-url')
-        .then(response => response.json())
-        .then(data => {
-            const wasmUrl = data.url; // Get the presigned URL
-            // Fetch and instantiate the WebAssembly module
-            WebAssembly.instantiateStreaming(fetch(wasmUrl), go.importObject)
-                .then(result => {
-                    console.log("WebAssembly module instantiated!");
-                    go.run(result.instance);
-                })
-                .catch(err => {
-                    console.error("Failed to execute WebAssembly:", err);
-                });
+    WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject)
+        .then(async (result) => {
+            console.log("WebAssembly module instantiated!");
+            await go.run(result.instance);
         })
         .catch(err => {
-            console.error("Error fetching presigned URL:", err);
+            console.error("Failed to execute WebAssembly:", err);
         });
-
 
    /*
     WebAssembly.instantiate(fetch(wasmUrl), go.importObject)
@@ -58,12 +51,22 @@
 </script>
 <script>
     window.saveGame = function (data) {
-        fetch(`${base}/save`, {
+        const now = Date.now();
+        if (now - lastSaveTime < 1000) return; // throttle within 1 sec
+        lastSaveTime = now;
+        const payload = {
+            username: username,
+            game: JSON.parse(data)
+        };
+
+        console.log("save data received from web assembly game:", data)
+
+        fetch(`${herokuURL}/save`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, state: data })
+            body: JSON.stringify(payload)
         })
-            .then(() => console.log("FishScene saved!"))
+            .then(() => console.log("FishScene save request sent to server successfully!"))
             .catch(err => {
                 console.warn("Failed to save game:", err.message);
             });
@@ -73,12 +76,11 @@
     window.loadSaveData = async function () {
         try{
         const res = await(
-        fetch(`${base}/load`, {
+        fetch(`${herokuURL}/load`, {
             method: "POST",
             body: JSON.stringify({ username, password})
         }));
         return await res.json()
-        .then(() => console.log("FishScene loaded!", res.json()))
         } catch (err){
             console.warn("Failed to load game:", err.message);
             return null;
