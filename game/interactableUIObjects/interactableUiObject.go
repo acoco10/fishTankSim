@@ -1,14 +1,24 @@
-package sprite
+package interactableUIObjects
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/drawables"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/geometry"
+	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/ui"
-	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"math"
+)
+
+type UISpriteLabel string
+
+const (
+	Records    UISpriteLabel = "records"
+	FishFood   UISpriteLabel = "fishFood"
+	FishBook   UISpriteLabel = "book"
+	WhiteBoard UISpriteLabel = "whiteBoard"
+	Plant      UISpriteLabel = "plant"
 )
 
 type uiSpriteState uint8
@@ -28,12 +38,12 @@ const (
 )
 
 type UiSprite struct {
-	*Sprite
+	*sprite.Sprite
 	baseX, baseY           float32
 	HoverImg               *ebiten.Image
 	AltImg                 *ebiten.Image
 	AltOffsetX, AltOffsetY float32
-	*XYUpdater
+	*sprite.XYUpdater
 	*events.EventHub
 	state    uiSpriteState
 	stateWas uiSpriteState
@@ -81,7 +91,7 @@ func (us *UiSprite) Update() {
 func (us *UiSprite) UpdatePosition() {
 	us.updateState()
 	if us.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		us.XYUpdater = NewUpdater(us.Sprite)
+		us.XYUpdater = sprite.NewUpdater(us.Sprite)
 	}
 
 	if us.XYUpdater != nil {
@@ -103,12 +113,12 @@ func (us *UiSprite) UpdateNormal() {
 	if us.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && us.state == Selected {
 
 		if us.XYUpdater == nil {
-			ev := UISpriteAction{}
+			ev := sprite.UISpriteAction{}
 			ev.UiSprite = us.Label
 			ev.UiSpriteAction = "picked up"
 			us.EventHub.Publish(ev)
 		}
-		us.XYUpdater = NewUpdater(us.Sprite)
+		us.XYUpdater = sprite.NewUpdater(us.Sprite)
 	}
 
 	if us.XYUpdater != nil {
@@ -146,7 +156,7 @@ func (us *UiSprite) returnToBase() {
 	us.state = HoveredOver
 	us.X = us.baseX
 	us.Y = us.baseY
-	ev := UISpriteAction{}
+	ev := sprite.UISpriteAction{}
 	ev.UiSprite = us.Label
 	ev.UiSpriteAction = "put back"
 	us.EventHub.Publish(ev)
@@ -181,7 +191,7 @@ func NewUiSprite(imgs []*ebiten.Image, hub *events.EventHub, x, y float32, label
 
 	var paramaMappa = make(map[string]any)
 
-	uis := UiSprite{Sprite: &Sprite{X: x, Y: y}}
+	uis := UiSprite{Sprite: &sprite.Sprite{X: x, Y: y}}
 	uis.ShaderParams = paramaMappa
 	uis.baseX = x
 	uis.baseY = y
@@ -242,49 +252,4 @@ func (us *UiSprite) SavePosition() drawables.SavePositionData {
 	sp.Y = us.Y
 	sp.Name = us.Label
 	return sp
-}
-
-type FishFoodSprite struct {
-	*UiSprite
-}
-
-func (ff *FishFoodSprite) Draw(screen *ebiten.Image) {
-
-	var paramaMapa = make(map[string]any)
-	sopts := ebiten.DrawRectShaderOptions{}
-	baseColor := [4]float64{0.2, 0.1, 0.05, 255}
-	paramaMapa["OutlineColor"] = baseColor
-
-	shader := shaders.LoadOutlineShader()
-
-	sopts.GeoM.Translate(float64(ff.baseX), float64(ff.baseY))
-	b := ff.Img.Bounds()
-
-	sopts.Images[0] = ff.Img
-	sopts.Uniforms = paramaMapa
-
-	screen.DrawRectShader(b.Dx(), b.Dy(), shader, &sopts)
-	opts := ebiten.DrawImageOptions{}
-
-	if ff.state == Idle {
-		opts.GeoM.Translate(float64(ff.X), float64(ff.Y))
-		screen.DrawImage(ff.Img, &opts)
-		opts.GeoM.Reset()
-	} else if ff.state == Selected || ff.state == HoveredOver {
-		if ff.HoverImg != nil {
-			opts.GeoM.Translate(float64(ff.X), float64(ff.Y))
-			opts.GeoM.Translate(float64(ff.AltOffsetX), float64(ff.AltOffsetY))
-			screen.DrawImage(ff.HoverImg, &opts)
-			opts.GeoM.Reset()
-		}
-	} else if ff.state == ClickedWhileBeingSelected {
-		opts.GeoM.Translate(float64(ff.X), float64(ff.Y))
-		screen.DrawImage(ff.AltImg, &opts)
-		opts.GeoM.Reset()
-	}
-
-}
-
-func (ff *FishFoodSprite) Subscribe() {
-
 }

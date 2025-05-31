@@ -2,13 +2,18 @@
 package main
 
 var OutlineColor vec4
-var DrawPointX float
-var DrawPointY float
+var HighLightColor vec4
+var HighLightRect vec2
+var HLRectSize float
 
-func Fragment(targetCoords vec4, texCoord vec2, _ vec4) vec4 {
+func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
 	color := imageSrc0UnsafeAt(texCoord)
     outline := false
-	if color.a > 0.0 {
+
+    xCheck := dstCoord.x >= HighLightRect.x && dstCoord.x <= HighLightRect.x+HLRectSize
+    yCheck := dstCoord.y >= HighLightRect.y && dstCoord.y <= HighLightRect.y+HLRectSize
+
+	if color.a == 0.0 {
             for x := -1; x <= 1; x++ {
                 for y := -1; y <= 1; y++ {
                     if x == 0 && y == 0 {
@@ -16,33 +21,20 @@ func Fragment(targetCoords vec4, texCoord vec2, _ vec4) vec4 {
                     }
                     sampleCoord := texCoord + vec2(float(x), float(y))
                     sample := imageSrc0UnsafeAt(sampleCoord)
-                    if sample.a == 0.0 {
+                    if sample.a != 0 {
                         outline = true
                     }
                 }
            }
     }
 
-    halfRect := 200.0
-    rectx1 := DrawPointX + 180
-    rectx2 := DrawPointX + halfRect
-    recty1 := DrawPointY - 5
-    recty2 := DrawPointY + 5
-
-    overlap := false
-
-    if (texCoord.x > rectx1 && texCoord.x < rectx2) && (texCoord.y > recty1 && texCoord.y < recty2){
-        overlap = true
+    if xCheck && yCheck && outline{
+        return HighLightColor
     }
 
     if outline{
-        if overlap{
-            return OutlineColor2
-        }else{
         return OutlineColor
-        }
     }
 
     return color
-
 }

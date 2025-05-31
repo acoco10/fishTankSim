@@ -4,11 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/game"
-	"github.com/acoco10/fishTankWebGame/game/debug"
-	"github.com/acoco10/fishTankWebGame/game/eventSytem"
-	"github.com/acoco10/fishTankWebGame/game/gameEntities"
+	"github.com/acoco10/fishTankWebGame/game/drawables"
+	"github.com/acoco10/fishTankWebGame/game/entities"
+	"github.com/acoco10/fishTankWebGame/game/events"
+	"github.com/acoco10/fishTankWebGame/game/geometry"
+	"github.com/acoco10/fishTankWebGame/game/graphics"
+	"github.com/acoco10/fishTankWebGame/game/input"
+	"github.com/acoco10/fishTankWebGame/game/interactableUIObjects"
+	"github.com/acoco10/fishTankWebGame/game/loaders"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/acoco10/fishTankWebGame/game/soundFX"
+	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/ui"
 	"github.com/ebitenui/ebitenui"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -38,16 +44,18 @@ type FishScene struct {
 	tankSize            image.Rectangle
 	fishTankImg         *ebiten.Image
 	frontLayer          *ebiten.Image
+	fishTankFrontLayer  *ebiten.Image
 	gameMode            gameMode
-	sprites             []entities.DrawableSprite
-	debugRect           *debug.Rect
+	sprites             []drawables.DrawableSprite
+	debugRect           *geometry.Rect
 	ui                  *ebitenui.UI
 	gameLog             *sceneManagement.GameLog
 	songTimer           *entities.Timer
-	task                *entities.Task
-	graphics            []entities.DrawableSprite
+	task                *events.Task
+	graphics            []drawables.DrawableSprite
 	handledClick        bool
 	pointGeneratedTimer *entities.Timer
+	graphicManager      *graphics.GraphicManager
 }
 
 const (
@@ -65,7 +73,7 @@ func NewFishScene(gameLog *sceneManagement.GameLog) *FishScene {
 	g.pointGeneratedTimer.TurnOn()
 	g.gameLog = gameLog
 	g.Creatures = []*entities.Creature{}
-	collisionMap, err := debug.LoadCollisions()
+	collisionMap, err := geometry.LoadCollisions()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -75,16 +83,16 @@ func NewFishScene(gameLog *sceneManagement.GameLog) *FishScene {
 		log.Fatal(err)
 	}
 
-	g.debugRect = &debug.Rect{}
-	g.debugRect.RectState = debug.Off
+	g.debugRect = &geometry.Rect{}
+	g.debugRect.RectState = geometry.Off
 
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
 	g.eventHub = gameLog.GlobalEventHub
 
-	fishSceneUISprites := []entities.UISpriteLabel{entities.FishBook, entities.Records, entities.FishFood, entities.WhiteBoard, entities.Plant}
+	fishSceneUISprites := []interactableUIObjects.UISpriteLabel{interactableUIObjects.FishBook, interactableUIObjects.Records, interactableUIObjects.FishFood, interactableUIObjects.WhiteBoard, interactableUIObjects.Plant}
 
-	uiSprites, err := entities.LoadUISprites(fishSceneUISprites, g.eventHub, ScreenWidth, ScreenHeight)
+	uiSprites, err := loaders.LoadUISprites(fishSceneUISprites, g.eventHub, ScreenWidth, ScreenHeight)
 
 	if err != nil {
 		log.Fatal(err)
@@ -95,7 +103,7 @@ func NewFishScene(gameLog *sceneManagement.GameLog) *FishScene {
 	tankX := g.fishTankImg.Bounds().Max.X
 	tankY := g.fishTankImg.Bounds().Max.Y
 
-	startingX := (ScreenWidth - tankX) / 2
+	startingX := int(ScreenWidth * 0.2)
 	startingY := ScreenHeight - backGroundImgShelfHeight - g.fishTankImg.Bounds().Dy()
 
 	tankRect := image.Rect(startingX, startingY, tankX+startingX, tankY+startingY)
@@ -126,11 +134,6 @@ func (g *FishScene) FirstLoad(gameLog *sceneManagement.GameLog) {
 
 }
 
-func NewID() int {
-	nextID++
-	return nextID
-}
-
 func (g *FishScene) OnExit() {
 
 }
@@ -142,7 +145,9 @@ func (g *FishScene) OnEnter(gameLog *sceneManagement.GameLog) {
 		task.Publish(gameLog.GlobalEventHub)
 	}
 
-	collisionMap, err := debug.LoadCollisions()
+	g.graphicManager = graphics.NewGraphicManager(g.eventHub)
+
+	collisionMap, err := geometry.LoadCollisions()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -153,7 +158,7 @@ func (g *FishScene) OnEnter(gameLog *sceneManagement.GameLog) {
 	fishes := g.gameLog.Save
 
 	for _, fish := range fishes.Fish {
-		loadedFish := entities.NewFish(g.eventHub, collisionMap["tank"], fish)
+		loadedFish := loaders.NewFish(g.eventHub, collisionMap["tank"], fish)
 		g.Creatures = append(g.Creatures, loadedFish)
 	}
 
@@ -181,6 +186,10 @@ func (g *FishScene) Update() (sceneManagement.SceneId, error) {
 		sprite.Update()
 	}
 
+	g.gameLog.SoundPlayer.Update()
+
+	g.graphicManager.Update()
+
 	if g.gameMode == Position {
 		if ebiten.IsKeyPressed(ebiten.KeyM) {
 			g.debugRect.Init("tank")
@@ -195,7 +204,7 @@ func (g *FishScene) Update() (sceneManagement.SceneId, error) {
 	timerState := g.songTimer.Update()
 
 	if timerState == entities.Done {
-		g.gameLog.SongPlayer.Play(soundFX.Lounge)
+		//g.gameLog.SoundPlayer.Play(soundFX.Lounge)
 		g.songTimer.TurnOff()
 	}
 
@@ -212,6 +221,9 @@ func (g *FishScene) Draw(screen *ebiten.Image) {
 	opts := ebiten.DrawImageOptions{}
 	screen.DrawImage(g.background, &opts)
 
+	fisTankFrontLayerDy := g.fishTankFrontLayer.Bounds().Dy()
+	fishTankHeightDy := g.fishTankImg.Bounds().Dy()
+
 	opts.GeoM.Reset()
 	opts.GeoM.Translate(float64(g.tankSize.Min.X), float64(g.tankSize.Min.Y))
 	screen.DrawImage(g.fishTankImg, &opts)
@@ -227,20 +239,32 @@ func (g *FishScene) Draw(screen *ebiten.Image) {
 	}
 	opts.GeoM.Reset()
 	screen.DrawImage(g.frontLayer, &opts)
+	opts.GeoM.Reset()
+
+	y := fisTankFrontLayerDy - fishTankHeightDy
+	y = g.tankSize.Min.Y - y
+
+	opts.GeoM.Translate(float64(g.tankSize.Min.X), float64(y))
+
+	screen.DrawImage(g.fishTankFrontLayer, &opts)
 
 	for _, s := range g.sprites {
 		s.Draw(screen)
 	}
 
+	for _, creature := range g.Creatures {
+		if creature.Shader != nil {
+			creature.Draw(screen)
+		}
+	}
+
 	opts.GeoM.Reset()
 
-	g.debugRect.Draw(screen)
-	g.printGameMode(screen)
+	//g.debugRect.Draw(screen)
+	//g.printGameMode(screen)
 
 	g.ui.Draw(screen)
-	for _, graph := range g.graphics {
-		graph.Draw(screen)
-	}
+	g.graphicManager.Draw(screen)
 
 }
 
@@ -252,9 +276,9 @@ func (g *FishScene) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return 940, 593
 }
 
-func subs(g *FishScene, colMap map[string]debug.Rect) {
-	g.eventHub.Subscribe(entities.MouseButtonPressed{}, func(e events.Event) {
-		ev := e.(entities.MouseButtonPressed)
+func subs(g *FishScene, colMap map[string]geometry.Rect) {
+	g.eventHub.Subscribe(input.MouseButtonPressed{}, func(e events.Event) {
+		ev := e.(input.MouseButtonPressed)
 		xCheck := ev.Point.X > float32(g.tankSize.Min.X)+100 && ev.Point.X < float32(g.tankSize.Max.X)
 		yCheck := ev.Point.Y < float32(g.tankSize.Min.Y)-20
 
@@ -277,8 +301,8 @@ func subs(g *FishScene, colMap map[string]debug.Rect) {
 		}
 	})
 
-	g.eventHub.Subscribe(entities.ButtonClickedEvent{}, func(e events.Event) {
-		ev := e.(entities.ButtonClickedEvent)
+	g.eventHub.Subscribe(ui.ButtonClickedEvent{}, func(e events.Event) {
+		ev := e.(ui.ButtonClickedEvent)
 		println(ev.ButtonText, "button event received")
 		switch ev.ButtonText {
 		case "Save":
@@ -292,28 +316,28 @@ func subs(g *FishScene, colMap map[string]debug.Rect) {
 	g.eventHub.Subscribe(entities.SendData{}, func(e events.Event) {
 		ev := e.(entities.SendData)
 		if ev.DataFor == "soundFx" && ev.Data == "particle entered water" {
-			g.gameLog.SoundPlayer.Play(soundFX.PlopSound)
+			g.gameLog.SoundPlayer.AddToQueue(soundFX.PlopSound)
 		}
 	})
 
-	g.eventHub.Subscribe(entities.UISpriteAction{}, func(e events.Event) {
-		ev := e.(entities.UISpriteAction)
+	g.eventHub.Subscribe(sprite.UISpriteAction{}, func(e events.Event) {
+		ev := e.(sprite.UISpriteAction)
 		if ev.UiSprite == "fishFood" && ev.UiSpriteAction == "put back" {
-			g.gameLog.SoundPlayer.Play(soundFX.PickUpOne)
+			g.gameLog.SoundPlayer.AddToQueue(soundFX.PickUpOne)
 		}
 		if ev.UiSprite == "fishFood" && ev.UiSpriteAction == "picked up" {
-			g.gameLog.SoundPlayer.Play(soundFX.SelectSound2)
+			g.gameLog.SoundPlayer.AddToQueue(soundFX.SelectSound2)
 		}
 	})
 
-	g.eventHub.Subscribe(entities.DrawGraphic{}, func(e events.Event) {
-		ev := e.(entities.DrawGraphic)
+	g.eventHub.Subscribe(graphics.DrawGraphic{}, func(e events.Event) {
+		ev := e.(graphics.DrawGraphic)
 		println("adding draw graphic to game struct")
 		g.graphics = append(g.graphics, ev.Graphic)
 	})
 
-	g.eventHub.Subscribe(entities.TaskCompleted{}, func(e events.Event) {
-		g.gameLog.SoundPlayer.Play(soundFX.SuccessMusic)
+	g.eventHub.Subscribe(events.TaskCompleted{}, func(e events.Event) {
+		g.gameLog.SoundPlayer.AddToQueue(soundFX.SuccessMusic)
 	})
 }
 
@@ -379,21 +403,27 @@ func DebugText(debugText string, screen *ebiten.Image) {
 
 func (g *FishScene) loadBackground() error {
 
-	background, err := entities.LoadImageAssetAsEbitenImage("roomBackground")
+	background, err := loaders.LoadImageAssetAsEbitenImage("roomBackground")
 	if err != nil {
 		return err
 	}
 
-	fishTankImg, err := entities.LoadImageAssetAsEbitenImage("fishTank")
+	fishTankImg, err := loaders.LoadImageAssetAsEbitenImage("fishTank")
 	if err != nil {
 		return err
 	}
 
-	frontLayer, err := entities.LoadImageAssetAsEbitenImage("frontLayer")
+	frontLayer, err := loaders.LoadImageAssetAsEbitenImage("frontLayer")
 	if err != nil {
 		return err
 	}
 
+	fishTankFrontLayer, err := loaders.LoadImageAssetAsEbitenImage("fishTankFrontLayer")
+	if err != nil {
+		return err
+	}
+
+	g.fishTankFrontLayer = fishTankFrontLayer
 	g.frontLayer = frontLayer
 	g.background = background
 	g.fishTankImg = fishTankImg
@@ -402,7 +432,7 @@ func (g *FishScene) loadBackground() error {
 
 func (g *FishScene) saveUISpritePositions() {
 
-	spMap := make(map[string]entities.SavePositionData)
+	spMap := make(map[string]drawables.SavePositionData)
 
 	for _, sprite := range g.sprites {
 

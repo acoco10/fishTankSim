@@ -2,11 +2,14 @@ package scenes
 
 import (
 	"fmt"
-	"github.com/acoco10/fishTankWebGame/game/eventSytem"
-	"github.com/acoco10/fishTankWebGame/game/gameEntities"
+	"github.com/acoco10/fishTankWebGame/game/entities"
+	"github.com/acoco10/fishTankWebGame/game/events"
+	"github.com/acoco10/fishTankWebGame/game/geometry"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/acoco10/fishTankWebGame/game/soundFX"
+	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/ui"
+	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image/color"
@@ -16,7 +19,7 @@ import (
 type StartScene struct {
 	ui               *ui.StartMenu
 	isLoaded         bool
-	fishOptions      []*entities.AnimatedSprite
+	fishOptions      []*sprite.AnimatedSprite
 	nextSceneTrigger *entities.Timer
 	gameLog          *sceneManagement.GameLog
 }
@@ -34,10 +37,10 @@ func NewStartScene(gameLog *sceneManagement.GameLog) *StartScene {
 
 	taskCondition := func(e events.Event) bool {
 		ev, ok := e.(entities.CreatureReachedPoint)
-		return ok && ev.Point.PType == entities.Food
+		return ok && ev.Point.PType == geometry.Food
 	}
 
-	gameTask := entities.NewTask(entities.CreatureReachedPoint{}, "1. Feed your fish", taskCondition)
+	gameTask := events.NewTask(entities.CreatureReachedPoint{}, "1. Feed your fish", taskCondition)
 	gameTask.Subscribe(gameLog.GlobalEventHub)
 
 	taskCondition2 := func(e events.Event) bool {
@@ -45,15 +48,15 @@ func NewStartScene(gameLog *sceneManagement.GameLog) *StartScene {
 		return ok && ev.DataFor == "statsMenu"
 	}
 
-	gameTask2 := entities.NewTask(entities.SendData{}, "2. Click your fish", taskCondition2)
+	gameTask2 := events.NewTask(entities.SendData{}, "2. Click your fish", taskCondition2)
 	gameTask2.Subscribe(gameLog.GlobalEventHub)
 
 	taskCondition3 := func(e events.Event) bool {
 		ev, ok := e.(entities.CreatureReachedPoint)
-		return ok && ev.Point.PType == entities.Food && ev.Creature.Hunger <= 1.0
+		return ok && ev.Point.PType == geometry.Food && ev.Creature.Hunger <= 1.0
 	}
 
-	gameTask3 := entities.NewTask(entities.CreatureReachedPoint{}, "3. Feed them until they're full", taskCondition3)
+	gameTask3 := events.NewTask(entities.CreatureReachedPoint{}, "3. Feed them until they're full", taskCondition3)
 	gameTask3.Subscribe(gameLog.GlobalEventHub)
 
 	s.gameLog.Tasks = append(s.gameLog.Tasks, gameTask, gameTask2, gameTask3)
@@ -120,8 +123,8 @@ func (s *StartScene) IsLoaded() bool {
 }
 
 func (s *StartScene) subs(gameLog *sceneManagement.GameLog) {
-	gameLog.GlobalEventHub.Subscribe(entities.ButtonEvent{}, func(e events.Event) {
-		ev := e.(entities.ButtonEvent)
+	gameLog.GlobalEventHub.Subscribe(ui.ButtonEvent{}, func(e events.Event) {
+		ev := e.(ui.ButtonEvent)
 		if ev.EType == "cursor exited" {
 			if ev.ButtonText != "Select" {
 				if len(s.ui.SelectSpritesToDraw) > 1 {
@@ -131,9 +134,9 @@ func (s *StartScene) subs(gameLog *sceneManagement.GameLog) {
 		}
 	})
 
-	gameLog.GlobalEventHub.Subscribe(entities.ButtonClickedEvent{}, func(e events.Event) {
-		ev := e.(entities.ButtonClickedEvent)
-		ols := entities.LoadOutlineShader()
+	gameLog.GlobalEventHub.Subscribe(ui.ButtonClickedEvent{}, func(e events.Event) {
+		ev := e.(ui.ButtonClickedEvent)
+		ols := shaders.LoadOutlineShader()
 		switch ev.ButtonText {
 		case "Common Molly":
 			gameLog.SoundPlayer.Play(soundFX.SelectSound2)
@@ -152,13 +155,11 @@ func (s *StartScene) subs(gameLog *sceneManagement.GameLog) {
 			s.ui.TextInput.Focus(true)
 			s.ui.SelectSpriteOptions[ev.ButtonText].LoadShader(ols)
 		case "Submit":
-			if s.ui.TextInput.GetText() != "" && gameLog.Save.Fish[0].Name == "" {
-				gameLog.Save.Fish[0].Name = s.ui.TextInput.GetText()
-				s.ui.TextInputButton.Press()
-				s.nextSceneTrigger.TurnOn()
-				s.ui.TextInput.Focus(false)
-				s.gameLog.SoundPlayer.Play(soundFX.SelectSound)
+			ev2 := entities.SendData{
+				DataFor: "Name Input",
+				Data:    s.ui.TextInput.GetText(),
 			}
+			gameLog.GlobalEventHub.Publish(ev2)
 		}
 	})
 
@@ -173,10 +174,10 @@ func (s *StartScene) subs(gameLog *sceneManagement.GameLog) {
 		}
 	})
 
-	gameLog.GlobalEventHub.Subscribe(entities.ButtonEvent{}, func(e events.Event) {
-		ev := e.(entities.ButtonEvent)
+	gameLog.GlobalEventHub.Subscribe(ui.ButtonEvent{}, func(e events.Event) {
+		ev := e.(ui.ButtonEvent)
 		if ev.EType == "cursor entered" {
-			ols := entities.LoadOutlineShader()
+			ols := shaders.LoadRotatingHighlightShader()
 			println(ev.ButtonText)
 			if ev.ButtonText != "Select" {
 				println(ev.ButtonText)

@@ -3,6 +3,7 @@ package sprite
 import (
 	"encoding/json"
 	"github.com/acoco10/fishTankWebGame/assets"
+	"github.com/acoco10/fishTankWebGame/game/drawables"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/loader"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -35,8 +36,8 @@ func loadUiSpritesImgs(label UISpriteLabel) ([]*ebiten.Image, error) {
 	return imgs, nil
 }
 
-func LoadUISprites(spritesToLoad []UISpriteLabel, hub *events.EventHub, screenWidth, screenHeight int) ([]DrawableSprite, error) {
-	var sprites []DrawableSprite
+func LoadUISprites(spritesToLoad []UISpriteLabel, hub *events.EventHub, screenWidth, screenHeight int) ([]drawables.DrawableSprite, error) {
+	var sprites []drawables.DrawableSprite
 
 	spritePositions, err := loadSpritePositionData()
 	if err != nil {
@@ -71,8 +72,8 @@ func LoadUISprites(spritesToLoad []UISpriteLabel, hub *events.EventHub, screenWi
 
 }
 
-func loadSpritePositionData() (map[string]*SavePositionData, error) {
-	var positions = make(map[string]*SavePositionData)
+func loadSpritePositionData() (map[string]*drawables.SavePositionData, error) {
+	var positions = make(map[string]*drawables.SavePositionData)
 	spritePosition, err := assets.DataDir.ReadFile("data/spritePosition.json")
 	if err != nil {
 		return positions, err

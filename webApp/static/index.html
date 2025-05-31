@@ -1,83 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-
-
 <head>
-    <link href="css/index.css" type="text/css" rel="stylesheet">
-    <meta charset="UTF-8">
-    <title>Login / Register</title>
+  <meta charset="UTF-8">
+  <title>$Title$</title>
 </head>
 <body>
-
-<div class ="page-wrapper">
-    <img src="images/fishfishfishLogo.png" alt="FishLogo" class="header-image"/>
-<div class ="container">
-        <h2>Login or Register</h2>
-        <input id="username" placeholder="Username" />
-        <input id="password" type="password" placeholder="Password" />
-        <button onclick="register()">Register</button>
-        <button onclick="login()">Login</button>
-        <button onclick="justPlay()">JustPlay</button>
-        <p id="authMessage"></p>
-    </div>
-
-    <script>
-        const base = `${window.location.protocol}//${window.location.host}`;
-        const herokuURL = "https://blooming-springs-06199-0958fad0a895.herokuapp.com"
-        let newUser = false
-
-        function register() {
-            const username = document.getElementById("username").value;
-            const password = document.getElementById("password").value;
-            fetch(herokuURL + "/register", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, password })
-            })
-                .then(res => res.text())
-                .then(text => {
-                    if (text.includes("Registered")) {
-                        newUser = true
-                        document.getElementById("authMessage").style.color = "#4caf50";
-                        document.getElementById("authMessage").innerText = "Registered successfully!";
-                    } else {
-                        throw new Error(text);
-                    }
-                })
-                .catch(err => {
-                    document.getElementById("authMessage").style.color = "#f44336";
-                    document.getElementById("authMessage").innerText = "Registration failed: " + err.message;
-                });
-        }
-
-        function login() {
-            const username = document.getElementById("username").value;
-            const password = document.getElementById("password").value;
-            fetch(herokuURL + "/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, password })
-            })
-                .then(res => {
-                    if (!res.ok) throw new Error("Invalid login");
-                    return res.text();
-                })
-                .then(() => {
-                    localStorage.setItem("username", username);
-                    window.location.href = "game.html";
-                    localStorage.setItem("newUser", JSON.stringify(false));
-                })
-                .catch(err => {
-                    document.getElementById("authMessage").style.color = "#f44336";
-                    document.getElementById("authMessage").innerText = "Login failed: " + err.message;
-                });
-
-
-        }
-        function justPlay(){
-            window.location.href = "game.html"
-        }
-    </script>
-</div>
+$END$
 </body>
 </html>

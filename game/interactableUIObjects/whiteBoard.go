@@ -1,13 +1,10 @@
-package sprite
+package interactableUIObjects
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/events"
-	"github.com/acoco10/fishTankWebGame/game/graphics"
-	"github.com/acoco10/fishTankWebGame/game/loaders"
 	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"image/color"
 )
 
 type WhiteBoardSprite struct {
@@ -22,23 +19,13 @@ func (w *WhiteBoardSprite) Update() {
 	w.updateState()
 
 	if w.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && len(w.completedTasks) > 0 {
-		var taskPosition int
+		/*	var taskPosition int
 
-		for i, task := range w.tasks {
-			if task.Text == w.completedTasks[0].Text {
-				taskPosition = i
-			}
-		}
-
-		ev := graphics.DrawGraphic{}
-
-		vlsGraphic := loaders.NewVlS(
-			w.X+20, w.Y+55+float32(20*taskPosition), w.X+22, w.Y+57+float32(20*taskPosition), w.X+170,
-			color.RGBA{R: 20, G: 100, B: 100, A: 200},
-		)
-
-		ev.Graphic = vlsGraphic
-		w.EventHub.Publish(ev)
+			for i, task := range w.tasks {
+				if task.Text == w.completedTasks[0].Text {
+					taskPosition = i
+				}
+			}*/
 
 		ev2 := events.TaskCompleted{}
 		w.EventHub.Publish(ev2)

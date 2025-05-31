@@ -32,7 +32,7 @@ html, body {
     width: 25px; /* frame width */
     height: 11px; /* frame height */
     transform: scale(4);
-    background-image: url("../images/loading.png");
+    background-image: url("../../../../fishTankWebGame/webApp/static/images/loading.png");
     background-repeat: no-repeat;
     animation: play 1s steps(4) infinite;
     /* OR use JS to control frame-by-frame */
