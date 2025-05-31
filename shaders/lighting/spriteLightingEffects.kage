@@ -1,0 +1,31 @@
+//kage:unit pixels
+package main
+
+
+var ImgRect vec2
+
+var LightPoint vec2
+
+func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
+    color := imageSrc0UnsafeAt(texCoord)
+    outline := false
+    if color.a != 0.0 {
+                for x := -2; x <= 0; x++ {
+                    for y := -1; y <= 1; y++ {
+                        if x == 0 && y == 0 {
+                            continue
+                        }
+                        sampleCoord := texCoord + vec2(float(x), float(y))
+                        sample := imageSrc0UnsafeAt(sampleCoord)
+                        if sample.a == 0 {
+                            outline = true
+                        }
+                    }
+               }
+        }
+    dis := distance(LightPoint, dstCoord.xy)
+    if dis < 100 && texCoord.y > (ImgRect.y/2) && outline{
+        color.rgb *= 0.6
+    }
+    return color
+}

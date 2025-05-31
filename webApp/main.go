@@ -216,12 +216,11 @@ func testWasmLocallyInitServer() {
 	http.HandleFunc("/save", saveHandler)
 	http.HandleFunc("/load", loadHandler)
 	http.Handle("/", http.FileServer(http.Dir("./static")))
-	http.HandleFunc("/main.wasm", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("static/fishFishFish/main.wasm", func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Request received for /main.wasm")
 		w.Header().Set("Content-Type", "application/wasm")
 		http.ServeFile(w, r, "static/main.wasm")
 	})
-
 }
 
 func generatePresignedURL() string {
@@ -297,7 +296,7 @@ func main() {
 
 	// Add CORS middleware
 	handler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://symphonious-cuchufli-daa422.netlify.app"}, // no trailing slash!
+		AllowedOrigins:   []string{"https://collisionposition.netlify.app"}, // no trailing slash!
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,

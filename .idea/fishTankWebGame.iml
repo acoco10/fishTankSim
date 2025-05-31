@@ -12,5 +12,6 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="kage-desk" />
     <orderEntry type="module" module-name="ebiten ui pull" />
+    <orderEntry type="library" name="highlight.js" level="application" />
   </component>
 </module>

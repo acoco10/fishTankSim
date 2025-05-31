@@ -2,7 +2,7 @@
 package main
 
 var LightPoint vec2
-var ImgRect vec2
+var ImgRect vec4
 
 func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
       color := imageSrc0UnsafeAt(texCoord)

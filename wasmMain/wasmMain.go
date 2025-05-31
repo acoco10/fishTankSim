@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/acoco10/fishTankWebGame/game"
-	"github.com/acoco10/fishTankWebGame/game/gameEntities"
+	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/acoco10/fishTankWebGame/game/scenes"
 	"github.com/hajimehoshi/ebiten/v2"

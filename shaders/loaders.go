@@ -31,3 +31,30 @@ func LoadSolidColorShader() *ebiten.Shader {
 	}
 	return s
 }
+
+func LoadRotatingHighlightShader() *ebiten.Shader {
+	rhls := []byte(RotatingHighlightOutline)
+	s, err := ebiten.NewShader(rhls)
+	if err != nil {
+		log.Printf("Couldnt Load Rotating Highlight Shader %q", err)
+	}
+	return s
+}
+
+func LoadOnePointLighting() *ebiten.Shader {
+	opl := []byte(OnePointLighting)
+	s, err := ebiten.NewShader(opl)
+	if err != nil {
+		log.Printf("Couldnt Load one point lighting Shader %q", err)
+	}
+	return s
+}
+
+func LoadSpriteLighting() *ebiten.Shader {
+	osl := []byte(SpriteLightingEffect)
+	s, err := ebiten.NewShader(osl)
+	if err != nil {
+		log.Printf("Couldnt sprite lighting Shader %q", err)
+	}
+	return s
+}

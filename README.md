@@ -1,8 +1,8 @@
 # Fish Fish Fish!
 
-### A Small Browser Tamagachi Esque FishScene Written in Go/ebiten compiled to WASM that can save user state 
+### A Small Browser Tamagachi Esque FishScene Written in Go/ebiten compiled to WASM that can save user State 
 ## Goals 
-- learn javascript asynch functions for loading and saving player state
+- learn javascript asynch functions for loading and saving player State
 - Develop a clean front-end in JavaScript and HTML
 - user/server management in Go backend
 - Develop good pixel art visuals for water and particles

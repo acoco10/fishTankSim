@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/assets"
-	"github.com/acoco10/fishTankWebGame/game/gameEntities"
+	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/acoco10/fishTankWebGame/game/scenes"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -44,5 +44,4 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 }

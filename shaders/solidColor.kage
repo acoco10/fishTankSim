@@ -2,14 +2,34 @@
 package main
 
 var Resolution vec2
-var OutlineColor vec4
+var BaseColor vec4
 
 func Fragment(position vec4, texCoord vec2, _ vec4) vec4 {
-   color := imageSrc0UnsafeAt(texCoord)
 
-    if color.a != 0.0 {
-        return OutlineColor
-    }else{
-    return vec4(0,0,0,0)
+    color := imageSrc0UnsafeAt(texCoord)
+    outline := false
+	if color.a == 0.0 {
+            for x := -1; x <= 1; x++ {
+                for y := -1; y <= 1; y++ {
+                    if x == 0 && y == 0 {
+                        continue
+                    }
+                    sampleCoord := texCoord + vec2(float(x), float(y))
+                    sample := imageSrc0UnsafeAt(sampleCoord)
+                    if sample.a != 0 {
+                        outline = true
+                    }
+                }
+           }
     }
+
+    if outline{
+        return vec4(0,0,0,1)
+    }
+
+    if color.a == 0.0{
+        return vec4(0,0,0,0)
+    }
+
+    return BaseColor
 }

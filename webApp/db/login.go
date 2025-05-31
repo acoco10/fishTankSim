@@ -24,10 +24,6 @@ func NewUser(userName string, PW string) (string, error) {
 
 	exists, err := checkIfUserExists(userName, db)
 
-	if err != nil {
-		return "", err
-	}
-
 	if exists {
 		return "", fmt.Errorf("user already exists")
 	}
