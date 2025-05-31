@@ -1,10 +1,9 @@
-package loader
+package loaders
 
 import (
 	"fmt"
 	"github.com/acoco10/QuickDrawAdventure/animations"
-	"github.com/acoco10/QuickDrawAdventure/spritesheet"
-	"github.com/acoco10/fishTankWebGame/game/debug"
+	"github.com/acoco10/QuickDrawAdventure/spriteSheet"
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/geometry"
@@ -32,10 +31,6 @@ func LoadFishImg(fType entities.FishList, level int) (*ebiten.Image, error) {
 func LoadFishSprite(creatureType entities.FishList, creatureLvl int) *sprite.AnimatedSprite {
 	var c sprite.AnimatedSprite
 	c.Sprite = &sprite.Sprite{}
-
-	shaderParams := make(map[string]any)
-	shaderParams["OutlineColor"] = [4]float64{255, 255, 0, 255}
-	c.ShaderParams = shaderParams
 
 	img, err := LoadFishImg(creatureType, creatureLvl)
 	if err != nil {
@@ -84,7 +79,7 @@ func LoadFishSpriteAltAnimations(fType entities.FishList) (*sprite.AnimatedSprit
 	return &c, nil
 }
 
-func NewFish(hub *events.EventHub, tankSize debug.Rect, saveData entities.SavedFish) *entities.Creature {
+func NewFish(hub *events.EventHub, tankSize geometry.Rect, saveData entities.SavedFish) *entities.Creature {
 
 	timers := make(map[entities.FishState]*entities.Timer)
 	randDuration := rand.Float64() * 50
@@ -114,11 +109,11 @@ func NewFish(hub *events.EventHub, tankSize debug.Rect, saveData entities.SavedF
 		sprite.NewAnimatedSprite(),
 	}
 
-	c.AnimatedSprite = LoadFishSprite(c.fishType, c.Size)
+	c.AnimatedSprite = LoadFishSprite(c.FishType, c.Size)
 
-	shaderParams := make(map[string]any)
-	shaderParams["OutlineColor"] = [4]float64{255, 255, 0, 255}
-	c.ShaderParams = shaderParams
+	//LoadRotatingHighlightOutlineAnimated(c.AnimatedSprite)
+	LoadRotatingHighlightOutlineAnimated(c.AnimatedSprite)
+
 	firstPoint := c.RandomTarget()
 	c.AddTargetPointToQueue(firstPoint)
 

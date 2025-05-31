@@ -1,7 +1,7 @@
 package entities
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/debug"
+	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/geometry"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
@@ -65,7 +65,7 @@ func (p *Particle) Draw(screen *ebiten.Image) {
 	vector.DrawFilledCircle(screen, p.X, p.Y, 2, clr, false)
 }
 
-func NewParticle(point *geometry.Point, rect debug.Rect, hub *events.EventHub) *Particle {
+func NewParticle(point *geometry.Point, rect geometry.Rect, hub *events.EventHub) *Particle {
 	println("calling new particle function", n)
 	n++
 	p := Particle{

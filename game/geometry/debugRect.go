@@ -1,4 +1,4 @@
-package debug
+package geometry
 
 import (
 	"encoding/json"

@@ -12,13 +12,11 @@ import (
 
 const (
 	BestAdventureEver resource.AudioID = iota
-	Lounge            resource.AudioID = iota
 	PickUpOne         resource.AudioID = iota
 	PlopSound         resource.AudioID = iota
 	PouringFood       resource.AudioID = iota
 	SelectSound       resource.AudioID = iota
 	SuccessMusic      resource.AudioID = iota
-	TropicalHouse     resource.AudioID = iota
 	WaterBubbles      resource.AudioID = iota
 	SelectSound2      resource.AudioID = iota
 )

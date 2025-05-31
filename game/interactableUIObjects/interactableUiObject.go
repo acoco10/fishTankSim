@@ -4,8 +4,8 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/drawables"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/geometry"
+	"github.com/acoco10/fishTankWebGame/game/input"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
-	"github.com/acoco10/fishTankWebGame/game/ui"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"math"
@@ -129,7 +129,7 @@ func (us *UiSprite) UpdateNormal() {
 
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && us.state == ClickedWhileBeingSelected && !us.clicked {
 		us.clicked = true
-		ev := ui.MouseButtonPressed{
+		ev := input.MouseButtonPressed{
 			Point: &geometry.Point{X: float32(x), Y: float32(y), PType: geometry.Food},
 		}
 		us.EventHub.Publish(ev)
@@ -218,7 +218,7 @@ func NewUiSprite(imgs []*ebiten.Image, hub *events.EventHub, x, y float32, label
 		uis.AltImg = imgs[2]
 	}
 
-	Subs(hub, uis)
+	//Subs(hub, uis)
 
 	uis.state = Idle
 	uis.gameMode = Normal
@@ -226,7 +226,7 @@ func NewUiSprite(imgs []*ebiten.Image, hub *events.EventHub, x, y float32, label
 	return &uis
 }
 
-func Subs(hub *events.EventHub, uis UiSprite) {
+/*func Subs(hub *events.EventHub, uis UiSprite) {
 	hub.Subscribe(ui.ButtonClickedEvent{}, func(e events.Event) {
 		ev := e.(ui.ButtonClickedEvent)
 		switch ev.ButtonText {
@@ -235,7 +235,7 @@ func Subs(hub *events.EventHub, uis UiSprite) {
 		}
 	})
 
-}
+}*/
 
 func (us *UiSprite) SwitchGameMode() {
 	switch us.gameMode {

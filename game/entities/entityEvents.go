@@ -2,7 +2,6 @@ package entities
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/geometry"
-	sprite "github.com/acoco10/fishTankWebGame/game/sprite"
 )
 
 type CreatureReachedPoint struct {
@@ -28,4 +27,8 @@ type RequestData struct {
 type FishEvent struct {
 	fish  *Creature
 	event string
+}
+
+type FishLevelUp struct {
+	fish Creature
 }

@@ -10,7 +10,7 @@ import (
 type WhiteBoardSprite struct {
 	*UiSprite
 	completedTasks []events.Task
-	tasks          []events.Task
+	tasks          []*events.Task
 }
 
 func (w *WhiteBoardSprite) Update() {
@@ -28,6 +28,7 @@ func (w *WhiteBoardSprite) Update() {
 			}*/
 
 		ev2 := events.TaskCompleted{}
+		ev2.Task = w.completedTasks[0]
 		w.EventHub.Publish(ev2)
 
 		w.completedTasks = w.completedTasks[1:]
@@ -48,11 +49,12 @@ func (w *WhiteBoardSprite) Update() {
 
 func (w *WhiteBoardSprite) Subscribe(hub *events.EventHub) {
 	hub.Subscribe(events.TaskRequirementsCompleted{}, func(e events.Event) {
+		taskPublished := false //hack way to limit to one event for each task
+
 		ev := e.(events.TaskRequirementsCompleted)
-		taskPublished := false
 		for _, task := range w.completedTasks {
 			if task.Text == ev.Task.Text {
-				taskPublished = true
+				taskPublished = true //hack way to limit to one event for each task
 			}
 		}
 		if !taskPublished {
@@ -68,7 +70,8 @@ func (w *WhiteBoardSprite) Subscribe(hub *events.EventHub) {
 	})
 
 	hub.Subscribe(events.TaskCreated{}, func(e events.Event) {
+
 		ev := e.(events.TaskCreated)
-		w.tasks = append(w.tasks, ev.Task)
+		w.tasks = append(w.tasks, &ev.Task)
 	})
 }

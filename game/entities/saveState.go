@@ -17,7 +17,7 @@ type SavedFish struct {
 }
 
 type SaveGameState struct {
-	Fish  []SavedFish    `json:"state"`
+	Fish  []SavedFish    `json:"State"`
 	Tasks []*events.Task `json:"tasks"`
 }
 

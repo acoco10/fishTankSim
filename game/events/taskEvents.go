@@ -6,6 +6,7 @@ type TaskRequirementsCompleted struct {
 
 type TaskCompleted struct {
 	Task Task
+	Slot int
 }
 
 type TaskCreated struct {

@@ -1,8 +1,8 @@
 package sceneManagement
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/eventSytem"
-	"github.com/acoco10/fishTankWebGame/game/gameEntities"
+	"github.com/acoco10/fishTankWebGame/game/entities"
+	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/soundFX"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
@@ -13,9 +13,9 @@ type GameLog struct {
 	PreviousScene  SceneId
 	Save           *entities.SaveGameState
 	GlobalEventHub *events.EventHub
-	SongPlayer     *soundFX.SongPlayer
-	SoundPlayer    *soundFX.SongPlayer
-	Tasks          []*entities.Task
+	SongPlayer     *soundFX.SoundPlayer
+	SoundPlayer    *soundFX.SoundPlayer
+	Tasks          []*events.Task
 }
 
 func NewGameLog(state entities.SaveGameState) *GameLog {
@@ -24,12 +24,12 @@ func NewGameLog(state entities.SaveGameState) *GameLog {
 	g.Save = &state
 	eHub := events.NewEventHub()
 	g.GlobalEventHub = eHub
-	songP, err := soundFX.NewSongPlayer()
+	songP, err := soundFX.NewSoundPlayer()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	soundP, err := soundFX.NewSongPlayer()
+	soundP, err := soundFX.NewSoundPlayer()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func NewGameLog(state entities.SaveGameState) *GameLog {
 	g.SongPlayer = songP
 	g.SoundPlayer = soundP
 
-	var tasks []*entities.Task
+	var tasks []*events.Task
 	g.Tasks = tasks
 
 	return &g

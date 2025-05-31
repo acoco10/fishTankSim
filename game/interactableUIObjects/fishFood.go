@@ -14,9 +14,9 @@ func (ff *FishFoodSprite) Draw(screen *ebiten.Image) {
 	var paramaMapa = make(map[string]any)
 	sopts := ebiten.DrawRectShaderOptions{}
 	baseColor := [4]float64{0.2, 0.1, 0.05, 255}
-	paramaMapa["OutlineColor"] = baseColor
+	paramaMapa["BaseColor"] = baseColor
 
-	shader := shaders.LoadOutlineShader()
+	shader := shaders.LoadSolidColorShader()
 
 	sopts.GeoM.Translate(float64(ff.baseX), float64(ff.baseY))
 	b := ff.Img.Bounds()

@@ -6,25 +6,46 @@ import (
 	"log"
 )
 
-type SongPlayer struct {
+type SoundPlayer struct {
 	*resource.Loader
 	*audio.Player
+	queue []*audio.Player
 }
 
-func NewSongPlayer() (*SongPlayer, error) {
+func NewSoundPlayer() (*SoundPlayer, error) {
 	l, err := LoadSounds()
 	if err != nil {
-		return &SongPlayer{}, err
+		return &SoundPlayer{}, err
 	}
 
-	s := SongPlayer{l, &audio.Player{}}
+	s := SoundPlayer{Loader: l, Player: &audio.Player{}}
 	return &s, nil
 }
 
-func (s *SongPlayer) Play(id resource.AudioID) {
+func (s *SoundPlayer) Update() {
+	playNext := false
+	if len(s.queue) > 0 {
+		if !s.queue[0].IsPlaying() {
+			s.queue = s.queue[1:]
+			playNext = true
+		}
+	}
+	if playNext && len(s.queue) > 0 {
+		s.queue[0].Play()
+	}
+}
 
+func (s *SoundPlayer) AddToQueue(id resource.AudioID) {
 	sfx := s.Loader.LoadWAV(id).Player
+	err := sfx.Rewind()
+	if err != nil {
+		log.Printf("%q Rewind: %s", id, err)
+	}
+	s.queue = append(s.queue, sfx)
+}
 
+func (s *SoundPlayer) Play(id resource.AudioID) {
+	sfx := s.Loader.LoadWAV(id).Player
 	err := sfx.Rewind()
 	if err != nil {
 		log.Printf("%q Rewind: %s", id, err)
@@ -34,6 +55,6 @@ func (s *SongPlayer) Play(id resource.AudioID) {
 	sfx.Play()
 }
 
-func (s *SongPlayer) Pause() {
+func (s *SoundPlayer) Pause() {
 	s.Player.Pause()
 }

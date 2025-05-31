@@ -2,6 +2,7 @@ package entities
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/sprite"
+	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 )
@@ -33,7 +34,7 @@ func ApplyShaderToText(screen *ebiten.Image, inputText string, face text.Face) {
 	//dOpts.GeoM.Translate(ScreenWidth/2-float64(len(debugText)*6), ScreenHeight/10)
 	offScreen := ebiten.NewImage(400, 100)
 	text.Draw(offScreen, inputText, face, &dOpts)
-	shader := LoadOutlineShader()
+	shader := shaders.LoadOutlineShader()
 	sOpts := ebiten.DrawRectShaderOptions{}
 	sOpts.GeoM.Translate(100, 100)
 	sOpts.Images[0] = offScreen

@@ -9,16 +9,45 @@ import (
 
 type Sprite struct {
 	Img                *ebiten.Image
+	Scale              float64
 	X, Y               float32
 	Dy, Dx             float32
 	Shader             *ebiten.Shader
 	ShaderParams       map[string]any
+	CPUShaderParams    map[string]any
 	UpdateShaderParams func(map[string]any) map[string]any
+	UpdateBothParams   func(map[string]any, map[string]any) (map[string]any, map[string]any)
 }
 
 func (s *Sprite) UpdateShader() {
+	if s.CPUShaderParams != nil {
+		s.CPUShaderParams["origin"] = [2]float64{float64(s.X), float64(s.Y)}
+	}
+	if s.UpdateBothParams != nil {
+		shaderParams, cpuParams := s.UpdateBothParams(s.ShaderParams, s.CPUShaderParams)
+		s.ShaderParams = shaderParams
+		s.CPUShaderParams = cpuParams
+		return
+	}
+
 	if s.UpdateShaderParams != nil {
 		s.ShaderParams = s.UpdateShaderParams(s.ShaderParams)
+	}
+}
+
+func (s *Sprite) Update() {
+	s.UpdateShader()
+}
+
+func (s *Sprite) Draw(screen *ebiten.Image) {
+	shaderOpts := &ebiten.DrawRectShaderOptions{}
+	if s.Shader != nil {
+		shaderOpts.GeoM.Translate(float64(s.X), float64(s.Y))
+		shaderOpts.Images[0] = s.Img
+		shaderOpts.Uniforms = s.ShaderParams
+		b := s.Img.Bounds()
+		screen.DrawRectShader(b.Dx(), b.Dy(), s.Shader, shaderOpts)
+		return
 	}
 }
 
@@ -70,8 +99,10 @@ func (s *Sprite) CheckOverlap(sprite Sprite) bool {
 }
 
 func (as *AnimatedSprite) Update() {
+	as.UpdateShader()
 	as.Animation.Update()
 	as.UpdateSpriteFrameImg()
+
 }
 
 func (as *AnimatedSprite) UpdateSpriteFrameImg() {

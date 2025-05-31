@@ -3,8 +3,8 @@ package ui
 import (
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/assets"
-	"github.com/acoco10/fishTankWebGame/game/eventSytem"
-	"github.com/acoco10/fishTankWebGame/game/gameEntities"
+	"github.com/acoco10/fishTankWebGame/game/entities"
+	"github.com/acoco10/fishTankWebGame/game/events"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -267,13 +267,13 @@ func (t *TextBoxUi) subs(tp TextBoxType) {
 		})
 
 	case NotePad:
-		t.eventhub.Subscribe(entities.TaskCreated{}, func(e events.Event) {
-			ev := e.(entities.TaskCreated)
+		t.eventhub.Subscribe(events.TaskCreated{}, func(e events.Event) {
+			ev := e.(events.TaskCreated)
 			println("appending data to white board")
 			t.AppendTextArea(ev.Task.Text)
 		})
 
-		t.eventhub.Subscribe(entities.TaskCompleted{}, func(e events.Event) {
+		t.eventhub.Subscribe(events.TaskCompleted{}, func(e events.Event) {
 			//ev := e.(entities.TaskCompleted)
 		})
 	}

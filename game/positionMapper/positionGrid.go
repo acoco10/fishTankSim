@@ -1,7 +1,9 @@
 package positionMapper
 
-import "github.com/acoco10/fishTankWebGame/game/debug"
+import (
+	"github.com/acoco10/fishTankWebGame/game/geometry"
+)
 
 type SpatialGrid struct {
-	positions map[int]*debug.Rect
+	positions map[int]*geometry.Rect
 }

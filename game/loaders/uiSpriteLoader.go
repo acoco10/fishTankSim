@@ -1,32 +1,24 @@
-package sprite
+package loaders
 
 import (
 	"encoding/json"
 	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/acoco10/fishTankWebGame/game/drawables"
+	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/events"
-	"github.com/acoco10/fishTankWebGame/game/loader"
+	interactableUIObjects2 "github.com/acoco10/fishTankWebGame/game/interactableUIObjects"
+	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
 )
 
-type UISpriteLabel string
-
-const (
-	Records    UISpriteLabel = "records"
-	FishFood   UISpriteLabel = "fishFood"
-	FishBook   UISpriteLabel = "book"
-	WhiteBoard UISpriteLabel = "whiteBoard"
-	Plant      UISpriteLabel = "plant"
-)
-
-func loadUiSpritesImgs(label UISpriteLabel) ([]*ebiten.Image, error) {
+func loadUiSpritesImgs(label interactableUIObjects2.UISpriteLabel) ([]*ebiten.Image, error) {
 	var imgs []*ebiten.Image
 	tags := []string{"Main", "Outline", "Alt"}
 
 	for _, tag := range tags {
 		assetName := string(label) + tag
-		img, err := loader.LoadImageAssetAsEbitenImage("uiSprites/" + assetName)
+		img, err := LoadImageAssetAsEbitenImage("uiSprites/" + assetName)
 		if err != nil {
 			log.Printf("%s not found for loading UiSprite %s, proceeding with loading other files. error msg: %s", assetName, string(label), err)
 		} else {
@@ -36,7 +28,7 @@ func loadUiSpritesImgs(label UISpriteLabel) ([]*ebiten.Image, error) {
 	return imgs, nil
 }
 
-func LoadUISprites(spritesToLoad []UISpriteLabel, hub *events.EventHub, screenWidth, screenHeight int) ([]drawables.DrawableSprite, error) {
+func LoadUISprites(spritesToLoad []interactableUIObjects2.UISpriteLabel, hub *events.EventHub, screenWidth, screenHeight int) ([]drawables.DrawableSprite, error) {
 	var sprites []drawables.DrawableSprite
 
 	spritePositions, err := loadSpritePositionData()
@@ -51,15 +43,15 @@ func LoadUISprites(spritesToLoad []UISpriteLabel, hub *events.EventHub, screenWi
 		if err != nil {
 			return sprites, err
 		}
-		sprite := NewUiSprite(imgs, hub, x, y, string(elem), screenWidth, screenHeight)
-		if elem == FishFood {
-			ffSprite := FishFoodSprite{sprite}
+		sprite := interactableUIObjects2.NewUiSprite(imgs, hub, x, y, string(elem), screenWidth, screenHeight)
+		if elem == interactableUIObjects2.FishFood {
+			ffSprite := interactableUIObjects2.FishFoodSprite{sprite}
 			ffSprite.Subscribe()
 			sprites = append(sprites, &ffSprite)
 			continue
 		}
-		if elem == WhiteBoard {
-			wbSprite := WhiteBoardSprite{UiSprite: sprite}
+		if elem == interactableUIObjects2.WhiteBoard {
+			wbSprite := interactableUIObjects2.WhiteBoardSprite{UiSprite: sprite}
 			wbSprite.Subscribe(hub)
 			sprites = append(sprites, &wbSprite)
 			continue
@@ -80,6 +72,23 @@ func loadSpritePositionData() (map[string]*drawables.SavePositionData, error) {
 	}
 	json.Unmarshal(spritePosition, &positions)
 	return positions, nil
+}
+
+func LoadSelectedAnimations() (map[string]*sprite.AnimatedSprite, error) {
+	fishOptions := make(map[string]*sprite.AnimatedSprite)
+
+	mollyFishSprite, err := LoadFishSpriteAltAnimations(entities.MollyFish)
+	if err != nil {
+		log.Fatal(err)
+	}
+	mollyFishSprite.Animation.SpeedInTPS = 4
+
+	mollyFishSprite.X = 420
+	mollyFishSprite.Y = 260
+
+	fishOptions["mollyFish"] = mollyFishSprite
+
+	return fishOptions, nil
 }
 
 //imgLoader() []*ebitenImgs

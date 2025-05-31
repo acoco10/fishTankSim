@@ -1,8 +1,9 @@
 package ui
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/eventSytem"
-	"github.com/acoco10/fishTankWebGame/game/gameEntities"
+	"github.com/acoco10/fishTankWebGame/game/entities"
+	"github.com/acoco10/fishTankWebGame/game/events"
+	"github.com/acoco10/fishTankWebGame/game/loaders"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"image/color"
@@ -137,7 +138,7 @@ func NewTextInput(ehub *events.EventHub) (*widget.Container, *widget.TextInput, 
 }
 
 func loadTextInputImage() (*widget.TextInputImage, error) {
-	img, err := entities.LoadImageAssetAsEbitenImage("menuAssets/textInputBox")
+	img, err := loaders.LoadImageAssetAsEbitenImage("menuAssets/textInputBox")
 
 	if err != nil {
 		return nil, err

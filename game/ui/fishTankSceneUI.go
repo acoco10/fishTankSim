@@ -3,8 +3,8 @@ package ui
 import (
 	"bytes"
 	"github.com/acoco10/fishTankWebGame/assets"
-	"github.com/acoco10/fishTankWebGame/game/eventSytem"
-	"github.com/acoco10/fishTankWebGame/game/gameEntities"
+	"github.com/acoco10/fishTankWebGame/game/events"
+	"github.com/acoco10/fishTankWebGame/game/loaders"
 	"github.com/ebitenui/ebitenui"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
@@ -46,10 +46,15 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *events.EventHub) (*ebiten
 	)
 
 	button := LoadSubmitButton("Save", eHub, 12)
-	modeButton := LoadSubmitButton("Mode", eHub, 12)
+	//modeButton := LoadSubmitButton("Mode", eHub, 12)
+
+	button2 := LoadSubmitButton("Mute Music", eHub, 12)
+	button3 := LoadSubmitButton("Mute Sounds", eHub, 12)
 
 	buttonContainer.AddChild(button)
-	buttonContainer.AddChild(modeButton)
+	buttonContainer.AddChild(button2)
+	buttonContainer.AddChild(button3)
+	//buttonContainer.AddChild(modeButton)
 
 	fishStats, err := NewTextBlock(eHub, StatsMenu)
 
@@ -80,13 +85,13 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *events.EventHub) (*ebiten
 
 func loadSubmitButtonImage() (*widget.ButtonImage, error) {
 
-	img, err := entities.LoadImageAssetAsEbitenImage("menuAssets/submitButton3")
+	img, err := loaders.LoadImageAssetAsEbitenImage("menuAssets/submitButton3")
 
 	if err != nil {
 		return nil, err
 	}
 
-	imgClicked, err := entities.LoadImageAssetAsEbitenImage("menuAssets/submitButtonAlt")
+	imgClicked, err := loaders.LoadImageAssetAsEbitenImage("menuAssets/submitButtonAlt")
 
 	if err != nil {
 		return nil, err
@@ -113,13 +118,13 @@ func loadSubmitButtonImage() (*widget.ButtonImage, error) {
 
 func loadSpriteSelectButtonImage(t string) (*widget.ButtonImage, error) {
 
-	img, err := entities.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButton")
+	img, err := loaders.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButton")
 
 	if err != nil {
 		return nil, err
 	}
 
-	imgClicked, err := entities.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButtonAlt")
+	imgClicked, err := loaders.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButtonAlt")
 
 	if err != nil {
 		return nil, err
@@ -177,6 +182,101 @@ func LoadFont(size float64, fontName string) (text.Face, error) {
 	}, nil
 }
 
+func LoadMuteButton(buttonText string, hub *events.EventHub, fontSize float64) *widget.Button {
+	//load a generic button labeled with button text string that will send a button clicked event to event hub
+	buttonImage, err := loadSpriteSelectButtonImage(buttonText)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	face, err := LoadFont(fontSize, "nk57")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var button *widget.Button
+
+	button = widget.NewButton(
+		// set general widget options
+		widget.ButtonOpts.WidgetOpts(
+			// instruct the container's anchor layout to center the button both horizontally and vertically
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+		// specify the images to use
+		widget.ButtonOpts.Image(buttonImage),
+
+		// specify the button's text, the font face, and the color
+		//widget.ButtonOpts.Text("Hello, World!", face, &widget.ButtonTextColor{
+		widget.ButtonOpts.Text(buttonText, face, &widget.ButtonTextColor{
+			Idle:    color.NRGBA{0, 0, 0, 0xff},
+			Hover:   color.NRGBA{255, 255, 0, 255},
+			Pressed: color.NRGBA{255, 255, 0, 255},
+		}),
+		widget.ButtonOpts.TextProcessBBCode(true),
+		// specify that the button's text needs some padding for correct display
+		widget.ButtonOpts.TextPadding(widget.Insets{
+			Left:   30,
+			Right:  30,
+			Top:    100,
+			Bottom: 10,
+		}),
+		//Move the text down and right on press
+		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
+			button.GetWidget().CustomData = true
+			button.KeepPressedOnExit = true
+		}),
+		//Move the text back to start on press released
+		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
+			button.Text().Inset.Top = 0
+			button.Text().Inset.Left = 0
+			button.GetWidget().CustomData = false
+		}),
+		// add a handler that reacts to clicking the button
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			if button.GetWidget().Disabled == false {
+				ev := ButtonClickedEvent{
+					buttonText,
+				}
+				hub.Publish(ev)
+			}
+
+		}),
+
+		// add a handler that reacts to entering the button with the cursor
+		widget.ButtonOpts.CursorEnteredHandler(func(args *widget.ButtonHoverEventArgs) {
+			//If we moved the Text because we clicked on this button previously, move the text down and right
+			if button.GetWidget().Disabled == false {
+				ev := ButtonEvent{
+					buttonText,
+					"cursor entered",
+				}
+				hub.Publish(ev)
+			}
+
+		}),
+
+		// add a handler that reacts to moving the cursor on the button
+		widget.ButtonOpts.CursorMovedHandler(func(args *widget.ButtonHoverEventArgs) {
+		}),
+
+		// add a handler that reacts to exiting the button with the cursor
+		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
+			//Reset the Text inset if the cursor is no longer over the button
+			button.Text().Inset.Top = 0
+			button.Text().Inset.Left = 0
+			ev := ButtonEvent{
+				buttonText,
+				"cursor exited",
+			}
+			hub.Publish(ev)
+		}),
+	)
+	return button
+}
+
 func LoadSpriteSelectButton(buttonText string, hub *events.EventHub, fontSize float64) *widget.Button {
 	//load a generic button labeled with button text string that will send a button clicked event to event hub
 	buttonImage, err := loadSpriteSelectButtonImage(buttonText)
@@ -232,7 +332,7 @@ func LoadSpriteSelectButton(buttonText string, hub *events.EventHub, fontSize fl
 		// add a handler that reacts to clicking the button
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			if button.GetWidget().Disabled == false {
-				ev := entities.ButtonClickedEvent{
+				ev := ButtonClickedEvent{
 					buttonText,
 				}
 				hub.Publish(ev)
@@ -244,7 +344,7 @@ func LoadSpriteSelectButton(buttonText string, hub *events.EventHub, fontSize fl
 		widget.ButtonOpts.CursorEnteredHandler(func(args *widget.ButtonHoverEventArgs) {
 			//If we moved the Text because we clicked on this button previously, move the text down and right
 			if button.GetWidget().Disabled == false {
-				ev := entities.ButtonEvent{
+				ev := ButtonEvent{
 					buttonText,
 					"cursor entered",
 				}
@@ -262,7 +362,7 @@ func LoadSpriteSelectButton(buttonText string, hub *events.EventHub, fontSize fl
 			//Reset the Text inset if the cursor is no longer over the button
 			button.Text().Inset.Top = 0
 			button.Text().Inset.Left = 0
-			ev := entities.ButtonEvent{
+			ev := ButtonEvent{
 				buttonText,
 				"cursor exited",
 			}
@@ -314,11 +414,12 @@ func LoadSubmitButton(buttonText string, hub *events.EventHub, fontSize float64)
 			Bottom: 3,
 		}),
 		//Move the text down and right on press
-		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+
 			println("button event generated for", buttonText)
 			button.Text().Inset.Top = 2
 			button.Text().Inset.Left = -2
-			ev := entities.ButtonClickedEvent{
+			ev := ButtonClickedEvent{
 				ButtonText: buttonText,
 			}
 			hub.Publish(ev)
@@ -388,7 +489,7 @@ func LoadButton(buttonText string, hub *events.EventHub, fontSize float64) *widg
 		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
 			println("button event generated for", buttonText)
 
-			ev := entities.ButtonClickedEvent{
+			ev := ButtonClickedEvent{
 				ButtonText: buttonText,
 			}
 			hub.Publish(ev)
@@ -403,7 +504,7 @@ func LoadButton(buttonText string, hub *events.EventHub, fontSize float64) *widg
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("button event generated for", buttonText)
 
-			ev := entities.ButtonClickedEvent{
+			ev := ButtonClickedEvent{
 				ButtonText: buttonText,
 			}
 

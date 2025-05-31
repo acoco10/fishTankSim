@@ -2,8 +2,11 @@ package events
 
 type EventCondition func(Event) bool
 
+var taskId int
+
 type Task struct {
 	Text          string
+	Index         int
 	Name          string
 	Completed     bool
 	CurrentCount  int
@@ -13,13 +16,15 @@ type Task struct {
 }
 
 func NewTask(EventType Event, text string, condition EventCondition) *Task {
+	println("creating task id:", taskId)
 	task := &Task{
 		Text:          text,
 		EventType:     EventType,
 		CountRequired: 1,
 		Condition:     condition,
+		Index:         taskId,
 	}
-
+	taskId++
 	return task
 }
 
