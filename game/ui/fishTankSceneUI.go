@@ -264,7 +264,7 @@ func LoadMuteButton(buttonText string, hub *events.EventHub, fontSize float64) *
 
 		// add a handler that reacts to exiting the button with the cursor
 		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
-			//Reset the Text inset if the cursor is no longer over the button
+			//ResetVls the Text inset if the cursor is no longer over the button
 			button.Text().Inset.Top = 0
 			button.Text().Inset.Left = 0
 			ev := ButtonEvent{
@@ -359,7 +359,7 @@ func LoadSpriteSelectButton(buttonText string, hub *events.EventHub, fontSize fl
 
 		// add a handler that reacts to exiting the button with the cursor
 		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
-			//Reset the Text inset if the cursor is no longer over the button
+			//ResetVls the Text inset if the cursor is no longer over the button
 			button.Text().Inset.Top = 0
 			button.Text().Inset.Left = 0
 			ev := ButtonEvent{
@@ -435,7 +435,7 @@ func LoadSubmitButton(buttonText string, hub *events.EventHub, fontSize float64)
 
 		// add a handler that reacts to exiting the button with the cursor
 		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
-			//Reset the Text inset if the cursor is no longer over the button
+			//ResetVls the Text inset if the cursor is no longer over the button
 			button.Text().Inset.Top = 0
 			button.Text().Inset.Left = 0
 		}),
@@ -528,7 +528,7 @@ func LoadButton(buttonText string, hub *events.EventHub, fontSize float64) *widg
 
 		// add a handler that reacts to exiting the button with the cursor
 		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
-			//Reset the Text inset if the cursor is no longer over the button
+			//ResetVls the Text inset if the cursor is no longer over the button
 			button.Text().Inset.Top = 0
 			button.Text().Inset.Left = 0
 		}),

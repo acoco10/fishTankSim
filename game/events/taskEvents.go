@@ -10,5 +10,8 @@ type TaskCompleted struct {
 }
 
 type TaskCreated struct {
-	Task Task
+	Task *Task
+}
+
+type AllTasksCompleted struct {
 }

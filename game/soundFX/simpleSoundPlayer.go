@@ -23,14 +23,14 @@ func NewSoundPlayer() (*SoundPlayer, error) {
 }
 
 func (s *SoundPlayer) Update() {
-	playNext := false
 	if len(s.queue) > 0 {
-		if !s.queue[0].IsPlaying() {
-			s.queue = s.queue[1:]
-			playNext = true
+		if s.queue[0].IsPlaying() {
+			return
 		}
 	}
-	if playNext && len(s.queue) > 0 {
+
+	if len(s.queue) > 1 {
+		s.queue = s.queue[1:]
 		s.queue[0].Play()
 	}
 }

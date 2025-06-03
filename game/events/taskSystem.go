@@ -28,14 +28,8 @@ func NewTask(EventType Event, text string, condition EventCondition) *Task {
 	return task
 }
 
-func (t *Task) CheckForCompletion() {
-	if t.CurrentCount >= t.CountRequired {
-		t.Completed = true
-	}
-}
-
 func (t *Task) PublishIfCompleted(hub *EventHub) {
-	if t.Completed == true {
+	if t.CurrentCount >= t.CountRequired {
 		ev := TaskRequirementsCompleted{
 			Task: *t,
 		}
@@ -45,17 +39,26 @@ func (t *Task) PublishIfCompleted(hub *EventHub) {
 
 func (t *Task) Publish(hub *EventHub) {
 	ev := TaskCreated{
-		Task: *t,
+		Task: t,
 	}
 	hub.Publish(ev)
 }
 
 func (t *Task) Subscribe(hub *EventHub) {
 	hub.Subscribe(t.EventType, func(e Event) {
-		if t.Condition == nil || t.Condition(e) && !t.Completed {
+		if t.Condition == nil || t.Condition(e) && t.CurrentCount < t.CountRequired {
 			t.CurrentCount++
-			t.CheckForCompletion()
 			t.PublishIfCompleted(hub)
 		}
 	})
+
+	hub.Subscribe(TaskCompleted{}, func(e Event) {
+		ev := e.(TaskCompleted)
+		if ev.Task.Text == t.Text {
+			println("received task completed event @ task, updating status for", ev.Task.Text)
+			t.Completed = true
+		}
+
+	})
+
 }

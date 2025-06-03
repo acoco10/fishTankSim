@@ -40,8 +40,9 @@ func (s *Sprite) Update() {
 }
 
 func (s *Sprite) Draw(screen *ebiten.Image) {
-	shaderOpts := &ebiten.DrawRectShaderOptions{}
+
 	if s.Shader != nil {
+		shaderOpts := &ebiten.DrawRectShaderOptions{}
 		shaderOpts.GeoM.Translate(float64(s.X), float64(s.Y))
 		shaderOpts.Images[0] = s.Img
 		shaderOpts.Uniforms = s.ShaderParams
@@ -49,6 +50,11 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 		screen.DrawRectShader(b.Dx(), b.Dy(), s.Shader, shaderOpts)
 		return
 	}
+
+	dOpts := &ebiten.DrawImageOptions{}
+	dOpts.GeoM.Translate(float64(s.X), float64(s.Y))
+	screen.DrawImage(s.Img, dOpts)
+
 }
 
 func (s *Sprite) SpriteHovered() bool {

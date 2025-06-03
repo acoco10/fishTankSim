@@ -69,10 +69,18 @@ func LoadLightingParamaters(sprite *sprite.AnimatedSprite) {
 	sprite.CPUShaderParams = cpuShaderParams
 }
 
-func LoadSpriteLightingParams(sprite *sprite.AnimatedSprite) {
+func LoadSpriteLightingParams(sprite *sprite.Sprite) {
 	shaderParams := make(map[string]any)
 	b := sprite.Img.Bounds()
 	shaderParams["ImgRect"] = [4]float64{float64(b.Dx()), float64(b.Dy())}
-	shaderParams["LightPoint"] = [2]float64{150, 0}
+	shaderParams["LightPoint"] = [2]float64{float64(sprite.X + float32(b.Dx()/2)), float64(sprite.Y + float32(b.Dy()))}
+	sprite.ShaderParams = shaderParams
+}
+
+func LoadHandWritingParams(sprite *sprite.Sprite) {
+	shaderParams := make(map[string]any)
+	//b := sprite.Img.Bounds()
+	sprite.UpdateShaderParams = shaders.UpdateCounter
+	shaderParams["Counter"] = 0
 	sprite.ShaderParams = shaderParams
 }

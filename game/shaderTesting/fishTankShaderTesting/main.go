@@ -47,14 +47,14 @@ func newGame() *Game {
 		log.Fatal(err)
 	}
 
-	shader := shaders.LoadOnePointLighting()
+	shader := shaders.LoadOnePointLightingBlue()
 	shaderParams := make(map[string]any)
 
 	shaderParams["ImgRect"] = [2]float64{800, 800}
 	shaderParams["LightPoint"] = [2]float64{150, 0}
 	g.offScreenShader = shader
 	g.offScreenParams = shaderParams
-	//s.Shader = outlineShader
+	//s.shader = outlineShader
 
 	fishSprite := loaders.LoadFishSprite(entities.Fish, 2)
 	fishSprite.X = 150

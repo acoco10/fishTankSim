@@ -8,6 +8,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/events"
 	interactableUIObjects2 "github.com/acoco10/fishTankWebGame/game/interactableUIObjects"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
+	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
 )
@@ -47,15 +48,25 @@ func LoadUISprites(spritesToLoad []interactableUIObjects2.UISpriteLabel, hub *ev
 		if elem == interactableUIObjects2.FishFood {
 			ffSprite := interactableUIObjects2.FishFoodSprite{sprite}
 			ffSprite.Subscribe()
+			lightingShader := shaders.LoadOnePointLightingNeutral()
+			ffSprite.Shader = lightingShader
+			LoadSpriteLightingParams(sprite.Sprite)
 			sprites = append(sprites, &ffSprite)
 			continue
 		}
 		if elem == interactableUIObjects2.WhiteBoard {
 			wbSprite := interactableUIObjects2.WhiteBoardSprite{UiSprite: sprite}
+			wbSprite.Init()
 			wbSprite.Subscribe(hub)
+			lightingShader := shaders.LoadOnePointLightingNeutral()
+			wbSprite.Sprite.Shader = lightingShader
+			LoadSpriteLightingParams(wbSprite.Sprite)
 			sprites = append(sprites, &wbSprite)
 			continue
 		}
+		//lightingShader := shaders.LoadOnePointLightingNeutral()
+		//sprite.Shader = lightingShader
+		//LoadSpriteLightingParams(sprite.Sprite)
 		sprites = append(sprites, sprite)
 
 	}

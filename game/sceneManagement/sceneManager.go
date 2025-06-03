@@ -15,6 +15,7 @@ type GameLog struct {
 	GlobalEventHub *events.EventHub
 	SongPlayer     *soundFX.SoundPlayer
 	SoundPlayer    *soundFX.SoundPlayer
+	Day            int
 	Tasks          []*events.Task
 }
 

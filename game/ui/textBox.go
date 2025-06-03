@@ -13,8 +13,6 @@ import (
 	"log"
 )
 
-var n int
-
 type TextBoxType uint
 
 const (
@@ -260,7 +258,7 @@ func (t *TextBoxUi) subs(tp TextBoxType) {
 				case "fish deselect":
 					t.text.GetWidget().Visibility = widget.Visibility_Hide
 				default:
-					t.UpdateTextArea(ev.Data)
+					t.ReplaceTextArea(ev.Data)
 					t.text.GetWidget().Visibility = widget.Visibility_Show
 				}
 			}
@@ -269,12 +267,15 @@ func (t *TextBoxUi) subs(tp TextBoxType) {
 	case NotePad:
 		t.eventhub.Subscribe(events.TaskCreated{}, func(e events.Event) {
 			ev := e.(events.TaskCreated)
-			println("appending data to white board")
 			t.AppendTextArea(ev.Task.Text)
 		})
 
 		t.eventhub.Subscribe(events.TaskCompleted{}, func(e events.Event) {
 			//ev := e.(entities.TaskCompleted)
+		})
+
+		t.eventhub.Subscribe(events.AllTasksCompleted{}, func(e events.Event) {
+			t.ReplaceTextArea("All Done =)")
 		})
 	}
 }
@@ -285,7 +286,7 @@ func (t *TextBoxUi) RequestData(target any) {
 	t.eventhub.Publish(ev)
 }
 
-func (t *TextBoxUi) UpdateTextArea(text string) {
+func (t *TextBoxUi) ReplaceTextArea(text string) {
 	t.text.SetText(text)
 }
 

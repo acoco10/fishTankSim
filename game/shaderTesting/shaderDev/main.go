@@ -1,16 +1,66 @@
-package shaderDev
+package main
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/loaders"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
+	"github.com/acoco10/fishTankWebGame/game/ui"
 	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"image/color"
 	"log"
 )
 
 type Direction uint8
+
+type TextWithShader struct {
+	image        *ebiten.Image
+	shader       *ebiten.Shader
+	shaderParams map[string]any
+	text         string
+	face         text.Face
+	updateFunc   func(map[string]any) map[string]any
+}
+
+func NewTextWithShader(text string, dst *ebiten.Image) *TextWithShader {
+	face, err := ui.LoadFont(18, "rockSalt")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ts := &TextWithShader{}
+	ts.text = text
+	ts.face = face
+
+	ts.updateFunc = shaders.UpdateCounter
+	shader := shaders.LoadHandWritingShader()
+	ts.shader = shader
+
+	ts.shaderParams = make(map[string]any)
+	ts.shaderParams["Counter"] = 0
+
+	ts.image = dst
+
+	return ts
+}
+
+func (t *TextWithShader) Update() {
+	t.shaderParams = t.updateFunc(t.shaderParams)
+}
+
+func (t *TextWithShader) Draw(dst *ebiten.Image) {
+
+	dopts := &text.DrawOptions{}
+	shaderOpts := ebiten.DrawRectShaderOptions{}
+	dopts.ColorScale.Scale(0, 0, 0, 1)
+	dopts.GeoM.Translate(float64(10), float64(10))
+
+	text.Draw(t.image, t.text, t.face, dopts)
+	shaderOpts.Uniforms = t.shaderParams
+	shaderOpts.Images[0] = t.image
+
+	dst.DrawRectShader(t.image.Bounds().Dx(), t.image.Bounds().Dy(), t.shader, &shaderOpts)
+}
 
 const (
 	Left Direction = iota
@@ -27,94 +77,62 @@ var (
 )
 
 const (
-	screenWidth  = 800
-	screenHeight = 800
+	screenWidth  = 640 * 2
+	screenHeight = 480 * 2
 )
 
 type Game struct {
-	testSprite         *sprite.Sprite
-	animatedTestSprite *sprite.AnimatedSprite
-	offScreen          *ebiten.Image
-	offScreenParams    map[string]any
-	offScreenShader    *ebiten.Shader
+	testSprite *sprite.Sprite
+	ts         *TextWithShader
 }
 
 func newGame() *Game {
 	g := Game{}
 
-	shader := shaders.LoadOnePointLighting()
-	shaderParams := make(map[string]any)
+	whiteBoard, err := loaders.LoadImageAssetAsEbitenImage("uiSprites/whiteBoardMain")
+	if err != nil {
+		log.Fatal(err)
+	}
+	dst := ebiten.NewImage(whiteBoard.Bounds().Dx(), whiteBoard.Bounds().Dy())
 
-	shaderParams["ImgRect"] = [2]float64{800, 800}
-	shaderParams["LightPoint"] = [2]float64{150, 0}
-	g.offScreenShader = shader
-	g.offScreenParams = shaderParams
-	//s.Shader = outlineShader
+	ts := NewTextWithShader("testing testing", dst)
+	g.ts = ts
+	testSprite := sprite.Sprite{Img: whiteBoard, X: 250, Y: 250}
 
-	fishSprite := loaders.LoadFishSprite(entities.Fish, 2)
-	fishSprite.X = 150
-	fishSprite.Y = 100
+	g.testSprite = &testSprite
 
-	loaders.LoadSpriteLightingParams(fishSprite)
-	g.animatedTestSprite = fishSprite
-	ls := shaders.LoadSpriteLighting()
-	g.animatedTestSprite.Shader = ls
+	//shader := shaders
+	//s.shader = outlineShader
 
 	return &g
 }
 
 func (g *Game) Update() error {
-	//g.testSprite.Update()
-	if ebiten.IsKeyPressed(ebiten.KeyS) {
-		g.animatedTestSprite.Y += 1.0
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyW) {
-		g.animatedTestSprite.Y -= 1.0
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyD) {
-		g.animatedTestSprite.X += 1.0
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyA) {
-		g.animatedTestSprite.X -= 1.0
-	}
-
-	g.animatedTestSprite.Update()
+	g.testSprite.Update()
+	g.ts.Update()
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	//g.testSprite.Draw(screen)
 
-	offScreen := ebiten.NewImage(800, 800)
-	offScreen.Fill(color.Black)
-	dopts := ebiten.DrawImageOptions{}
-	shaderOpts := ebiten.DrawRectShaderOptions{}
-	shaderOpts.GeoM.Translate(float64(g.animatedTestSprite.X), float64(g.animatedTestSprite.Y))
-	shaderOpts.GeoM.Scale(2, 2)
-	dopts.GeoM.Translate(float64(g.animatedTestSprite.X), float64(g.animatedTestSprite.Y))
-	dopts.GeoM.Scale(2, 2)
+	dopts := text.DrawOptions{}
 
-	g.animatedTestSprite.Draw(offScreen, &dopts, &shaderOpts)
+	dopts.ColorScale.Scale(0, 0, 0, 1)
+	dopts.GeoM.Translate(float64(10), float64(10))
 
-	shaderOpts.GeoM.Reset()
-	shaderOpts.Uniforms = g.offScreenParams
-	shaderOpts.Images[0] = offScreen
+	g.ts.Draw(g.testSprite.Img)
 
-	screen.DrawRectShader(800, 800, g.offScreenShader, &shaderOpts)
-	//vector.StrokeRect(screen, 80.0, 80.0, 10.0, 10.0, 1.0, outlineColor2, false)
-	//opts := &ebiten.DrawImageOptions{}
-	//screen.DrawImage(g.img, opts)
-
+	g.testSprite.Draw(screen)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 500, 500
+	return screenWidth, screenHeight
 }
 
 func main() {
 	g := newGame()
 	ebiten.SetWindowSize(screenWidth, screenHeight)
-	ebiten.SetWindowTitle("Sprite Outline")
+	ebiten.SetWindowTitle("Hand writing shader")
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}
