@@ -4,10 +4,10 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/geometry"
 )
 
-func UpdatePulse(params map[string]any) map[string]any {
+func UpdateCounter(params map[string]any) map[string]any {
 	counter := params["Counter"].(int)
 	counter++
-	if counter > 40 {
+	if counter > 1000 {
 		counter = 0
 	}
 	params["Counter"] = counter

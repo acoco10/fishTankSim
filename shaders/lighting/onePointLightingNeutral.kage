@@ -6,38 +6,19 @@ var ImgRect vec4
 
 func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
       color := imageSrc0UnsafeAt(texCoord)
-      targetR := 0.1412
-      targetG := 0.1137
-      targetB := 0.3020
-      tolerance := 0.001
 
-      src := imageSrc0At(texCoord)
-
-      matchR := abs(src.r - targetR) < tolerance
-      matchG := abs(src.g - targetG) < tolerance
-      matchB := abs(src.b - targetB) < tolerance
-
-        if matchR && matchG && matchB {
-            // If all channels match, tint red
-             dis := distance(LightPoint, dstCoord.xy)
-           brightness := clamp(1.0 - dis / 700.0, 0.0, 1.0)
-           color.rgb += vec3(0.4, 0.5, 0.5) * brightness   // Add blue tint
-           color.rgb *= 1.0 + 0.5 * brightness             // Boost total brightness
-           color.a *= 0.4
-           color.rgb *= color.a
-           return color
-        }
         if color.a > 0 {
             // Distance from pixel to light (in screen space)
             dis := distance(LightPoint, dstCoord.xy)
 
             // Brightness modifier: closer to light = brighter
-            brightness := clamp(1.0 - dis / 400.0, 0.0, 1.0)
+            brightness := clamp(1.0 - dis / 200.0, 0.0, 1.0)
 
             // Sample the texture
 
             // Increase blue tones and brightness
-            color.rgb *= 1.0 + 0.5 * brightness             // Boost total brightness
+            color.rgb *= 1.0 + 0.8 * brightness             // Boost total brightness
+            color.rgb += vec3(0.8, 0.8, 0.0) * brightness
             color.a *= 0.5
             color.rgb *= color.a
         }

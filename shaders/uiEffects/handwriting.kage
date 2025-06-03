@@ -1,0 +1,20 @@
+//kage:unit pixels
+package main
+
+var Counter int
+var Y float
+
+func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
+      color := imageSrc0UnsafeAt(texCoord)
+      if color.a > 0.0{
+        if int(texCoord.x) <= Counter && texCoord.y <= Y{
+               return color
+      }
+       if int(texCoord.x) <= Counter+50{
+              return color * 0.1
+         }
+         return color * 0.0
+
+      }
+}
+
