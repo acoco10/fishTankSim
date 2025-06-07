@@ -13,6 +13,7 @@ type Task struct {
 	CountRequired int
 	Condition     EventCondition
 	EventType     Event
+	activated     bool
 }
 
 func NewTask(EventType Event, text string, condition EventCondition) *Task {
@@ -43,12 +44,21 @@ func (t *Task) Publish(hub *EventHub) {
 	}
 	hub.Publish(ev)
 }
+func (t *Task) Activate() {
+	t.activated = true
+}
+
+func (t *Task) Activated() bool {
+	return t.activated
+}
 
 func (t *Task) Subscribe(hub *EventHub) {
 	hub.Subscribe(t.EventType, func(e Event) {
-		if t.Condition == nil || t.Condition(e) && t.CurrentCount < t.CountRequired {
-			t.CurrentCount++
-			t.PublishIfCompleted(hub)
+		if t.activated {
+			if t.Condition == nil || t.Condition(e) && t.CurrentCount < t.CountRequired {
+				t.CurrentCount++
+				t.PublishIfCompleted(hub)
+			}
 		}
 	})
 
