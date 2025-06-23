@@ -1,3 +1,1 @@
-{"book":{"X":285,"Y":551},"fishFood":{"X":783,"Y":481},"records"  :{"X":24,"Y":546},"whiteBoard":{
-  "X":710,"Y":221}, "plant": {"X": 405, "Y": 405}
-}
+{"book":{"X":315,"Y":626,"Name":"book"},"fishFood":{"X":803,"Y":555,"Name":"fishFood"},"magazine":{"X":710,"Y":511,"Name":"magazine"},"piggyBank":{"X":568,"Y":548,"Name":"piggyBank"},"pillow":{"X":726,"Y":66,"Name":"pillow"},"records":{"X":17,"Y":628,"Name":"records"},"thermometer":{"X":536,"Y":311,"Name":"thermometer"},"whiteBoard":{"X":710,"Y":250,"Name":"whiteBoard"}}

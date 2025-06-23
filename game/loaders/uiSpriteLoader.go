@@ -2,18 +2,18 @@ package loaders
 
 import (
 	"encoding/json"
+	"github.com/acoco10/QuickDrawAdventure/animations"
+	"github.com/acoco10/QuickDrawAdventure/spriteSheet"
 	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/acoco10/fishTankWebGame/game/drawables"
-	"github.com/acoco10/fishTankWebGame/game/entities"
-	"github.com/acoco10/fishTankWebGame/game/events"
-	interactableUIObjects2 "github.com/acoco10/fishTankWebGame/game/interactableUIObjects"
+	iObj "github.com/acoco10/fishTankWebGame/game/interactableUIObjects"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
-	"github.com/acoco10/fishTankWebGame/shaders"
+	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
 )
 
-func loadUiSpritesImgs(label interactableUIObjects2.UISpriteLabel) ([]*ebiten.Image, error) {
+func loadUiSpritesImgs(label iObj.Label) ([]*ebiten.Image, error) {
 	var imgs []*ebiten.Image
 	tags := []string{"Main", "Outline", "Alt"}
 
@@ -29,8 +29,8 @@ func loadUiSpritesImgs(label interactableUIObjects2.UISpriteLabel) ([]*ebiten.Im
 	return imgs, nil
 }
 
-func LoadUISprites(spritesToLoad []interactableUIObjects2.UISpriteLabel, hub *events.EventHub, screenWidth, screenHeight int) ([]drawables.DrawableSprite, error) {
-	var sprites []drawables.DrawableSprite
+func LoadUISprites(spritesToLoad []iObj.Label, hub *tasks.EventHub, screenWidth, screenHeight int) ([]drawables.DrawableSaveAbleSprite, error) {
+	var sprites []drawables.DrawableSaveAbleSprite
 
 	spritePositions, err := loadSpritePositionData()
 	if err != nil {
@@ -40,34 +40,46 @@ func LoadUISprites(spritesToLoad []interactableUIObjects2.UISpriteLabel, hub *ev
 	for _, elem := range spritesToLoad {
 		x := spritePositions[string(elem)].X
 		y := spritePositions[string(elem)].Y
-		imgs, err := loadUiSpritesImgs(elem)
-		if err != nil {
+
+		imgs, err2 := loadUiSpritesImgs(elem)
+		if err2 != nil {
 			return sprites, err
 		}
-		sprite := interactableUIObjects2.NewUiSprite(imgs, hub, x, y, string(elem), screenWidth, screenHeight)
-		if elem == interactableUIObjects2.FishFood {
-			ffSprite := interactableUIObjects2.FishFoodSprite{sprite}
+
+		uSprite := iObj.NewUiSprite(imgs, hub, x, y, string(elem), screenWidth, screenHeight)
+
+		iObj.Pubs(hub, *uSprite)
+		switch elem {
+		case iObj.FishFood:
+			ffSprite := iObj.FishFoodSprite{UiSprite: uSprite}
 			ffSprite.Subscribe()
-			lightingShader := shaders.LoadOnePointLightingNeutral()
-			ffSprite.Shader = lightingShader
-			LoadSpriteLightingParams(sprite.Sprite)
 			sprites = append(sprites, &ffSprite)
 			continue
-		}
-		if elem == interactableUIObjects2.WhiteBoard {
-			wbSprite := interactableUIObjects2.WhiteBoardSprite{UiSprite: sprite}
+		case iObj.WhiteBoard:
+			wbSprite := iObj.WhiteBoardSprite{UiSprite: uSprite}
 			wbSprite.Init()
 			wbSprite.Subscribe(hub)
-			lightingShader := shaders.LoadOnePointLightingNeutral()
-			wbSprite.Sprite.Shader = lightingShader
-			LoadSpriteLightingParams(wbSprite.Sprite)
 			sprites = append(sprites, &wbSprite)
 			continue
+		case iObj.PiggyBank:
+			pbSprite := iObj.PiggyBankSprite{UiSprite: uSprite}
+			//pbSprite.Init()
+			pbSprite.Subscribe(hub)
+			sprites = append(sprites, &pbSprite)
+			aniMap := LoadPiggyBankAnimationMap(x, y, float32(pbSprite.Img.Bounds().Dy()))
+			pbSprite.AnimationMap = aniMap
+			continue
+		case iObj.Pillow:
+			pillowSprite := iObj.PillowUI{UiSprite: uSprite, Triggered: false}
+			pillowSprite.Subscribe(hub)
+			sprites = append(sprites, &pillowSprite)
+			continue
 		}
+
 		//lightingShader := shaders.LoadOnePointLightingNeutral()
 		//sprite.Shader = lightingShader
 		//LoadSpriteLightingParams(sprite.Sprite)
-		sprites = append(sprites, sprite)
+		sprites = append(sprites, uSprite)
 
 	}
 
@@ -85,21 +97,27 @@ func loadSpritePositionData() (map[string]*drawables.SavePositionData, error) {
 	return positions, nil
 }
 
-func LoadSelectedAnimations() (map[string]*sprite.AnimatedSprite, error) {
-	fishOptions := make(map[string]*sprite.AnimatedSprite)
+func LoadPiggyBankAnimationMap(x, y, srcImageHeight float32) map[string]drawables.Drawable {
 
-	mollyFishSprite, err := LoadFishSpriteAltAnimations(entities.MollyFish)
+	aniMap := make(map[string]drawables.Drawable)
+	img, err := LoadImageAssetAsEbitenImage("uiSprites/allowanceCollectedAni")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err, "cant load piggy bank animation thing")
 	}
-	mollyFishSprite.Animation.SpeedInTPS = 4
+	animation := animations.NewAnimation(0, 7, 1, 5)
+	spriteSheet := spritesheet.NewSpritesheet(8, 1, 149, 202)
 
-	mollyFishSprite.X = 420
-	mollyFishSprite.Y = 260
+	animatedSprite := sprite.NewAnimatedSprite()
+	animatedSprite.Img = img
+	animatedSprite.Animation = animation
+	animatedSprite.SpriteSheet = spriteSheet
 
-	fishOptions["mollyFish"] = mollyFishSprite
+	animatedSprite.X = x
+	yOffSet := float32(animatedSprite.Img.Bounds().Dy()) - srcImageHeight
+	animatedSprite.Y = y - yOffSet
 
-	return fishOptions, nil
+	aniMap["allowance"] = animatedSprite
+	return aniMap
 }
 
 //imgLoader() []*ebitenImgs

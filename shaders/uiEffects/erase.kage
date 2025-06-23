@@ -1,0 +1,27 @@
+//kage:unit pixels
+package main
+
+var Counter int
+
+func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
+
+      rand := shaderRand(texCoord.xy)
+      color := imageSrc0UnsafeAt(texCoord)
+      if color.a > 0.0 {
+            //brightness over time
+            strength := clamp(rand + float(Counter)/50, 0.0, 1.0)
+       		//Lerp from current color to white
+       	    color.rgb = mix(color.rgb, vec3(0.92), strength)
+       	    if Counter > 100{
+       	        color.a = 0.0
+       	        color.b = 1.0
+       	        color.rgb *= color.a
+       	    }
+      }
+     return color
+}
+
+
+func shaderRand(pixCoord vec2) float {
+	return fract(sin(dot(pixCoord, vec2(12.9898, 78.233))) * 43758.5453)
+}

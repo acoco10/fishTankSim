@@ -52,11 +52,16 @@ func (t *Timer) Reset() {
 }
 
 func (t *Timer) TurnOn() {
-	t.on = true
+	if t.on == false {
+		t.on = true
+	}
 }
 
 func (t *Timer) TurnOff() {
 	t.Reset()
 	t.on = false
-	t.TimerState = Reset
+}
+
+func (t *Timer) SetTime(newTime int) {
+	t.Duration = newTime
 }

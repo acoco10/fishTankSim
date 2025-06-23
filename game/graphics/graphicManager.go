@@ -1,17 +1,20 @@
 package graphics
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/events"
+	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
 type GraphicManager struct {
 	VlsGraphicQueue    []*VectorLineGraphic
 	SpriteGraphicQueue []*SpriteGraphic
+	TextGraphicQueue   map[int]*FadeInText
 }
 
-func NewGraphicManager(hub *events.EventHub, subs func(eventHub *events.EventHub, manager *GraphicManager)) *GraphicManager {
+func NewGraphicManager(hub *tasks.EventHub, subs func(eventHub *tasks.EventHub, manager *GraphicManager)) *GraphicManager {
 	gq := GraphicManager{}
+	tMap := make(map[int]*FadeInText)
+	gq.TextGraphicQueue = tMap
 	subs(hub, &gq)
 	return &gq
 }
@@ -41,6 +44,11 @@ func (g *GraphicManager) Update() {
 			graphic.Update()
 		}
 	}
+
+	for _, graph := range GraphMap {
+		graph.Update()
+
+	}
 }
 
 func (g *GraphicManager) ResetVls() {
@@ -59,4 +67,5 @@ func (g *GraphicManager) Draw(screen *ebiten.Image) {
 			graphic.Draw(screen)
 		}
 	}
+
 }

@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/acoco10/fishTankWebGame/game/entities"
-	"github.com/acoco10/fishTankWebGame/game/events"
+	"github.com/acoco10/fishTankWebGame/game/tasks"
+	"github.com/acoco10/fishTankWebGame/game/util"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -17,14 +18,14 @@ type TextBoxType uint
 
 const (
 	StatsMenu TextBoxType = iota
-	NotePad
+	StoreMenu
 )
 
 type TextBoxUi struct {
 	*widget.Container
 	text     *widget.TextArea
 	triggerd bool
-	eventhub *events.EventHub
+	eventhub *tasks.EventHub
 }
 
 func LoadBackgroundImageForTextInput(boxType TextBoxType) *widget.ScrollContainerImage {
@@ -43,25 +44,18 @@ func LoadBackgroundImageForTextInput(boxType TextBoxType) *widget.ScrollContaine
 		}
 
 		return &wImage
-	case NotePad:
-		/*img, _, err := ebitenutil.NewImageFromFileSystem(assets.ImagesDir, "images/menuAssets/whiteBoardMain.png")
-		if err != nil {
-			log.Printf("background image for text output container not loading due to: %q", err.Error())
-		}*/
-
-		//nineSliceImage := eimage.NewNineSlice(img, [3]int{32, 180 - 64, 32}, [3]int{32, 135 - 64, 32})
+	case StoreMenu:
 
 		wImage := widget.ScrollContainerImage{
-			Idle: eimage.NewNineSliceColor(color.NRGBA{100, 100, 100, 10}),
-			Mask: eimage.NewNineSliceColor(color.NRGBA{100, 100, 100, 255}),
+			Idle: eimage.NewNineSliceColor(color.NRGBA{R: 255, G: 255, B: 255, A: 0}),
+			Mask: eimage.NewNineSliceColor(color.NRGBA{R: 255, G: 255, B: 255, A: 255}),
 		}
-
 		return &wImage
 	}
 	return nil
 }
 
-func NewTextBlock(hub *events.EventHub, tp TextBoxType) (*TextBoxUi, error) {
+func NewTextBlock(hub *tasks.EventHub, tp TextBoxType) (*TextBoxUi, error) {
 	t := &TextBoxUi{}
 
 	t.eventhub = hub
@@ -78,7 +72,7 @@ func NewTextBlock(hub *events.EventHub, tp TextBoxType) (*TextBoxUi, error) {
 	return t, nil
 }
 
-func LoadLayoutData(tp TextBoxType) widget.AnchorLayoutData {
+func LoadLayoutData(tp TextBoxType) *widget.AnchorLayoutData {
 	switch tp {
 	case StatsMenu:
 		layoutData := widget.AnchorLayoutData{
@@ -87,23 +81,17 @@ func LoadLayoutData(tp TextBoxType) widget.AnchorLayoutData {
 			StretchHorizontal:  false,
 			StretchVertical:    false,
 		}
-		return layoutData
-	case NotePad:
+		return &layoutData
+	case StoreMenu:
 		layoutData := widget.AnchorLayoutData{
-			VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			HorizontalPosition: widget.AnchorLayoutPositionEnd,
+			VerticalPosition:   widget.AnchorLayoutPositionEnd,
+			HorizontalPosition: widget.AnchorLayoutPositionCenter,
 			StretchHorizontal:  false,
 			StretchVertical:    false,
 		}
-		return layoutData
+		return &layoutData
 	}
-	layoutData := widget.AnchorLayoutData{
-		VerticalPosition:   widget.AnchorLayoutPositionCenter,
-		HorizontalPosition: widget.AnchorLayoutPositionEnd,
-		StretchHorizontal:  false,
-		StretchVertical:    false,
-	}
-	return layoutData
+	return nil
 }
 
 func LoadPadding(tp TextBoxType) (widget.Insets, widget.Insets) {
@@ -113,7 +101,7 @@ func LoadPadding(tp TextBoxType) (widget.Insets, widget.Insets) {
 	case StatsMenu:
 		w = widget.Insets{Right: 0, Left: 50, Top: 0, Bottom: 200}
 		w2 = widget.Insets{Right: 10, Left: 10, Top: 10, Bottom: 10}
-	case NotePad:
+	case StoreMenu:
 		w = widget.Insets{Right: 10, Left: 0, Top: 0, Bottom: 0}
 		w2 = widget.Insets{Right: 10, Left: 10, Top: 10, Bottom: 0}
 	}
@@ -127,7 +115,7 @@ func LoadMinSize(tp TextBoxType) (int, int) {
 	case StatsMenu:
 		w = 160
 		h = 120
-	case NotePad:
+	case StoreMenu:
 		w = 180
 		h = 135
 	}
@@ -140,24 +128,26 @@ func LoadFontByType(tp TextBoxType) (text2.Face, color.Color, error) {
 	var clr color.Color
 	switch tp {
 	case StatsMenu:
-		lFace, err := LoadFont(10, "nk57")
+		lFace, err := util.LoadFont(10, "nk57")
 		if err != nil {
 			return face, clr, err
 		}
 		face = lFace
 		clr = color.White
-	case NotePad:
-		lFace, err := LoadFont(10, "rockSalt")
+	case StoreMenu:
+		lFace, err := util.LoadFont(10, "nk57")
 		if err != nil {
 			return face, clr, err
 		}
 		face = lFace
 		clr = color.Black
 	}
+
 	return face, clr, nil
 }
 
-func NewTextBlockContainer(hub *events.EventHub, backGroundImg *widget.ScrollContainerImage, tp TextBoxType) (*widget.Container, *widget.TextArea, error) {
+func NewTextBlockContainer(hub *tasks.EventHub, backGroundImg *widget.ScrollContainerImage, tp TextBoxType) (*widget.Container, *widget.TextArea, error) {
+
 	t := &TextBoxUi{}
 
 	t.eventhub = hub
@@ -170,14 +160,7 @@ func NewTextBlockContainer(hub *events.EventHub, backGroundImg *widget.ScrollCon
 	w, h := LoadMinSize(tp)
 	layoutData := LoadLayoutData(tp)
 	padding, textPadding := LoadPadding(tp)
-	/*layoutDataRoot := widget.AnchorLayoutData{
-		VerticalPosition:   widget.AnchorLayoutPositionCenter,
-		HorizontalPosition: widget.AnchorLayoutPositionEnd,
-		StretchHorizontal:  false,
-		StretchVertical:    false,
-	}*/
 
-	// construct a new container that serves as the root of the UI hierarchy
 	rootContainer := widget.NewContainer(
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(layoutData),
@@ -234,15 +217,7 @@ func NewTextBlockContainer(hub *events.EventHub, backGroundImg *widget.ScrollCon
 	)
 
 	t.text = textarea
-	//Add text to the end of the textarea
-	//textarea.AppendText("\nLast Row")
-	//Add text to the beginning of the textarea
-	//textarea.PrependText("First Row\n")
-	//Replace the current text with the new value
-	//textarea.SetText("New Value!")
-	//Retrieve the current value of the text area text
 	fmt.Println(textarea.GetText())
-	// add the textarea as a child of the container
 	rootContainer.AddChild(textarea)
 	return rootContainer, textarea, nil
 
@@ -251,7 +226,7 @@ func NewTextBlockContainer(hub *events.EventHub, backGroundImg *widget.ScrollCon
 func (t *TextBoxUi) subs(tp TextBoxType) {
 	switch tp {
 	case StatsMenu:
-		t.eventhub.Subscribe(entities.SendData{}, func(e events.Event) {
+		t.eventhub.Subscribe(entities.SendData{}, func(e tasks.Event) {
 			ev := e.(entities.SendData)
 			if ev.DataFor == "statsMenu" {
 				switch ev.Data {
@@ -262,20 +237,6 @@ func (t *TextBoxUi) subs(tp TextBoxType) {
 					t.text.GetWidget().Visibility = widget.Visibility_Show
 				}
 			}
-		})
-
-	case NotePad:
-		t.eventhub.Subscribe(events.TaskCreated{}, func(e events.Event) {
-			ev := e.(events.TaskCreated)
-			t.AppendTextArea(ev.Task.Text)
-		})
-
-		t.eventhub.Subscribe(events.TaskCompleted{}, func(e events.Event) {
-			//ev := e.(entities.TaskCompleted)
-		})
-
-		t.eventhub.Subscribe(events.AllTasksCompleted{}, func(e events.Event) {
-			t.ReplaceTextArea("All Done =)")
 		})
 	}
 }
@@ -292,6 +253,9 @@ func (t *TextBoxUi) ReplaceTextArea(text string) {
 
 func FindFirstSpaceBeforeIndex(str string, index int) int {
 	//haha this baby is recursive
+	if len(str) < index {
+		return index
+	}
 	if index < 0 {
 		return -1 // No space found
 	}
@@ -317,4 +281,23 @@ func (t *TextBoxUi) AppendTextArea(text string) {
 
 func (t *TextBoxUi) Trigger() {
 	t.triggerd = true
+}
+
+func AppendTextArea(text string, t *widget.TextArea, maxLength int) {
+
+	output := ""
+
+	for len(text) > 0 {
+		i := FindFirstSpaceBeforeIndex(text, maxLength)
+		if i >= len(text) {
+			output = output + text
+			break
+		} else {
+			output = output + text[:i] + "\n"
+			text = text[i+1:]
+		}
+
+	}
+
+	t.AppendText(output)
 }

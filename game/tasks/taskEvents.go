@@ -1,6 +1,4 @@
-package events
-
-import ()
+package tasks
 
 type TaskRequirementsCompleted struct {
 	Task Task

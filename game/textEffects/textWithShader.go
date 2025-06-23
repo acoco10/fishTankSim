@@ -1,7 +1,7 @@
 package textEffects
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/ui"
+	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
@@ -9,16 +9,19 @@ import (
 )
 
 type TextWithShader struct {
-	image        *ebiten.Image
-	shader       *ebiten.Shader
-	shaderParams map[string]any
-	text         string
-	face         text.Face
-	updateFunc   func(map[string]any) map[string]any
+	insets            [2]float64
+	renderShaderImage *ebiten.Image
+	image             *ebiten.Image
+	shader            *ebiten.Shader
+	shaderParams      map[string]any
+	text              string
+	FullyDrawn        bool
+	face              text.Face
+	updateFunc        func(map[string]any) map[string]any
 }
 
-func NewTextWithShader(text string, dst *ebiten.Image) *TextWithShader {
-	face, err := ui.LoadFont(18, "rockSalt")
+func NewTextWithMarkerShader(text string, image *ebiten.Image, insets [2]float64) *TextWithShader {
+	face, err := util.LoadFont(12, "rockSalt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -27,32 +30,90 @@ func NewTextWithShader(text string, dst *ebiten.Image) *TextWithShader {
 	ts.text = text
 	ts.face = face
 
-	ts.updateFunc = shaders.UpdateCounter
+	ts.insets = insets
+
+	ts.updateFunc = shaders.UpdateCounterOneShot
 	shader := shaders.LoadHandWritingShader()
 	ts.shader = shader
 
 	ts.shaderParams = make(map[string]any)
 	ts.shaderParams["Counter"] = 0
+	ts.shaderParams["MaxCounter"] = 200
 
-	ts.image = dst
+	ts.image = image
+
+	ts.renderShaderImage = ebiten.NewImage(image.Bounds().Dx(), image.Bounds().Dy())
 
 	return ts
 }
 
-func (t *TextWithShader) Update() {
-	t.shaderParams = t.updateFunc(t.shaderParams)
+func (t *TextWithShader) IsFullyDrawn() bool {
+	return t.FullyDrawn
 }
 
-func (t *TextWithShader) Draw(dst *ebiten.Image) {
+func (t *TextWithShader) Update() {
 
-	dopts := &text.DrawOptions{}
-	shaderOpts := ebiten.DrawRectShaderOptions{}
-	dopts.ColorScale.Scale(0, 0, 0, 1)
-	dopts.GeoM.Translate(float64(10), float64(10))
+	if t.shaderParams == nil {
+		println("nil map for params in text with shader")
+		return
+	}
 
-	text.Draw(t.image, t.text, t.face, dopts)
-	shaderOpts.Uniforms = t.shaderParams
-	shaderOpts.Images[0] = t.image
+	if t.updateFunc == nil {
+		println("nil update func for draw text w/ shader")
+		return
+	}
 
-	dst.DrawRectShader(t.image.Bounds().Dx(), t.image.Bounds().Dy(), t.shader, &shaderOpts)
+	t.shaderParams = t.updateFunc(t.shaderParams)
+
+	counter, ok := t.shaderParams["Counter"].(int)
+	if !ok {
+		log.Printf("Text Shader shader Parameters were reset but function is still updating skipping to avoid nil pointer errors\n")
+		return
+	}
+
+	if counter == 1 {
+		log.Printf("updating shader: |%s|", t.text)
+	}
+
+	maxCounter, ok := t.shaderParams["MaxCounter"].(int)
+	if !ok {
+		log.Printf("Nil max counter value in text shader updater paramaters \n")
+		return
+	}
+
+	if counter >= maxCounter && !t.FullyDrawn {
+		log.Printf("Text shader: |%s|is fully Drawn", t.text)
+		t.FullyDrawn = true
+		t.shader = nil
+	}
+
+}
+
+func (t *TextWithShader) Draw() {
+
+	if !t.FullyDrawn {
+		//log.Printf("Drawing text shader: |%s|", t.text)
+		if t.shader == nil {
+			t.FullyDrawn = true
+			return
+		}
+
+		if t.shaderParams == nil {
+			t.FullyDrawn = true
+			log.Printf("Text Shader shader Parameters were reset but draw is being called skipping to avoid nil pointer errors\n")
+			return
+		}
+
+		dopts := &text.DrawOptions{}
+		dopts.ColorScale.Scale(0, 0, 0, 1)
+		dopts.GeoM.Translate(t.insets[0], t.insets[1])
+		text.Draw(t.renderShaderImage, t.text, t.face, dopts)
+
+		shaderOpts := &ebiten.DrawRectShaderOptions{}
+		shaderOpts.Uniforms = t.shaderParams
+		shaderOpts.Images[0] = t.renderShaderImage
+		t.image.DrawRectShader(t.image.Bounds().Dx(), t.image.Bounds().Dy(), t.shader, shaderOpts)
+		return
+	}
+	//text.Draw(dst, t.text, t.face, dopts)
 }

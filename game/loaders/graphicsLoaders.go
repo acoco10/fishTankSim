@@ -21,6 +21,6 @@ func LoadClothGraphic() (*graphics.SpriteGraphic, error) {
 	params["max"] = mx
 	params["direction"] = direction
 
-	cloth := graphics.NewSpriteGraphic(&gSprite, graphics.UpdateWhiteBoardCloth, params)
+	cloth := graphics.NewSpriteGraphic(gSprite, graphics.UpdateWhiteBoardCloth, params)
 	return cloth, nil
 }

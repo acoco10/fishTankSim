@@ -2,6 +2,6 @@ package input
 
 import "github.com/acoco10/fishTankWebGame/game/geometry"
 
-type MouseButtonPressed struct {
+type MouseButtonPressedUISpriteActivity struct {
 	Point *geometry.Point
 }

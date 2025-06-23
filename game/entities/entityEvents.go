@@ -14,6 +14,9 @@ type PointGenerated struct {
 	Source string
 }
 
+type AllFishFed struct {
+}
+
 type SendData struct {
 	DataFor string
 	Data    string
@@ -30,5 +33,5 @@ type FishEvent struct {
 }
 
 type FishLevelUp struct {
-	fish Creature
+	Fish Creature
 }

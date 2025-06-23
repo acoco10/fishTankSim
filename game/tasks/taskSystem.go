@@ -1,4 +1,6 @@
-package events
+package tasks
+
+import "github.com/acoco10/fishTankWebGame/game/events"
 
 type EventCondition func(Event) bool
 
@@ -70,5 +72,8 @@ func (t *Task) Subscribe(hub *EventHub) {
 		}
 
 	})
+	hub.Subscribe(events.NewDay{}, func(e Event) {
+		taskId = 0
 
+	})
 }

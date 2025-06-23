@@ -3,22 +3,12 @@ package interactableUIObjects
 import (
 	"github.com/acoco10/fishTankWebGame/game/drawables"
 	"github.com/acoco10/fishTankWebGame/game/events"
-	"github.com/acoco10/fishTankWebGame/game/geometry"
-	"github.com/acoco10/fishTankWebGame/game/input"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
+	"github.com/acoco10/fishTankWebGame/game/tasks"
+	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"math"
-)
-
-type UISpriteLabel string
-
-const (
-	Records    UISpriteLabel = "records"
-	FishFood   UISpriteLabel = "fishFood"
-	FishBook   UISpriteLabel = "book"
-	WhiteBoard UISpriteLabel = "whiteBoard"
-	Plant      UISpriteLabel = "plant"
 )
 
 type uiSpriteState uint8
@@ -28,6 +18,7 @@ const (
 	HoveredOver
 	ClickedWhileBeingSelected
 	Idle
+	Clickable
 )
 
 type gameMode uint8
@@ -44,7 +35,7 @@ type UiSprite struct {
 	AltImg                 *ebiten.Image
 	AltOffsetX, AltOffsetY float32
 	*sprite.XYUpdater
-	*events.EventHub
+	*tasks.EventHub
 	state    uiSpriteState
 	stateWas uiSpriteState
 	gameMode
@@ -54,27 +45,7 @@ type UiSprite struct {
 }
 
 func (us *UiSprite) Draw(screen *ebiten.Image) {
-	opts := ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(float64(us.X), float64(us.Y))
-	screen.DrawImage(us.Img, &opts)
-
-	if us.Shader != nil {
-		shaderOpts := &ebiten.DrawRectShaderOptions{}
-		shaderOpts.Uniforms = us.ShaderParams
-		shaderOpts.GeoM.Translate(float64(us.X), float64(us.Y))
-		shaderOpts.Images[0] = us.Img
-		b := us.Img.Bounds().Max
-		screen.DrawRectShader(b.X, b.Y, us.Shader, shaderOpts)
-		return
-	}
-
-	if us.state == Selected || us.state == HoveredOver {
-		if us.HoverImg != nil {
-			opts.GeoM.Translate(float64(us.AltOffsetX), float64(us.AltOffsetY))
-			screen.DrawImage(us.HoverImg, &opts)
-		}
-	}
-
+	us.Sprite.Draw(screen)
 }
 
 func (us *UiSprite) Update() {
@@ -103,21 +74,37 @@ func (us *UiSprite) UpdatePosition() {
 	}
 
 	us.stateWas = us.state
-
 }
+
 func (us *UiSprite) UpdateNormal() {
 	us.clicked = false
 
 	us.updateState()
 
+	if us.state == HoveredOver && us.stateWas != HoveredOver {
+
+		ols := shaders.LoadOutlineShader()
+		us.Shader = ols
+		us.ShaderParams = make(map[string]any)
+		us.ShaderParams["OutlineColor"] = [4]float64{1, 1, 0, 1}
+
+	}
+
+	if us.Shader != nil && (us.state != HoveredOver && us.state != Selected) {
+
+		us.Shader = nil
+
+	}
+
 	if us.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && us.state == Selected {
 
 		if us.XYUpdater == nil {
-			ev := sprite.UISpriteAction{}
+			ev := events.UISpriteAction{}
 			ev.UiSprite = us.Label
 			ev.UiSpriteAction = "picked up"
 			us.EventHub.Publish(ev)
 		}
+
 		us.XYUpdater = sprite.NewUpdater(us.Sprite)
 	}
 
@@ -125,14 +112,19 @@ func (us *UiSprite) UpdateNormal() {
 		us.XYUpdater.Update()
 	}
 
-	x, y := ebiten.CursorPosition()
+	//x, y := ebiten.CursorPosition()
 
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && us.state == ClickedWhileBeingSelected && !us.clicked {
+
 		us.clicked = true
-		ev := input.MouseButtonPressed{
-			Point: &geometry.Point{X: float32(x), Y: float32(y), PType: geometry.Food},
-		}
-		us.EventHub.Publish(ev)
+
+		/*ev := input.MouseButtonPressedUISpriteActivity{
+			//filler as currently only fish food needs to generate points
+			Point: &geometry.Point{X: float32(x), Y: float32(y), PType: geometry.Structure},
+		}*/
+
+		//us.EventHub.Publish(ev)
+
 	}
 
 	baseDis := math.Hypot(float64(us.X-us.baseX), float64(us.Y-us.baseY))
@@ -143,7 +135,7 @@ func (us *UiSprite) UpdateNormal() {
 		}
 	}
 
-	if ebiten.IsKeyPressed(ebiten.KeyEscape) {
+	if ebiten.IsKeyPressed(ebiten.KeyE) {
 		if baseDis != 0 {
 			us.returnToBase()
 		}
@@ -156,7 +148,7 @@ func (us *UiSprite) returnToBase() {
 	us.state = HoveredOver
 	us.X = us.baseX
 	us.Y = us.baseY
-	ev := sprite.UISpriteAction{}
+	ev := events.UISpriteAction{}
 	ev.UiSprite = us.Label
 	ev.UiSpriteAction = "put back"
 	us.EventHub.Publish(ev)
@@ -177,9 +169,7 @@ func (us *UiSprite) updateState() {
 	}
 
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && us.state == Selected && us.stateWas == Selected {
-		if us.Y < 200 {
-			us.state = ClickedWhileBeingSelected
-		}
+		us.state = ClickedWhileBeingSelected
 	}
 
 	if us.state == ClickedWhileBeingSelected && inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
@@ -187,7 +177,7 @@ func (us *UiSprite) updateState() {
 	}
 }
 
-func NewUiSprite(imgs []*ebiten.Image, hub *events.EventHub, x, y float32, label string, screenWidth, screenHeight int) *UiSprite {
+func NewUiSprite(imgs []*ebiten.Image, hub *tasks.EventHub, x, y float32, label string, screenWidth, screenHeight int) *UiSprite {
 
 	var paramaMappa = make(map[string]any)
 
@@ -226,16 +216,24 @@ func NewUiSprite(imgs []*ebiten.Image, hub *events.EventHub, x, y float32, label
 	return &uis
 }
 
-/*func Subs(hub *events.EventHub, uis UiSprite) {
-	hub.Subscribe(ui.ButtonClickedEvent{}, func(e events.Event) {
-		ev := e.(ui.ButtonClickedEvent)
+func Pubs(hub *tasks.EventHub, uis UiSprite) {
+	ev := events.UISpriteLayedOut{
+		Label: uis.Label,
+		X:     uis.X,
+		Y:     uis.Y,
+	}
+	hub.Publish(ev)
+}
+
+func Subs(hub *tasks.EventHub, uis UiSprite) {
+	hub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
+		ev := e.(events.ButtonClickedEvent)
 		switch ev.ButtonText {
 		case "Mode":
 			uis.SwitchGameMode()
 		}
 	})
-
-}*/
+}
 
 func (us *UiSprite) SwitchGameMode() {
 	switch us.gameMode {
@@ -252,4 +250,24 @@ func (us *UiSprite) SavePosition() drawables.SavePositionData {
 	sp.Y = us.Y
 	sp.Name = us.Label
 	return sp
+}
+
+func initClickMeEffect(us *UiSprite) {
+	us.EventHub.Publish(
+		events.ClickMeGraphicEvent{
+			X: float64(us.X), Y: float64(us.Y), SpriteWidth: float64(us.Img.Bounds().Dx())},
+	)
+
+	ols := shaders.LoadOutlineShader()
+
+	us.Shader = ols
+	us.ShaderParams["Opacity"] = float32(0.0)
+	us.ShaderParams["OutlineColor"] = [4]float32{0.2, 0.7, 0.2, 1.0}
+	us.UpdateShaderParams = shaders.UpdatePulseWithText
+}
+
+func turnOffClickMeEffect(us *UiSprite) {
+	us.Shader = nil
+	ev := events.TurnOffGraphic{X: float64(us.X), Y: float64(us.Y)}
+	us.EventHub.Publish(ev)
 }

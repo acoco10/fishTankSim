@@ -2,12 +2,11 @@
 package main
 
 var Counter int
-var Y float
 
 func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
       color := imageSrc0UnsafeAt(texCoord)
       if color.a > 0.0{
-        if int(texCoord.x) <= Counter && texCoord.y <= Y{
+        if int(texCoord.x) <= Counter{
                return color
       }
        if int(texCoord.x) <= Counter+50{
