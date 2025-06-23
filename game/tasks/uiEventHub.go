@@ -1,4 +1,4 @@
-package events
+package tasks
 
 import (
 	"fmt"
@@ -30,4 +30,8 @@ func (h *EventHub) Publish(event Event) {
 	for _, handler := range h.subscribers[t] {
 		handler(event)
 	}
+}
+
+func (h *EventHub) UnSubscribe() {
+
 }

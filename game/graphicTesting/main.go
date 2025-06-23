@@ -1,10 +1,10 @@
 package main
 
 import (
+	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/graphics"
 	"github.com/acoco10/fishTankWebGame/game/loaders"
 	"github.com/hajimehoshi/ebiten/v2"
-	"image/color"
 	"log"
 )
 
@@ -20,12 +20,17 @@ type Game struct {
 func newGame() *Game {
 	g := Game{}
 
-	whiteBoardGraphic, err := loaders.LoadClothGraphic()
-	if err != nil {
-		log.Fatal(err)
-	}
-	g.testGraphic = whiteBoardGraphic
+	graphSpriteParams := map[string]any{}
 
+	graphSpriteParams["opacity"] = float32(0.1)
+	graphSpriteParams["pulse"] = true
+
+	sprite := loaders.LoadFishSprite(entities.Fish, 2)
+	sprite.X = 200
+	sprite.Y = 200
+	graph := graphics.NewSpriteGraphic(*sprite.Sprite, graphics.UpdateFadeInGraphic, graphSpriteParams)
+	graph.SetDrawFunc(graphics.FadeIn)
+	g.testGraphic = graph
 	return &g
 
 }
@@ -36,7 +41,6 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	screen.Fill(color.Black)
 	g.testGraphic.Draw(screen)
 }
 
@@ -46,9 +50,11 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 func main() {
 	g := newGame()
+
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Graphic Testing")
+
 	if err := ebiten.RunGame(g); err != nil {
-		log.Fatal(err)
+		log.Fatal("error running game", err)
 	}
 }

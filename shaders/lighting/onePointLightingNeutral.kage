@@ -14,10 +14,8 @@ func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
             // Brightness modifier: closer to light = brighter
             brightness := clamp(1.0 - dis / 200.0, 0.0, 1.0)
 
-            // Sample the texture
-
             // Increase blue tones and brightness
-            color.rgb *= 1.0 + 0.8 * brightness             // Boost total brightness
+            color.rgb *= 1.0 + 0.8 * brightness   // Boost total brightness
             color.rgb += vec3(0.8, 0.8, 0.0) * brightness
             color.a *= 0.5
             color.rgb *= color.a

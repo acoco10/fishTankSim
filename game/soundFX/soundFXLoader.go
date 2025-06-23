@@ -19,6 +19,8 @@ const (
 	SuccessMusic      resource.AudioID = iota
 	WaterBubbles      resource.AudioID = iota
 	SelectSound2      resource.AudioID = iota
+	WhiteBoardMarker1 resource.AudioID = iota
+	WhiteBoardMarker2 resource.AudioID = iota
 )
 
 var audioContext = audio.NewContext(44100)
@@ -27,8 +29,20 @@ var SoundData = map[string][]byte{}
 
 // key is file path, not just name
 func LoadSounds() (*resource.Loader, error) {
-
 	var rLoader *resource.Loader
+
+	volumeMap := map[resource.AudioID]float64{
+		BestAdventureEver: -0.5,
+		PickUpOne:         0.0,
+		PlopSound:         -0.3,
+		PouringFood:       0.0,
+		SelectSound:       -0.5,
+		SuccessMusic:      -0.6,
+		WaterBubbles:      0.0,
+		SelectSound2:      0.0,
+		WhiteBoardMarker1: 0.5,
+		WhiteBoardMarker2: 0.5,
+	}
 
 	soundDir, err := assets.SoundDir.ReadDir("soundFx")
 
@@ -56,7 +70,14 @@ func LoadSounds() (*resource.Loader, error) {
 
 		SoundData[name] = song
 		println("saving audio id:", resource.AudioID(i))
-		audioRegMap[resource.AudioID(i)] = resource.AudioInfo{Path: name, Volume: 0.0}
+		vol := 0.0
+
+		if volumeMap[resource.AudioID(i)] != 0.0 {
+			vol = volumeMap[resource.AudioID(i)]
+		}
+
+		println(resource.AudioID(i), "volume =", vol)
+		audioRegMap[resource.AudioID(i)] = resource.AudioInfo{Path: name, Volume: vol}
 
 	}
 

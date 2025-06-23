@@ -1,10 +1,9 @@
 package entities
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/geometry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
-	"github.com/acoco10/fishTankWebGame/shaders"
+	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/hajimehoshi/ebiten/v2"
 	"math/rand"
 )
@@ -22,6 +21,14 @@ type FishList string
 const (
 	Fish      FishList = "fish"
 	MollyFish FishList = "mollyFish"
+	Guppy     FishList = "guppy"
+)
+
+type Direction uint8
+
+const (
+	Left Direction = iota
+	Right
 )
 
 type FishPersonality string
@@ -33,7 +40,7 @@ const (
 
 type Creature struct {
 	PointQueue     []*geometry.Point
-	EventHub       *events.EventHub
+	EventHub       *tasks.EventHub
 	TankBoundaries geometry.Rect
 	Timers         map[FishState]*Timer
 	State          FishState
@@ -41,6 +48,7 @@ type Creature struct {
 	TickClicked    bool
 	*FishStats
 	*sprite.AnimatedSprite
+	Flip bool
 }
 
 func (c *Creature) Update() {
@@ -55,8 +63,6 @@ func (c *Creature) Update() {
 		c.eatingUpdate()
 	}
 
-	//c.LevelUp()
-
 	c.AnimatedSprite.Update()
 
 	if c.Selected {
@@ -66,13 +72,6 @@ func (c *Creature) Update() {
 			c.Shader = nil
 			ev := SendData{Data: "fish deselect", DataFor: "statsMenu"}
 			c.EventHub.Publish(ev)
-		}
-	}
-
-	if c.SpriteHovered() {
-		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-			c.Selected = true
-			c.Shader = shaders.LoadRotatingHighlightShader()
 		}
 	}
 
@@ -112,7 +111,7 @@ func (c *Creature) eatingUpdate() {
 	tState := c.Timers[Eating].Update()
 	if tState == Done {
 		c.State = Swimming
-		c.energy++
+		c.energy += 4
 	}
 }
 
@@ -120,7 +119,7 @@ func (c *Creature) Draw(screen *ebiten.Image) {
 
 	opts := c.TranSlateFishOpts()
 	shaderOpts := c.TranSlateFishShaderOpts()
-
-	c.AnimatedSprite.Draw(screen, opts, shaderOpts)
+	c.AnimatedSprite.UpdateOpts([]any{*opts, *shaderOpts})
+	c.AnimatedSprite.Draw(screen)
 
 }

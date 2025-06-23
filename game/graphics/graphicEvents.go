@@ -5,5 +5,5 @@ import (
 )
 
 type DrawGraphic struct {
-	Graphic drawables.DrawableSprite
+	Graphic drawables.DrawableSaveAbleSprite
 }

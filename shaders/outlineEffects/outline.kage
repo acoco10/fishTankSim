@@ -1,6 +1,6 @@
 package main
 
-var Resolution vec2 // size of the sprite in pixels
+var Resolution vec2 // size of the sprit in pixels
 var OutlineColor vec4
 
 func Fragment(position vec4, texCoord vec2, color vec4) vec4 {

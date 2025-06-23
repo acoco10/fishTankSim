@@ -1,8 +1,8 @@
 package entities
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/geometry"
+	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"image/color"
@@ -19,7 +19,7 @@ type Particle struct {
 	waterLevel        float32
 	floorLevel        float32
 	underWaterCounter int
-	eventHub          *events.EventHub
+	eventHub          *tasks.EventHub
 }
 
 func (p *Particle) float() {
@@ -65,7 +65,7 @@ func (p *Particle) Draw(screen *ebiten.Image) {
 	vector.DrawFilledCircle(screen, p.X, p.Y, 2, clr, false)
 }
 
-func NewParticle(point *geometry.Point, rect geometry.Rect, hub *events.EventHub) *Particle {
+func NewParticle(point *geometry.Point, rect geometry.Rect, hub *tasks.EventHub) *Particle {
 	println("calling new particle function", n)
 	n++
 	p := Particle{

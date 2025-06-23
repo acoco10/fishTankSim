@@ -5,9 +5,10 @@ import (
 	"github.com/acoco10/QuickDrawAdventure/animations"
 	"github.com/acoco10/QuickDrawAdventure/spriteSheet"
 	"github.com/acoco10/fishTankWebGame/game/entities"
-	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/geometry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
+	"github.com/acoco10/fishTankWebGame/game/tasks"
+	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
 	"math/rand"
@@ -20,6 +21,8 @@ func LoadFishImg(fType entities.FishList, level int) (*ebiten.Image, error) {
 		fishImgName = fmt.Sprintf("fish%dSpriteSheet", level)
 	case entities.MollyFish:
 		fishImgName = fmt.Sprintf("mollyFish%dSpriteSheet", level)
+	case entities.Guppy:
+		fishImgName = fmt.Sprintf("guppy%dSpriteSheet", level)
 	}
 	img, err := LoadImageAssetAsEbitenImage("fishSpriteSheets/" + fishImgName)
 	if err != nil {
@@ -28,13 +31,46 @@ func LoadFishImg(fType entities.FishList, level int) (*ebiten.Image, error) {
 	return img, nil
 }
 
+func LoadFishNormal(fType entities.FishList, level int) (*ebiten.Image, error) {
+	var fishImgName string
+	switch fType {
+	case entities.Fish:
+		fishImgName = fmt.Sprintf("fish%dNormalSpriteSheet", level)
+	case entities.MollyFish:
+		fishImgName = fmt.Sprintf("mollyFish%dNormalSpriteSheet", level)
+	case entities.Guppy:
+		fishImgName = fmt.Sprintf("guppy%dSpriteSheet", level)
+
+	}
+	img, err := LoadImageAssetAsEbitenImage("fishSpriteSheets/" + fishImgName)
+
+	if err != nil {
+		log.Printf("normal map not found for: %s", fishImgName)
+		return nil, err
+	}
+
+	return img, nil
+}
+
 func LoadFishSprite(creatureType entities.FishList, creatureLvl int) *sprite.AnimatedSprite {
 	var c sprite.AnimatedSprite
 	c.Sprite = &sprite.Sprite{}
+	c.Scale = 1
+	dopts := ebiten.DrawImageOptions{}
+	dopts.GeoM.Translate(float64(c.X), float64(c.Y))
+	sopts := ebiten.DrawRectShaderOptions{}
+	sopts.GeoM.Translate(float64(c.X), float64(c.Y))
+
+	c.UpdateOpts([]any{sopts, dopts})
 
 	img, err := LoadFishImg(creatureType, creatureLvl)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("cant load next level for creature", err)
+	}
+
+	normalImg, err := LoadFishNormal(creatureType, creatureLvl)
+	if err != nil {
+		log.Fatal("cant load next level normal for creature", err)
 	}
 
 	switch creatureLvl {
@@ -42,19 +78,34 @@ func LoadFishSprite(creatureType entities.FishList, creatureLvl int) *sprite.Ani
 		c.Img = img
 		c.Animation = animations.NewAnimation(0, 3, 1, 15)
 		c.SpriteSheet = spritesheet.NewSpritesheet(4, 1, 21, 9)
+		if normalImg != nil {
+			c.NormalMap = normalImg
+			c.ShaderParams = make(map[string]any)
+			c.ShaderParams["Cursor"] = [2]float64{440, 170}
+			shader := shaders.LoadNormalMapShader()
+			c.Shader = shader
+		}
 	case 2:
 		c.Img = img
 		c.Animation = animations.NewAnimation(0, 3, 1, 15)
 		c.SpriteSheet = spritesheet.NewSpritesheet(4, 1, 26, 13)
 	case 3:
 		c.Img = img
-		c.Animation = animations.NewAnimation(0, 5, 1, 15)
-		c.SpriteSheet = spritesheet.NewSpritesheet(6, 1, 40, 24)
+		c.Animation = animations.NewAnimation(0, 3, 1, 15)
+		c.SpriteSheet = spritesheet.NewSpritesheet(4, 1, 65, 37)
+		if normalImg != nil {
+			c.NormalMap = normalImg
+			c.ShaderParams = make(map[string]any)
+			c.ShaderParams["Cursor"] = [2]float64{440, 170}
+			shader := shaders.LoadNormalMapShader()
+			c.Shader = shader
+		}
 	default:
 		c.Img = img
 		c.Animation = animations.NewAnimation(0, 3, 1, 15)
 		c.SpriteSheet = spritesheet.NewSpritesheet(4, 1, 24, 11)
 	}
+
 	return &c
 }
 
@@ -79,7 +130,7 @@ func LoadFishSpriteAltAnimations(fType entities.FishList) (*sprite.AnimatedSprit
 	return &c, nil
 }
 
-func NewFish(hub *events.EventHub, tankSize geometry.Rect, saveData entities.SavedFish) *entities.Creature {
+func NewFish(hub *tasks.EventHub, tankSize geometry.Rect, saveData entities.SavedFish) *entities.Creature {
 
 	timers := make(map[entities.FishState]*entities.Timer)
 	randDuration := rand.Float64() * 50
@@ -107,12 +158,12 @@ func NewFish(hub *events.EventHub, tankSize geometry.Rect, saveData entities.Sav
 		false,
 		fs,
 		sprite.NewAnimatedSprite(),
+		false,
 	}
 
 	c.AnimatedSprite = LoadFishSprite(c.FishType, c.Size)
 
 	//LoadRotatingHighlightOutlineAnimated(c.AnimatedSprite)
-	LoadRotatingHighlightOutlineAnimated(c.AnimatedSprite)
 
 	firstPoint := c.RandomTarget()
 	c.AddTargetPointToQueue(firstPoint)
@@ -123,4 +174,8 @@ func NewFish(hub *events.EventHub, tankSize geometry.Rect, saveData entities.Sav
 	entities.CreatureEventSubscriptions(&c)
 
 	return &c
+}
+
+func LoadLevlUpSprite(c *entities.Creature) {
+	LoadFishSprite(c.FishType, c.Size)
 }

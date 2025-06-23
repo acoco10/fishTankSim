@@ -1,80 +1,34 @@
 package main
 
 import (
+	"github.com/acoco10/QuickDrawAdventure/animations"
+	"github.com/acoco10/QuickDrawAdventure/spriteSheet"
 	"github.com/acoco10/fishTankWebGame/game/loaders"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
-	"github.com/acoco10/fishTankWebGame/game/ui"
 	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"image/color"
 	"log"
 )
 
 type Direction uint8
 
 type TextWithShader struct {
-	image        *ebiten.Image
-	shader       *ebiten.Shader
-	shaderParams map[string]any
-	text         string
-	face         text.Face
-	updateFunc   func(map[string]any) map[string]any
+	sprites *sprite.Sprite
+	face    text.Face
+	erasing bool
 }
 
 func NewTextWithShader(text string, dst *ebiten.Image) *TextWithShader {
-	face, err := ui.LoadFont(18, "rockSalt")
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	ts := &TextWithShader{}
-	ts.text = text
-	ts.face = face
-
-	ts.updateFunc = shaders.UpdateCounter
-	shader := shaders.LoadHandWritingShader()
-	ts.shader = shader
-
-	ts.shaderParams = make(map[string]any)
-	ts.shaderParams["Counter"] = 0
-
-	ts.image = dst
 
 	return ts
 }
 
 func (t *TextWithShader) Update() {
-	t.shaderParams = t.updateFunc(t.shaderParams)
+
 }
-
-func (t *TextWithShader) Draw(dst *ebiten.Image) {
-
-	dopts := &text.DrawOptions{}
-	shaderOpts := ebiten.DrawRectShaderOptions{}
-	dopts.ColorScale.Scale(0, 0, 0, 1)
-	dopts.GeoM.Translate(float64(10), float64(10))
-
-	text.Draw(t.image, t.text, t.face, dopts)
-	shaderOpts.Uniforms = t.shaderParams
-	shaderOpts.Images[0] = t.image
-
-	dst.DrawRectShader(t.image.Bounds().Dx(), t.image.Bounds().Dy(), t.shader, &shaderOpts)
-}
-
-const (
-	Left Direction = iota
-	Right
-	Down
-	Up
-)
-
-// ... (rest of your import statements and setup)
-
-var (
-	outlineColor  = [4]float64{0.2, 0.1, 0.05, 255}        // Yellow outline
-	outlineColor2 = color.RGBA{R: 1, G: 255, B: 1, A: 255} // Yellow outline
-)
 
 const (
 	screenWidth  = 640 * 2
@@ -82,25 +36,59 @@ const (
 )
 
 type Game struct {
-	testSprite *sprite.Sprite
-	ts         *TextWithShader
+	tmap           []int
+	shaderParams   map[string]any
+	shader         *ebiten.Shader
+	animatedSprite *sprite.AnimatedSprite
+	normalSprite   *sprite.AnimatedSprite
 }
 
 func newGame() *Game {
-	g := Game{}
 
-	whiteBoard, err := loaders.LoadImageAssetAsEbitenImage("uiSprites/whiteBoardMain")
+	diffuseImg, err := loaders.LoadImageAssetAsEbitenImage("fishSpriteSheets/mollyFish3SpriteSheet")
 	if err != nil {
 		log.Fatal(err)
 	}
-	dst := ebiten.NewImage(whiteBoard.Bounds().Dx(), whiteBoard.Bounds().Dy())
+	/*
+		uniform vec2 u_LightPos;     // In screen space [0,1]
+		uniform vec3 u_LightColor;
+		uniform vec3 u_AmbientColor;*/
+	normalImg, err := loaders.LoadImageAssetAsEbitenImage("fishSpriteSheets/mollyFish3NormalSpriteSheet")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	ts := NewTextWithShader("testing testing", dst)
-	g.ts = ts
-	testSprite := sprite.Sprite{Img: whiteBoard, X: 250, Y: 250}
+	mollyAnim := animations.NewAnimation(0, 3, 1, 20)
+	mollySpriteSheet := spritesheet.NewSpritesheet(4, 1, 65, 37)
 
-	g.testSprite = &testSprite
+	mollySprite := sprite.NewAnimatedSprite()
+	mollyNormals := sprite.NewAnimatedSprite()
 
+	mollySprite.Img = diffuseImg
+	mollySprite.Animation = mollyAnim
+	mollySprite.SpriteSheet = mollySpriteSheet
+
+	mollyNormals.Img = normalImg
+	mollyNormals.Animation = mollyAnim
+	mollyNormals.SpriteSheet = mollySpriteSheet
+
+	shader := shaders.LoadNormalMapShader()
+
+	uniforms := make(map[string]any)
+
+	x, y := ebiten.CursorPosition()
+	u := float32(x) / float32(screenWidth)
+	v := float32(y) / float32(screenHeight)
+
+	g := Game{}
+	g.shaderParams = uniforms
+	g.shaderParams["Cursor"] = []float32{u, v}
+	g.shader = shader
+	g.animatedSprite = mollySprite
+	g.normalSprite = mollyNormals
+
+	g.animatedSprite.X = 100
+	g.animatedSprite.Y = 100
 	//shader := shaders
 	//s.shader = outlineShader
 
@@ -108,21 +96,30 @@ func newGame() *Game {
 }
 
 func (g *Game) Update() error {
-	g.testSprite.Update()
-	g.ts.Update()
+	x, y := ebiten.CursorPosition()
+	u := float32(x)
+	v := float32(y)
+	g.animatedSprite.Update()
+	g.shaderParams["Cursor"] = []float32{u, v}
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+	shaderOpts := ebiten.DrawRectShaderOptions{}
+	shaderOpts.GeoM.Scale(1, 1)
+	shaderOpts.GeoM.Translate(300, 300)
 
-	dopts := text.DrawOptions{}
+	frame := g.animatedSprite.Frame()
+	rect := g.animatedSprite.Rect(frame)
 
-	dopts.ColorScale.Scale(0, 0, 0, 1)
-	dopts.GeoM.Translate(float64(10), float64(10))
+	spImg := g.animatedSprite.Img.SubImage(rect).(*ebiten.Image)
+	normalImg := g.normalSprite.Img.SubImage(rect).(*ebiten.Image)
 
-	g.ts.Draw(g.testSprite.Img)
+	shaderOpts.Uniforms = g.shaderParams
+	shaderOpts.Images[0] = spImg
+	shaderOpts.Images[1] = normalImg
 
-	g.testSprite.Draw(screen)
+	screen.DrawRectShader(rect.Dx(), rect.Dy(), g.shader, &shaderOpts)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {

@@ -1,39 +1,82 @@
 package loaders
 
 import (
+	"github.com/acoco10/fishTankWebGame/game/drawables"
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
+	"github.com/acoco10/fishTankWebGame/game/util"
 )
 
-func LoadAnimatedSelectSprites() (map[string]*sprite.AnimatedSprite, error) {
+func LoadAnimatedSelectSprites(screenWidth, screeheight int) (map[string]drawables.Drawable, error) {
 
-	fishOptions := make(map[string]*sprite.AnimatedSprite)
+	fishOptions := make(map[string]drawables.Drawable)
 
 	fishSprite := LoadFishSprite(entities.Fish, 1)
+	fishSprite.NormalMap = nil
+	fishSprite.Shader = nil
 	LoadRotatingHighlightOutlineAnimated(fishSprite)
-	//scaledImg := ebiten.NewImage(fishSprite.Img.Bounds().Dx()*4, fishSprite.Img.Bounds().Dy()*4)
-	//dopts := &ebiten.DrawImageOptions{}
-	//dopts.GeoM.Scale(4, 4)
-	//scaledImg.DrawImage(fishSprite.Img, dopts)
-	//fishSprite.Img = scaledImg
 
-	//fishSprite.SpriteWidth = fishSprite.SpriteWidth * 4
-	//fishSprite.SpriteHeight = fishSprite.SpriteHeight * 4
-
-	fishSprite.X = 355
-	fishSprite.Y = 260
 	fishSprite.Scale = 4
 
 	mollyFishSprite := LoadFishSprite(entities.MollyFish, 1)
+	mollyFishSprite.Shader = nil
+	mollyFishSprite.NormalMap = nil
+
 	LoadRotatingHighlightOutlineAnimated(mollyFishSprite)
 	mollyFishSprite.Animation.SpeedInTPS = 10
 
-	mollyFishSprite.X = 490
-	mollyFishSprite.Y = 260
 	mollyFishSprite.Scale = 4
 
-	fishOptions["Common Molly"] = mollyFishSprite
 	fishOptions["Goldfish"] = fishSprite
+	fishOptions["Common Molly"] = mollyFishSprite
 
 	return fishOptions, nil
+}
+
+func StartScreenCoordinatePositioner(screenHeight int, screenWidth int, spriteMap map[string]drawables.Drawable, fontsize float64, headerFontSize float64) {
+	//theoretically programmable button parameters
+
+	textBuffer := 10
+	buttonSpacing := 20
+	minButtonWidth := 120
+	minButtonHeight := 100
+	rowSpacing := 20
+
+	_, headerHeight := util.MeasureNK57("Select Your Fish", 54)
+
+	yLocation := screenHeight/5 + rowSpacing + int(headerHeight)
+
+	i := 0
+	orderKeys := []string{"Goldfish", "Common Molly", "Back"}
+
+	for _, key := range orderKeys {
+		fish, ok := spriteMap[key].(*sprite.AnimatedSprite)
+		if ok {
+			width, _ := util.MeasureNK57(key, fontsize)
+			widthAndBuffer := int(width) + 2*textBuffer
+
+			if widthAndBuffer < minButtonWidth {
+				widthAndBuffer = minButtonWidth
+			}
+
+			imgWidth := fish.Img.Bounds().Dx()
+
+			offSet := widthAndBuffer - imgWidth
+
+			if i == 0 {
+				fish.X = float32(screenWidth/2 - imgWidth - buttonSpacing/2 - offSet/2)
+			} else {
+				fish.X = float32(screenWidth/2 + buttonSpacing/2 + offSet/2)
+			}
+
+			fish.Y = float32(yLocation + minButtonHeight/2)
+			i++
+		}
+
+		sp, ok := spriteMap[key].(*sprite.Sprite)
+		if ok {
+			sp.Y = float32(yLocation + minButtonHeight/2)
+			sp.X = float32(screenWidth/2 - minButtonWidth)
+		}
+	}
 }

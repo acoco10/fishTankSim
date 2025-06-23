@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/entities"
-	"github.com/acoco10/fishTankWebGame/game/geometry"
 	"github.com/acoco10/fishTankWebGame/game/loaders"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/shaders"
@@ -38,14 +37,13 @@ type Game struct {
 	offScreen          *ebiten.Image
 	offScreenParams    map[string]any
 	offScreenShader    *ebiten.Shader
+	img                *ebiten.Image
+	imgNormal          *ebiten.Image
 }
 
 func newGame() *Game {
 	g := Game{}
-	collisionMap, err := geometry.LoadCollisions()
-	if err != nil {
-		log.Fatal(err)
-	}
+	//collisionMap, err := geometry.LoadCollisions()
 
 	shader := shaders.LoadOnePointLightingBlue()
 	shaderParams := make(map[string]any)
@@ -60,7 +58,6 @@ func newGame() *Game {
 	fishSprite.X = 150
 	fishSprite.Y = 100
 
-	loaders.LoadSpriteLightingParams(fishSprite)
 	g.animatedTestSprite = fishSprite
 	ls := shaders.LoadSpriteLighting()
 	g.animatedTestSprite.Shader = ls

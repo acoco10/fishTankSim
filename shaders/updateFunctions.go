@@ -2,14 +2,87 @@ package shaders
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/geometry"
+	"github.com/hajimehoshi/ebiten/v2"
+	"log"
 )
 
+func UpdatePulseWithText(params map[string]any) map[string]any {
+	opacity := params["Opacity"].(float32)
+
+	cs := ebiten.ColorScale{}
+
+	cs.SetR(0.1)
+	cs.SetB(0.2)
+	cs.SetG(1.0)
+	cs.SetA(1.0)
+
+	cs.ScaleAlpha(opacity)
+
+	params["OutlineColor"] = [4]float32{cs.R(), cs.G(), cs.B(), cs.A()}
+
+	if opacity < 1.0 {
+		opacity += 0.02 // adjust fade-in speed here
+	}
+
+	if opacity >= 1.0 {
+		opacity = 0.0
+	}
+
+	params["Opacity"] = opacity
+	return params
+}
+
 func UpdateCounter(params map[string]any) map[string]any {
+	if params["Counter"] == nil {
+		log.Printf("nil counter value inside shader update parameters")
+		return nil
+	}
+
+	maxCounter := 1000
+
+	if params["MaxCounter"] != nil {
+		if params["MaxCounter"].(int) > 0 {
+			maxCounter = params["MaxCounter"].(int)
+		}
+	}
+
 	counter := params["Counter"].(int)
+
 	counter++
-	if counter > 1000 {
+	if counter > maxCounter {
+		//arbitrary shut off at 1000 or at defined point passed through max counter param
 		counter = 0
 	}
+
+	params["Counter"] = counter
+	return params
+}
+
+func UpdateCounterOneShot(params map[string]any) map[string]any {
+
+	if params["Counter"] == nil {
+		log.Printf("nil counter value inside shader update parameters")
+		return nil
+	}
+
+	maxCounter := 0
+
+	if params["MaxCounter"] != nil {
+		if params["MaxCounter"].(int) > 0 {
+			maxCounter = params["MaxCounter"].(int)
+		}
+	} else {
+		log.Printf("No max counter value recieved in one shot time update func: recheck code")
+	}
+
+	counter := params["Counter"].(int)
+
+	if counter >= maxCounter {
+		params["Counter"] = counter
+		return params
+	}
+
+	counter++
 	params["Counter"] = counter
 	return params
 }

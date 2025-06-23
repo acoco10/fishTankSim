@@ -9,7 +9,7 @@ You can try it on my site here: https://collisionposition.netlify.app/gamepage
 - user/server management in Go backend
 - Develop good pixel art visuals for water and particles
 - Develop a behaviour tree for Fish ui with a good-looking swimming movement and behaviour that is interesting to observe 
-- Automate sprite loading based on Fish type and level
+- Automate sprit loading based on Fish type and level
 - native JavaScript music player/streamer that communicates with web assembly application (storing large music file within web assembly is cumbersome and cuases performance issues)
 
 ## Dev Notes

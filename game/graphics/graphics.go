@@ -26,7 +26,7 @@ func (v *VectorLineGraphic) Draw(screen *ebiten.Image) {
 
 func (v *VectorLineGraphic) SavePosition() drawables.SavePositionData {
 	s := drawables.SavePositionData{}
-	s.Name = "vector line graphic"
+	s.Name = "vector line Graphic"
 	s.X = v.X0
 	s.Y = v.Y0
 

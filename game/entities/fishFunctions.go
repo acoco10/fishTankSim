@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/geometry"
+	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/hajimehoshi/ebiten/v2"
 	"math"
 	"math/rand"
@@ -11,19 +12,18 @@ import (
 )
 
 func CreatureEventSubscriptions(c *Creature) {
-	c.EventHub.Subscribe(PointGenerated{}, func(e events.Event) {
+
+	c.EventHub.Subscribe(PointGenerated{}, func(e tasks.Event) {
 		ev := e.(PointGenerated)
-		println("pointer code for generate point =", ev.Point)
 		if ev.Point.PType == geometry.Food && !c.TickClicked {
 			c.TickClicked = true
 			if c.Hunger > 0 {
 				c.AddTargetPointToQueue(ev.Point)
-				c.sortPoints()
 			}
 		}
 	})
 
-	c.EventHub.Subscribe(CreatureReachedPoint{}, func(e events.Event) {
+	c.EventHub.Subscribe(CreatureReachedPoint{}, func(e tasks.Event) {
 		ev := e.(CreatureReachedPoint)
 		if ev.Creature == c {
 			c.ownPointReached(ev)
@@ -31,12 +31,20 @@ func CreatureEventSubscriptions(c *Creature) {
 			c.otherFishPoint(ev)
 		}
 	})
+
+	c.EventHub.Subscribe(events.DayOver{}, func(e tasks.Event) {
+		c.Hunger = c.maxHunger
+		c.energy = c.maxEnergy
+		c.CheckAndLevelUp()
+	})
+
 }
 
 func (c *Creature) ownPointReached(ev CreatureReachedPoint) {
 
 	if len(c.PointQueue) > 0 {
 		c.PointQueue = c.PointQueue[1:]
+
 	}
 
 	switch ev.Point.PType {
@@ -65,12 +73,13 @@ func (c *Creature) ownPointReached(ev CreatureReachedPoint) {
 		c.calcSpeed()
 		//other creature behaviour
 	}
-
+	c.NextPoint()
 }
 
 func (c *Creature) otherFishPoint(ev CreatureReachedPoint) {
 	pointThere := false
 	var pointIndex int
+
 	for i, point := range c.PointQueue {
 		if ev.Point == point {
 			pointThere = true
@@ -89,11 +98,27 @@ func (c *Creature) otherFishPoint(ev CreatureReachedPoint) {
 			//placeholder, no modification when another Fish reaches their point that's not food as of now
 		}
 	}
+	c.NextPoint()
 }
 
 func (c *Creature) goToFood() {
 	c.sortPoints()
 	c.calcSpeed()
+}
+
+func (c *Creature) NextPoint() {
+	if len(c.PointQueue) == 0 {
+		c.AddTargetPointToQueue(c.RandomTarget())
+	}
+
+	if c.Flip && c.PointQueue[0].X-c.X < -50 {
+		c.Flip = false
+	}
+
+	if !c.Flip && c.PointQueue[0].X-c.X > 50 {
+		c.Flip = true
+	}
+
 }
 
 func (c *Creature) calcSpeed() {
@@ -144,12 +169,13 @@ func (c *Creature) sortPoints() {
 func (c *Creature) Move() {
 
 	c.AddRandomMovement()
+
 	c.X += c.Dx
 	c.Y += c.Dy
 
 	c.EnforceBoundaries()
 
-	c.NewPoint()
+	c.UpdateToNextPoint()
 
 }
 
@@ -161,13 +187,18 @@ func (c *Creature) EnforceBoundaries() {
 	c.Y = min(c.TankBoundaries.Y2, c.Y)
 }
 
-func (c *Creature) NewPoint() {
+func (c *Creature) UpdateToNextPoint() {
 	if len(c.PointQueue) > 0 {
+
 		tgtPoint := c.PointQueue[0]
+
 		x := tgtPoint.X - c.X
 		y := tgtPoint.Y - c.Y
+
 		dist := math.Hypot(float64(x), float64(y))
+
 		if dist < 10 {
+
 			c.PointReached()
 			c.energy = c.energy - 0.5
 			if c.energy < 0 {
@@ -177,27 +208,26 @@ func (c *Creature) NewPoint() {
 	}
 }
 
-/*func (c *Creature) LevelUp() {
+func (c *Creature) CheckAndLevelUp() {
 	if c.progress >= c.nextLevel {
 		c.Size += 1
 		x, y := c.X, c.Y
-		c.AnimatedSprite = loaders.LoadFishSprite(c.fishType, c.Size)
 		c.X = x
 		c.Y = y
 		c.nextLevel *= 1.2
 		c.progress = 0
 
-		ev := FishLevelUp{fish: *c}
+		ev := FishLevelUp{Fish: *c}
 		c.EventHub.Publish(ev)
 	}
-}*/
+}
 
 func randomBool() bool {
 	return rand.Intn(2) == 0
 }
 
 func (c *Creature) RandomTarget() *geometry.Point {
-	randomTargetX := max(c.TankBoundaries.X1, rand.Float32()*c.TankBoundaries.X2)
+	randomTargetX := max(c.TankBoundaries.X1+float32(c.SpriteWidth), rand.Float32()*c.TankBoundaries.X2-float32(c.SpriteWidth))
 	randomTargetY := max(c.TankBoundaries.Y1, rand.Float32()*c.TankBoundaries.Y2)
 
 	targetX := randomTargetX
@@ -210,9 +240,6 @@ func (c *Creature) RandomTarget() *geometry.Point {
 }
 
 func (c *Creature) AddRandomMovement() {
-	if len(c.PointQueue) == 0 {
-		c.AddTargetPointToQueue(c.RandomTarget())
-	}
 
 	// Calculate the desired direction
 	desiredDx := c.PointQueue[0].X - c.X
@@ -244,44 +271,53 @@ func (c *Creature) AddRandomMovement() {
 }
 
 func (c *Creature) PointReached() {
-	println("publishing creature reached point")
 	ev := CreatureReachedPoint{
 		Point:    c.PointQueue[0],
 		Creature: c,
 	}
+
 	c.EventHub.Publish(ev)
 }
 
 func (c *Creature) TranSlateFishShaderOpts() *ebiten.DrawRectShaderOptions {
-	flip := c.Dx > 0
 
 	opts := &ebiten.DrawRectShaderOptions{}
 
-	if flip {
+	if c.Flip {
 		opts.GeoM.Scale(-1, 1) // flip horizontally
 		opts.GeoM.Translate(float64(c.SpriteWidth), 0)
 	}
 
 	if c.Dy < -0.5 {
-		if flip {
+		if c.Flip {
 			opts.GeoM.Rotate(-0.3)
 		} else {
 			opts.GeoM.Rotate(0.3)
 		}
 	}
 	if c.Dy > 0.5 {
-		if flip {
+		if c.Flip {
 			opts.GeoM.Rotate(0.3)
 		} else {
 			opts.GeoM.Rotate(-0.3)
 		}
+	} /*
+		b := c.Img.Bounds()
+		midpoint := float32(b.Dy() / 2)*/
+
+	y := float64(c.Y - float32(c.SpriteHeight/2))
+	x := float64(c.X)
+
+	if c.Flip {
+		x = x - float64(c.SpriteWidth)
 	}
-	opts.GeoM.Translate(float64(c.X), float64(c.Y))
+	opts.GeoM.Translate(x, y)
 
 	return opts
 }
 
 func (c *Creature) TranSlateFishOpts() *ebiten.DrawImageOptions {
+
 	flip := c.Dx > 0
 
 	opts := &ebiten.DrawImageOptions{}
@@ -297,6 +333,7 @@ func (c *Creature) TranSlateFishOpts() *ebiten.DrawImageOptions {
 			opts.GeoM.Rotate(0.3)
 		}
 	}
+
 	if c.Dy > 0.5 {
 		if flip {
 			opts.GeoM.Rotate(0.3)
@@ -304,7 +341,11 @@ func (c *Creature) TranSlateFishOpts() *ebiten.DrawImageOptions {
 			opts.GeoM.Rotate(-0.3)
 		}
 	}
-	opts.GeoM.Translate(float64(c.X), float64(c.Y))
+	if flip {
+		opts.GeoM.Translate(float64(c.X-float32(c.SpriteWidth)), float64(c.Y))
+	} else {
+		opts.GeoM.Translate(float64(c.X), float64(c.Y))
+	}
 
 	return opts
 }
@@ -315,6 +356,10 @@ func FlipSprite(spriteWidth float64, opts *ebiten.DrawImageOptions) {
 }
 
 func (c *Creature) AddTargetPointToQueue(point *geometry.Point) {
+	if point.X > c.X {
+
+	}
+
 	c.PointQueue = append(c.PointQueue, point)
 }
 
@@ -402,14 +447,15 @@ func GenFishStats(fType FishList, name string) (*FishStats, error) {
 			return fs, err
 		}
 		return fs, nil
-	default:
-		fs, err := GenGoldFishStats()
+	case Guppy:
+		fs, err := GenGuppyFishStats()
 		fs.name = name
 		if err != nil {
 			return fs, err
 		}
 		return fs, nil
 	}
+	return nil, nil
 }
 
 func GenMollyFishStats() (*FishStats, error) {
@@ -421,7 +467,7 @@ func GenMollyFishStats() (*FishStats, error) {
 	fs.FishType = MollyFish
 	fs.maxEnergy = 25
 	fs.energy = fs.maxEnergy / 2
-	fs.Hunger = 2
+	fs.Hunger = 5
 	fs.maxHunger = 8*rand.Float32() + 4
 
 	fs.progress = 0
@@ -446,7 +492,30 @@ func GenGoldFishStats() (*FishStats, error) {
 	fs.FishType = Fish
 	fs.maxEnergy = 25
 	fs.energy = fs.maxEnergy / 2
-	fs.Hunger = 2
+	fs.Hunger = 4
+	fs.progress = 0
+	fs.nextLevel = 10
+	fs.maxHunger = 10*rand.Float32() + 4
+	persRoll := rand.Intn(10)
+
+	if persRoll < 8 {
+		fs.Personality = social
+	} else {
+		fs.Personality = shy
+	}
+
+	return fs, nil
+}
+
+func GenGuppyFishStats() (*FishStats, error) {
+	fs := &FishStats{}
+	fs.Size = 1
+	fs.maxSpeed = rand.Float32() + 0.5
+	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
+	fs.FishType = Guppy
+	fs.maxEnergy = 25
+	fs.energy = fs.maxEnergy / 2
+	fs.Hunger = 4
 	fs.progress = 0
 	fs.nextLevel = 10
 	fs.maxHunger = 10*rand.Float32() + 4

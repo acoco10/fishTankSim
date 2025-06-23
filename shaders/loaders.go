@@ -76,3 +76,22 @@ func LoadHandWritingShader() *ebiten.Shader {
 	}
 	return s
 }
+
+func LoadEraseShader() *ebiten.Shader {
+	es := []byte(EraseEffect)
+	s, err := ebiten.NewShader(es)
+	if err != nil {
+		log.Printf("Couldnt load erase shader %q", err)
+	}
+	return s
+}
+
+func LoadNormalMapShader() *ebiten.Shader {
+	es := []byte(NormalMap)
+	s, err := ebiten.NewShader(es)
+	if err != nil {
+		log.Printf("Couldnt load normal map shader %q", err)
+	}
+
+	return s
+}

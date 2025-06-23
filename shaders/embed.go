@@ -29,5 +29,11 @@ var OnePointLightingNeutral string
 //go:embed lighting/spriteLightingEffects.kage
 var SpriteLightingEffect string
 
+//go:embed lighting/normalMap.kage
+var NormalMap string
+
 //go:embed uiEffects/handwriting.kage
 var HandWritingEffect string
+
+//go:embed uiEffects/erase.kage
+var EraseEffect string

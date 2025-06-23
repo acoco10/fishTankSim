@@ -2,7 +2,10 @@ package s3util
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -10,31 +13,40 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func GeneratePresignedURL(bucketName, objectKey, region string, expiry time.Duration) (string, error) {
-	ctx := context.TODO()
-
-	// 1. Load AWS configuration
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
+func generatePreSignedURL() string {
+	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		return "", fmt.Errorf("unable to load SDK config: %v", err)
+		panic("unable to load SDK config, " + err.Error())
 	}
 
-	// 2. Create an S3 client
 	client := s3.NewFromConfig(cfg)
 
-	// 3. Create a pre-signer
-	presignClient := s3.NewPresignClient(client)
+	presigner := s3.NewPresignClient(client)
 
-	// 4. Generate a pre-signed URL for GetObject
-	presignedGetObject, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(bucketName),
-		Key:    aws.String(objectKey),
-	}, func(o *s3.PresignOptions) {
-		o.Expires = expiry
-	})
+	req, err := presigner.PresignGetObject(context.TODO(), &s3.GetObjectInput{
+		Bucket: aws.String("fish-fish-fish-assets"),
+		Key:    aws.String("wasm/main.wasm"),
+	}, s3.WithPresignExpires(15*time.Minute)) // Expires in 15 minutes
+
 	if err != nil {
-		return "", fmt.Errorf("failed to presign object: %v", err)
+		panic("unable to presign request, " + err.Error())
 	}
 
-	return presignedGetObject.URL, nil
+	return req.URL
+}
+
+func HandleGetWasmURL(w http.ResponseWriter, r *http.Request) {
+	// Configuration
+
+	// Generate the pre signed URL using utility function
+	wasmURL := generatePreSignedURL()
+
+	fmt.Println("Pre-signed URL:", wasmURL)
+	// Prepare JSON response
+	response := map[string]string{"url": wasmURL}
+	w.Header().Set("Content-Type", "application/json")
+	err := json.NewEncoder(w).Encode(response)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

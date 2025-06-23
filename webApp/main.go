@@ -1,21 +1,17 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+
 	"github.com/rs/cors"
 	"webApp/db"
+	"webApp/s3util"
 
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"sync"
-	"time"
 )
 
 type User struct {
@@ -45,7 +41,7 @@ type FishState struct {
 type Task struct {
 	Text      string `json:"Text"`
 	Name      string `json:"Name"`
-	Completed bool   `json:"Completed"`
+	Completed bool   `json:"RequirementsCompleted"`
 }
 
 var (
@@ -180,12 +176,6 @@ func loadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	println("checking for save")
-	//username := r.URL.Query().Get("user")
-
-	/*	save, err := os.ReadFile("../assets/data/saveaidan.json")
-		if err != nil {
-			log.Fatal(err)
-		}*/
 
 	var u User
 	err := json.NewDecoder(r.Body).Decode(&u)
@@ -219,46 +209,8 @@ func testWasmLocallyInitServer() {
 	http.HandleFunc("static/fishFishFish/main.wasm", func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Request received for /main.wasm")
 		w.Header().Set("Content-Type", "application/wasm")
-		http.ServeFile(w, r, "static/main.wasm")
+		http.ServeFile(w, r, "static/fishFishFish/main.wasm")
 	})
-}
-
-func generatePresignedURL() string {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		panic("unable to load SDK config, " + err.Error())
-	}
-
-	client := s3.NewFromConfig(cfg)
-
-	presigner := s3.NewPresignClient(client)
-
-	req, err := presigner.PresignGetObject(context.TODO(), &s3.GetObjectInput{
-		Bucket: aws.String("fish-fish-fish-assets"),
-		Key:    aws.String("wasm/main.wasm"),
-	}, s3.WithPresignExpires(15*time.Minute)) // Expires in 15 minutes
-
-	if err != nil {
-		panic("unable to presign request, " + err.Error())
-	}
-
-	return req.URL
-}
-
-func handleGetWasmURL(w http.ResponseWriter, r *http.Request) {
-	// Configuration
-
-	// Generate the pre signed URL using utility function
-	wasmURL := generatePresignedURL()
-
-	fmt.Println("Pre-signed URL:", wasmURL)
-	// Prepare JSON response
-	response := map[string]string{"url": wasmURL}
-	w.Header().Set("Content-Type", "application/json")
-	err := json.NewEncoder(w).Encode(response)
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 func initServer() {
@@ -267,8 +219,7 @@ func initServer() {
 	http.HandleFunc("/login", loginHandler)
 	http.HandleFunc("/save", saveHandler)
 	http.HandleFunc("/load", loadHandler)
-
-	http.HandleFunc("/get-wasm-url", handleGetWasmURL)
+	http.HandleFunc("/get-wasm-url", s3util.HandleGetWasmURL)
 
 }
 

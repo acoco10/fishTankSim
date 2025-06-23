@@ -1,4 +1,4 @@
-package ui
+package events
 
 type ButtonEvent struct {
 	ButtonText string
@@ -7,4 +7,9 @@ type ButtonEvent struct {
 
 type ButtonClickedEvent struct {
 	ButtonText string
+}
+
+type UISpriteAction struct {
+	UiSprite       string
+	UiSpriteAction string
 }

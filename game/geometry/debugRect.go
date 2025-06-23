@@ -2,6 +2,7 @@ package geometry
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -42,7 +43,7 @@ func (r *Rect) Draw(screen *ebiten.Image) {
 	}
 }
 
-func (r *Rect) Update() {
+func (r *Rect) Update() error {
 	if r.RectState == On {
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			r.RectState = Initiated
@@ -58,12 +59,17 @@ func (r *Rect) Update() {
 	}
 	if r.RectState == Drawn {
 		if inpututil.IsKeyJustPressed(ebiten.KeyS) {
-			r.Save()
+			err := r.Save()
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Successfully saved rectangle = %s\n", r.tag)
 		}
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			r.RectState = Off
 		}
 	}
+	return nil
 }
 
 func (r *Rect) Save() error {
@@ -77,7 +83,9 @@ func (r *Rect) Save() error {
 	datMap[r.tag] = *r
 
 	for key, value := range existingPos {
-		datMap[key] = value
+		if key != r.tag {
+			datMap[key] = value
+		}
 	}
 
 	outputSave, err := json.Marshal(datMap)

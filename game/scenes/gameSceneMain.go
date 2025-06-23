@@ -18,6 +18,11 @@ type Game struct {
 	gameLog       *sceneManagement.GameLog
 }
 
+const (
+	ScreenWidth  = 960
+	ScreenHeight = 720
+)
+
 func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
 
 	switch userType {
@@ -29,8 +34,9 @@ func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
 		ebiten.SetWindowSize(ScreenWidth, ScreenHeight)
 
 		sceneMap := map[sceneManagement.SceneId]sceneManagement.Scene{
-			sceneManagement.StartScene: NewStartScene(log),
-			sceneManagement.FishTank:   NewFishScene(log),
+			sceneManagement.StartScene:      NewStartScene(log),
+			sceneManagement.FishTank:        NewFishScene(log),
+			sceneManagement.TransitionScene: LoadTransitionScene(log),
 		}
 
 		game := &Game{
@@ -42,14 +48,13 @@ func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
 		sceneMap[activeSceneId].FirstLoad(game.gameLog)
 
 		return game
+
 	case ExistingUser:
 
 		println("existing user save = ", log.Save.Fish[0].FishType)
 		ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
-
+		ebiten.SetFullscreen(true)
 		activeSceneId := sceneManagement.FishTank
-
-		ebiten.SetWindowSize(ScreenWidth, ScreenHeight)
 
 		sceneMap := map[sceneManagement.SceneId]sceneManagement.Scene{
 			sceneManagement.FishTank: NewFishScene(log),
@@ -72,10 +77,12 @@ func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
 }
 
 func (g *Game) Update() error {
+
 	nextSceneId, err := g.sceneMap[g.activeSceneId].Update()
 	if err != nil {
 		return err
 	}
+
 	// switched scenes
 	if nextSceneId != g.activeSceneId {
 		g.gameLog.PreviousScene = g.activeSceneId
@@ -87,7 +94,9 @@ func (g *Game) Update() error {
 		}
 		nextScene.OnEnter(g.gameLog)
 	}
+
 	g.activeSceneId = nextSceneId
+
 	return nil
 }
 
@@ -96,9 +105,5 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	x, y := ebiten.WindowSize()
-	if x > 0 && y > 0 {
-		return ebiten.WindowSize()
-	}
-	return 940, 593
+	return ScreenWidth, ScreenHeight
 }

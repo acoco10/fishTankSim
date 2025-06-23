@@ -2,14 +2,15 @@ package ui
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/entities"
-	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/loaders"
+	"github.com/acoco10/fishTankWebGame/game/tasks"
+	"github.com/acoco10/fishTankWebGame/game/util"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"image/color"
 )
 
-func NewTextInput(ehub *events.EventHub) (*widget.Container, *widget.TextInput, *widget.Button, error) {
+func NewTextInput(ehub *tasks.EventHub) (*widget.Container, *widget.TextInput, *widget.Button, error) {
 
 	img, err := loadTextInputImage()
 
@@ -20,11 +21,8 @@ func NewTextInput(ehub *events.EventHub) (*widget.Container, *widget.TextInput, 
 	rootContainer := widget.NewContainer(
 		// the container will use a plain color as its background
 		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				VerticalPosition:   widget.AnchorLayoutPositionEnd,
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				StretchHorizontal:  false,
-				StretchVertical:    false,
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
 			}),
 		),
 		// the container will use a row layout to layout the textinput widgets
@@ -39,7 +37,7 @@ func NewTextInput(ehub *events.EventHub) (*widget.Container, *widget.TextInput, 
 			}),
 		)))
 
-	face, err := LoadFont(20, "nk57")
+	face, err := util.LoadFont(20, "nk57")
 	if err != nil {
 		return nil, nil, nil, err
 	}
