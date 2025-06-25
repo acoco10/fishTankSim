@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/graphics"
-	"github.com/acoco10/fishTankWebGame/game/loaders"
+	"github.com/acoco10/fishTankWebGame/game/loader"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
-	"github.com/ebitenui/ebitenui"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -19,20 +18,29 @@ import (
 )
 
 type Magazine struct {
-	pages         []*ebitenui.UI
+	triggered     bool
+	pages         []*widget.Container
 	activeIndex   int
 	background    *sprite.Sprite
 	buttonGraphic *graphics.SpriteGraphic
 	fish          map[string]*ebiten.Image
 }
 
+func (m *Magazine) ActiveWindow() *widget.Container {
+	return m.pages[m.activeIndex]
+}
+
+func (m *Magazine) Trigger() {
+	m.triggered = true
+}
+
 func LoadMagazineUiMenu(eHub *tasks.EventHub, screenWidth int, screenHeight int) (*Magazine, error) {
-	bground, err := loaders.LoadImageAssetAsEbitenImage("uiSprites/magazineAlt")
+	bground, err := loader.LoadImageAssetAsEbitenImage("uiSprites/magazineAlt")
 	if err != nil {
 		return nil, err
 	}
 
-	buttonGraphicImg, err := loaders.LoadImageAssetAsEbitenImage("menuAssets/arrowButton")
+	buttonGraphicImg, err := loader.LoadImageAssetAsEbitenImage("menuAssets/arrowButton")
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +73,7 @@ func LoadMagazineUiMenu(eHub *tasks.EventHub, screenWidth int, screenHeight int)
 	if err != nil {
 		return nil, err
 	}
+
 	magUI.pages = append(magUI.pages, indexPage, fishPage)
 
 	MagSubscriptions(&magUI, eHub)
@@ -76,12 +85,12 @@ func LoadFishSprites() (map[string]*ebiten.Image, error) {
 
 	fish := make(map[string]*ebiten.Image)
 
-	kirbensis, err := loaders.LoadImageAssetAsEbitenImage("staticFish/kirbensis2")
+	kirbensis, err := loader.LoadImageAssetAsEbitenImage("staticFish/kirbensis2")
 	if err != nil {
 		return nil, err
 	}
 
-	guppy, err := loaders.LoadImageAssetAsEbitenImage("staticFish/guppy2")
+	guppy, err := loader.LoadImageAssetAsEbitenImage("staticFish/guppy2")
 	if err != nil {
 		return nil, err
 	}
@@ -100,34 +109,15 @@ func LoadFishDescriptions() map[string]string {
 	return descriptionMap
 }
 
-func (m *Magazine) Draw(screen *ebiten.Image) {
-	m.pages[m.activeIndex].Draw(screen)
-	m.buttonGraphic.Draw(screen)
-
-	//400, 500
-
-	//opts := &ebiten.DrawImageOptions{}
-
-	/*	if m.activeIndex == 1 {
-		for _, fish := range m.fish {
-			b := fish.Bounds()
-			x := float64(400/3 - b.Dx() + 50 + 130)
-			y := float64(500/3 - 50 - b.Dy())
-			opts.GeoM.Scale(2, 2)
-			opts.GeoM.Translate(x, y)
-			screen.DrawImage(fish, opts)
-			opts.GeoM.Reset()
-		}
-	}*/
-}
-
 func (m *Magazine) Update() {
-	m.pages[m.activeIndex].Update()
-	m.buttonGraphic.Update()
+	if m.triggered {
+		m.pages[m.activeIndex].Update()
+		m.buttonGraphic.Update()
+	}
 }
 
-func LoadMagazineIndexPage(eHub *tasks.EventHub, b image.Rectangle) (*ebitenui.UI, error) {
-	bground, err := loaders.LoadImageAssetAsEbitenImage("uiSprites/magazineAlt")
+func LoadMagazineIndexPage(eHub *tasks.EventHub, b image.Rectangle) (*widget.Container, error) {
+	bground, err := loader.LoadImageAssetAsEbitenImage("uiSprites/magazineAlt")
 	if err != nil {
 		return nil, err
 	}
@@ -230,16 +220,13 @@ func LoadMagazineIndexPage(eHub *tasks.EventHub, b image.Rectangle) (*ebitenui.U
 	rootContainer.AddChild(rightContainer)
 
 	// construct the UI
-	ui := ebitenui.UI{
-		Container: rootContainer,
-	}
 
-	return &ui, nil
+	return rootContainer, nil
 }
 
-func LoadFishPages(eHub *tasks.EventHub, fishImgMap map[string]*ebiten.Image) (*ebitenui.UI, error) {
+func LoadFishPages(eHub *tasks.EventHub, fishImgMap map[string]*ebiten.Image) (*widget.Container, error) {
 
-	bground, err := loaders.LoadImageAssetAsEbitenImage("uiSprites/magazineAlt")
+	bground, err := loader.LoadImageAssetAsEbitenImage("uiSprites/magazineAlt")
 	if err != nil {
 		return nil, err
 	}
@@ -326,11 +313,8 @@ func LoadFishPages(eHub *tasks.EventHub, fishImgMap map[string]*ebiten.Image) (*
 	rootContainer.AddChild(rightPage)
 
 	// construct the UI
-	ui := ebitenui.UI{
-		Container: rootContainer,
-	}
 
-	return &ui, nil
+	return rootContainer, nil
 }
 
 func MagSubscriptions(magUi *Magazine, eHub *tasks.EventHub) {
@@ -340,18 +324,6 @@ func MagSubscriptions(magUi *Magazine, eHub *tasks.EventHub) {
 		switch ev.ButtonText {
 		case "Fish":
 			magUi.activeIndex = 1
-		}
-	})
-
-	eHub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
-		ev := e.(events.ButtonClickedEvent)
-		switch ev.ButtonText {
-		case "Kirbensis":
-			block, err := InitStoreTextBlock(250, 50, "Kirbensis", eHub)
-			if err != nil {
-				return
-			}
-			magUi.pages[magUi.activeIndex].AddWindow(block)
 		}
 	})
 

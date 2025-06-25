@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/acoco10/fishTankWebGame/game/entities"
+	"github.com/acoco10/fishTankWebGame/game/loader"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/acoco10/fishTankWebGame/game/scenes"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -25,8 +26,13 @@ func main() {
 	}
 
 	var data GameState
-	json.Unmarshal(stateData, &data)
+	err = json.Unmarshal(stateData, &data)
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	loader.LoadShaderRegistry()
+	loader.LoadFontRegistry()
 	var state entities.SaveGameState
 
 	b, err := json.Marshal(data.State)

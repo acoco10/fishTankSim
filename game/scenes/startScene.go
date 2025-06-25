@@ -5,14 +5,14 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/daySystem"
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/events"
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/acoco10/fishTankWebGame/game/soundFX"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/ui"
-	"github.com/acoco10/fishTankWebGame/shaders"
-	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"image/color"
 	"log"
 )
@@ -56,7 +56,7 @@ func (s *StartScene) Update() (sceneManagement.SceneId, error) {
 		return sceneManagement.FishTank, nil
 	}
 
-	if s.ui.DrawOptions["Back"].SpriteHovered() && ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+	if s.ui.DrawOptions["Back"].SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		s.ui.Back()
 	}
 
@@ -110,24 +110,17 @@ func (s *StartScene) subs(gameLog *sceneManagement.GameLog) {
 
 	gameLog.GlobalEventHub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
 		ev := e.(events.ButtonClickedEvent)
-		ols := shaders.LoadOutlineShader()
 		switch ev.ButtonText {
 		case "Common Molly":
 			gameLog.SoundPlayer.Play(soundFX.SelectSound2)
 			saveFish := entities.SavedFish{FishType: "mollyFish", Progress: 0, Size: 1}
 			gameLog.Save.Fish = append(gameLog.Save.Fish, saveFish)
-			s.ui.TextInputContainer.GetWidget().Disabled = false
-			s.ui.TextInputContainer.GetWidget().Visibility = widget.Visibility_Show
-			s.ui.TextInput.Focus(true)
-			s.ui.DrawOptions[ev.ButtonText].(*sprite.AnimatedSprite).LoadShader(ols)
+
 		case "Goldfish":
 			gameLog.SoundPlayer.Play(soundFX.SelectSound2)
 			saveFish := entities.SavedFish{FishType: "fish", Progress: 0, Size: 1}
 			gameLog.Save.Fish = append(gameLog.Save.Fish, saveFish)
-			s.ui.TextInputContainer.GetWidget().Disabled = false
-			s.ui.TextInputContainer.GetWidget().Visibility = widget.Visibility_Show
-			s.ui.TextInput.Focus(true)
-			s.ui.DrawOptions[ev.ButtonText].(*sprite.AnimatedSprite).LoadShader(ols)
+
 		case "Submit":
 			ev2 := entities.SendData{
 				DataFor: "Name Input",
@@ -141,9 +134,6 @@ func (s *StartScene) subs(gameLog *sceneManagement.GameLog) {
 		ev := e.(entities.SendData)
 		if ev.DataFor == "Name Input" {
 			gameLog.Save.Fish[0].Name = ev.Data
-			s.ui.TextInputButton.Press()
-			s.nextSceneTrigger.TurnOn()
-			s.ui.TextInput.Focus(false)
 			s.gameLog.SoundPlayer.Play(soundFX.SelectSound)
 		}
 	})
@@ -151,11 +141,8 @@ func (s *StartScene) subs(gameLog *sceneManagement.GameLog) {
 	gameLog.GlobalEventHub.Subscribe(events.ButtonEvent{}, func(e tasks.Event) {
 		ev := e.(events.ButtonEvent)
 		if ev.EType == "cursor entered" {
-			ols := shaders.LoadRotatingHighlightShader()
-			println(ev.ButtonText)
 			if ev.ButtonText != "Select" {
-				println(ev.ButtonText)
-				s.ui.DrawOptions[ev.ButtonText].(*sprite.AnimatedSprite).LoadShader(ols)
+				s.ui.DrawOptions[ev.ButtonText].(*sprite.AnimatedSprite).LoadShader(registry.ShaderMap["Outline"])
 			}
 		}
 

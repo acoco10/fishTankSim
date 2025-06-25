@@ -63,13 +63,13 @@ func (p *StructureProp) Draw(screen *ebiten.Image) {
 	p.Sprite.Draw(screen)
 	if p.state == Moveable {
 		x := p.X + baseOffset
-		y := float32(p.boundaries.Max.Y - 30)
+		y := float32(p.boundaries.Max.Y - 35)
 		height := float32(2)
 		width := float32(p.Img.Bounds().Dx()) - 2*baseOffset
 		vector.StrokeRect(screen, x, y, width, height, 4, color.RGBA{0, 0, 0, 100}, false)
 	}
 
-	if p.state == SetInPlace && p.Y < float32(p.boundaries.Max.Y-p.Img.Bounds().Dy())-30 {
+	if p.state == SetInPlace && p.Y < float32(p.boundaries.Max.Y-p.Img.Bounds().Dy())-35 {
 
 		dist := float32(p.boundaries.Max.Y-p.Img.Bounds().Dy()) - p.Y
 		//fishtank base - image height = base comparable to image y
@@ -79,7 +79,7 @@ func (p *StructureProp) Draw(screen *ebiten.Image) {
 
 		x := p.X + dist + baseOffset
 		//increase offset from origin
-		y := float32(p.boundaries.Max.Y - 30)
+		y := float32(p.boundaries.Max.Y - 35)
 		height := float32(2)
 		if dist < 35 {
 			y += 1

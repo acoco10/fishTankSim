@@ -2,7 +2,7 @@ package ui
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/entities"
-	"github.com/acoco10/fishTankWebGame/game/loaders"
+	"github.com/acoco10/fishTankWebGame/game/loader"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	eimage "github.com/ebitenui/ebitenui/image"
@@ -136,7 +136,7 @@ func NewTextInput(ehub *tasks.EventHub) (*widget.Container, *widget.TextInput, *
 }
 
 func loadTextInputImage() (*widget.TextInputImage, error) {
-	img, err := loaders.LoadImageAssetAsEbitenImage("menuAssets/textInputBox")
+	img, err := loader.LoadImageAssetAsEbitenImage("menuAssets/textInputBox")
 
 	if err != nil {
 		return nil, err

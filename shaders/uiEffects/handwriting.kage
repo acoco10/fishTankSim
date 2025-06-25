@@ -11,8 +11,9 @@ func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
       }
        if int(texCoord.x) <= Counter+50{
               return color * 0.1
+
          }
-         return color * 0.0
+       return color * 0.0
 
       }
 }

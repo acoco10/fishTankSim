@@ -25,7 +25,7 @@ func newGame() *Game {
 	graphSpriteParams["opacity"] = float32(0.1)
 	graphSpriteParams["pulse"] = true
 
-	sprite := loaders.LoadFishSprite(entities.Fish, 2)
+	sprite := loader.LoadFishSprite(entities.Fish, 2)
 	sprite.X = 200
 	sprite.Y = 200
 	graph := graphics.NewSpriteGraphic(*sprite.Sprite, graphics.UpdateFadeInGraphic, graphSpriteParams)

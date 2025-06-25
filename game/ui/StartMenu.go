@@ -3,19 +3,31 @@ package ui
 import (
 	"github.com/acoco10/fishTankWebGame/game/drawables"
 	"github.com/acoco10/fishTankWebGame/game/events"
-	"github.com/acoco10/fishTankWebGame/game/loaders"
+	"github.com/acoco10/fishTankWebGame/game/loader"
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/widget"
+	"github.com/hajimehoshi/ebiten/v2"
 	"image"
 	"image/color"
+	"log"
+)
+
+type startMenuState uint8
+
+const (
+	title startMenuState = iota
+	fishSelected
+	propSelected
 )
 
 type StartMenu struct {
 	*ebitenui.UI
+	state               startMenuState
 	screenWidth         int
 	screenHeight        int
 	root                *widget.Container
@@ -26,7 +38,9 @@ type StartMenu struct {
 	SelectSpritesToDraw []drawables.Drawable
 	eventHub            *tasks.EventHub
 	fishButtons         map[string]*widget.Button
-	buttonContainer     *widget.Container
+	propButtons         []*widget.Container
+	fishButtonContainer *widget.Container
+	propButtonContainer *widget.Container
 	selectContainer     *widget.Container
 }
 
@@ -43,7 +57,7 @@ func LoadStartMenu(hub *tasks.EventHub, screenWidth int, screenHeight int) (*Sta
 		return &s, err
 	}
 
-	selectSprites, err := loaders.LoadAnimatedSelectSprites(screenWidth, screenHeight)
+	selectSprites, err := loader.LoadAnimatedSelectSprites(screenWidth, screenHeight)
 
 	if err != nil {
 		return nil, err
@@ -55,7 +69,7 @@ func LoadStartMenu(hub *tasks.EventHub, screenWidth int, screenHeight int) (*Sta
 		s.SelectSpritesToDraw = append(s.SelectSpritesToDraw, sp)
 	}
 
-	img, err := loaders.LoadImageAssetAsEbitenImage("menuAssets/backButton")
+	img, err := loader.LoadImageAssetAsEbitenImage("menuAssets/backButton")
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +78,7 @@ func LoadStartMenu(hub *tasks.EventHub, screenWidth int, screenHeight int) (*Sta
 	s.DrawOptions["Back"] = backSprite
 
 	s.subs()
-	loaders.StartScreenCoordinatePositioner(s.screenHeight, s.screenWidth, s.DrawOptions, 12.0, 54)
+	loader.StartScreenCoordinatePositioner(s.screenHeight, s.screenWidth, s.DrawOptions, 12.0, 54)
 	return &s, nil
 }
 
@@ -139,13 +153,6 @@ func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64) error {
 		}),
 	)
 
-	textinputContainer, textInputBox, textInputButton, err := NewTextInput(startMenu.eventHub)
-	if err != nil {
-		return err
-	}
-
-	textinputContainer.GetWidget().Disabled = true
-	textinputContainer.GetWidget().Visibility = widget.Visibility_Hide
 	headerContainer.AddChild(headerLbl)
 
 	b1 := LoadSpriteSelectButton("Goldfish", startMenu.eventHub, 16)
@@ -158,12 +165,14 @@ func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64) error {
 		b1, b2,
 	)
 
+	propButs := addPickSpriteContainer(2)
+
 	fishButtonMap["Goldfish"] = b1
 	fishButtonMap["Common Molly"] = b2
 	fishButtonMap["Selected Button"] = b3
 	childContainer.AddChild(headerContainer)
 	childContainer.AddChild(pickFishContainer)
-	childContainer.AddChild(textinputContainer)
+	childContainer.AddChild(propButs)
 
 	rootContainer.AddChild(
 		childContainer)
@@ -173,64 +182,142 @@ func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64) error {
 		Container: rootContainer,
 	}
 
-	startMenu.TextInput = textInputBox
-	startMenu.TextInputContainer = textinputContainer
 	startMenu.fishButtons = fishButtonMap
-	startMenu.buttonContainer = pickFishContainer
-	startMenu.TextInputButton = textInputButton
+	startMenu.fishButtonContainer = pickFishContainer
+	startMenu.propButtonContainer = propButs
 	//startMenu.buttonContainer = childContainer
 	startMenu.UI = &ui
-	startMenu.root = rootContainer
+	startMenu.root = childContainer
 
 	return nil
 }
 
 func (s *StartMenu) subs() {
 
+	s.eventHub.Subscribe(events.ButtonEvent{}, func(e tasks.Event) {
+		ev := e.(events.ButtonEvent)
+		if ev.EType == "cursor exited" {
+			if ev.ButtonText != "Select" {
+				if len(s.SelectSpritesToDraw) > 1 {
+					s.DrawOptions[ev.ButtonText].(*sprite.AnimatedSprite).UnLoadShader()
+				}
+			}
+		}
+	})
+
 	s.eventHub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
 		ev := e.(events.ButtonClickedEvent)
 		switch ev.ButtonText {
-		case "Common Molly":
-			s.SpriteSelected("Common Molly")
-		case "Goldfish":
-			s.SpriteSelected("Goldfish")
+		case "Submit":
+			s.TextInputButton.Press()
+			s.TextInput.Focus(false)
 		case "Back":
 			s.Back()
+		default:
+			s.SpriteSelected(ev.ButtonText)
+		}
+	})
+
+	s.eventHub.Subscribe(events.ButtonEvent{}, func(e tasks.Event) {
+		ev := e.(events.ButtonEvent)
+		if ev.EType == "cursor entered" {
+			if ev.ButtonText != "Select" {
+				if s.DrawOptions[ev.ButtonText] != nil {
+					s.DrawOptions[ev.ButtonText].(*sprite.AnimatedSprite).LoadShader(registry.ShaderMap["Outline"])
+				}
+			}
 		}
 	})
 }
 
 func (s *StartMenu) SpriteSelected(tx string) {
-	s.buttonContainer.RemoveChildren()
-	s.buttonContainer.AddChild(s.fishButtons["Selected Button"])
+	switch s.state {
+	case title:
+		s.state = fishSelected
+		s.fishButtonContainer.RemoveChildren()
+		s.fishButtonContainer.AddChild(s.fishButtons["Selected Button"])
 
-	/*s.fishButtons["Selected Button"].GetWidget().Visibility = widget.Visibility_Show*/
-	s.fishButtons["Selected Button"].Text().Label = tx
-	s.fishButtons["Selected Button"].Press()
+		/*s.fishButtons["Selected Button"].GetWidget().Visibility = widget.Visibility_Show*/
+		s.fishButtons["Selected Button"].Text().Label = tx
+		//s.fishButtons["Selected Button"].Press()
 
-	s.SelectSpritesToDraw = []drawables.Drawable{}
+		s.SelectSpritesToDraw = []drawables.Drawable{}
 
-	selectedFish := s.DrawOptions[tx].(*sprite.AnimatedSprite)
+		selectedFish := s.DrawOptions[tx].(*sprite.AnimatedSprite)
+		offset := 120 - selectedFish.SpriteWidth*4
 
-	offset := 120 - selectedFish.SpriteWidth*4
+		selectedFish.X = float32(s.screenWidth/2 - (selectedFish.SpriteWidth)*2 - offset/2)
 
-	selectedFish.X = float32(s.screenWidth/2 - (selectedFish.SpriteWidth)*2 - offset/2)
+		ols := shaders.LoadOutlineShader()
+		selectedFish.Shader = ols
 
-	ols := shaders.LoadOutlineShader()
-	selectedFish.Shader = ols
+		s.SelectSpritesToDraw = append(s.SelectSpritesToDraw, selectedFish, s.DrawOptions["Back"])
 
-	s.SelectSpritesToDraw = append(s.SelectSpritesToDraw, selectedFish, s.DrawOptions["Back"])
+		if s.propButtons != nil {
+		}
+
+		propButtons, err := propSelectChild(s.eventHub)
+		if err != nil {
+			log.Fatal("error initiating prop container", err)
+		}
+		s.propButtons = propButtons
+		for _, but := range propButtons {
+			s.propButtonContainer.AddChild(but)
+		}
+		moveBack(s.DrawOptions["Back"], s.state)
+
+	case fishSelected:
+		s.propButtonContainer.RemoveChildren()
+		s.propButtonContainer.AddChild(s.propButtons[0])
+		textinputContainer, _, textInputButton, err := NewTextInput(s.eventHub)
+		if err != nil {
+			log.Fatal("text input dun fucked up", err)
+		}
+		s.TextInputContainer = textinputContainer
+		s.TextInputButton = textInputButton
+		s.root.AddChild(textinputContainer)
+		s.state = propSelected
+	}
+
 }
 
 func (s *StartMenu) Back() {
-	s.buttonContainer.RemoveChildren()
-	s.buttonContainer.AddChild(s.fishButtons["Goldfish"])
-	s.buttonContainer.AddChild(s.fishButtons["Common Molly"])
-	loaders.StartScreenCoordinatePositioner(s.screenHeight, s.screenWidth, s.DrawOptions, 12.0, 54)
-	/*s.fishButtons["Selected Button"].GetWidget().Visibility = widget.Visibility_Show*/
-	s.SelectSpritesToDraw = []drawables.Drawable{}
-	s.SelectSpritesToDraw = append(s.SelectSpritesToDraw, s.DrawOptions["Common Molly"], s.DrawOptions["Goldfish"])
-	s.TextInputContainer.GetWidget().Visibility = widget.Visibility_Hide
+	switch s.state {
+	case fishSelected:
+		s.state = title
+		s.propButtonContainer.RemoveChildren()
+		s.fishButtonContainer.RemoveChildren()
+		s.fishButtonContainer.AddChild(s.fishButtons["Goldfish"])
+		s.fishButtonContainer.AddChild(s.fishButtons["Common Molly"])
+		loader.StartScreenCoordinatePositioner(s.screenHeight, s.screenWidth, s.DrawOptions, 12.0, 54)
+		s.SelectSpritesToDraw = []drawables.Drawable{}
+		s.SelectSpritesToDraw = append(s.SelectSpritesToDraw, s.DrawOptions["Common Molly"], s.DrawOptions["Goldfish"])
+
+	case propSelected:
+
+		s.state = fishSelected
+		s.propButtonContainer.RemoveChildren()
+
+		for _, but := range s.propButtons {
+			s.propButtonContainer.AddChild(but)
+		}
+
+		s.TextInputContainer.RemoveChildren()
+
+	}
+}
+
+func moveBack(backButton drawables.Drawable, state startMenuState) {
+	switch state {
+	case propSelected:
+		backButton.(*sprite.Sprite).X -= 100
+	case fishSelected:
+
+		backButton.(*sprite.Sprite).X -= 100
+		backButton.(*sprite.Sprite).Y += 150
+
+	}
+
 }
 
 func (s *StartMenu) ResetSpritePositions(imageWidth, height int, fishOptions map[string]drawables.Drawable) {
@@ -256,4 +343,48 @@ func (s *StartMenu) ResetSpritePositions(imageWidth, height int, fishOptions map
 		fish.Y = float32(midpoint.Y - fish.Img.Bounds().Dy() - yOffset)
 		i++
 	}
+}
+
+func propSelectChild(eventHub *tasks.EventHub) ([]*widget.Container, error) {
+	// no prop icons yet
+	/*castleImg, err := loader.LoadImageAssetAsEbitenImage("tankProps/castleProp")
+	if err != nil {
+		return nil, err
+	}*/
+
+	b1, err := LoadStackSpriteSelectButton("Castle", ebiten.NewImage(10, 10), 16, eventHub)
+
+	if err != nil {
+		return nil, err
+	}
+
+	b2, err := LoadStackSpriteSelectButton("Log", ebiten.NewImage(10, 10), 16, eventHub)
+
+	if err != nil {
+		return nil, err
+	}
+	buttons := []*widget.Container{b1, b2}
+
+	return buttons, nil
+}
+
+func addPickSpriteContainer(nButtons int) *widget.Container {
+	pickPropContainer := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			}),
+		),
+
+		widget.ContainerOpts.Layout(widget.NewGridLayout(
+			widget.GridLayoutOpts.Columns(nButtons),
+			widget.GridLayoutOpts.Padding(widget.NewInsetsSimple(10)),
+			widget.GridLayoutOpts.Spacing(20, 10),
+			widget.GridLayoutOpts.DefaultStretch(false, true),
+			widget.GridLayoutOpts.Stretch([]bool{true}, []bool{false}),
+		),
+		),
+	)
+
+	return pickPropContainer
 }

@@ -7,6 +7,8 @@ import (
 	"log"
 )
 
+var l *resource.Loader
+
 type SoundPlayer struct {
 	*resource.Loader
 	*audio.Player
@@ -16,9 +18,12 @@ type SoundPlayer struct {
 }
 
 func NewSoundPlayer() (*SoundPlayer, error) {
-	l, err := LoadSounds()
-	if err != nil {
-		return &SoundPlayer{}, err
+	if l == nil {
+		loader, err := LoadSounds()
+		if err != nil {
+			return &SoundPlayer{}, err
+		}
+		l = loader
 	}
 
 	s := SoundPlayer{Loader: l, Player: &audio.Player{}}

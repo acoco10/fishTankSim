@@ -33,6 +33,9 @@ func newGame() *Game {
 
 func (g *Game) Update() error {
 	g.ui.Update()
+	if ebiten.IsKeyPressed(ebiten.KeySpace) {
+		g.ui.Trigger()
+	}
 	return nil
 }
 
