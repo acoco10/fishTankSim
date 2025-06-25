@@ -1,8 +1,9 @@
 package ui
 
 import (
+	"fmt"
 	"github.com/acoco10/fishTankWebGame/game/events"
-	"github.com/acoco10/fishTankWebGame/game/loaders"
+	"github.com/acoco10/fishTankWebGame/game/loader"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/ebitenui/ebitenui"
@@ -10,6 +11,7 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"image"
 	"image/color"
 	"log"
 )
@@ -78,7 +80,12 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenu
 		Container: rootContainer,
 	}
 
-	MainMenuSubs(&ui, eHub)
+	mag, err := LoadMagazineUiMenu(eHub, gameWidth, gameHeight)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	MainMenuSubs(mag, &ui, eHub)
 
 	return &ui, fishStats, nil
 }
@@ -92,10 +99,33 @@ func TriggerNextDayWindow(ui *ebitenui.UI, hub *tasks.EventHub) widget.RemoveWin
 
 	removeFunc := ui.AddWindow(ndUI)
 	return removeFunc
-
 }
 
-func MainMenuSubs(ui *ebitenui.UI, hub *tasks.EventHub) {
+func TriggerMagWindow(mag *Magazine, ui *ebitenui.UI, hub *tasks.EventHub) widget.RemoveWindowFunc {
+
+	activeContainer := mag.ActiveWindow()
+
+	window := widget.NewWindow(
+
+		widget.WindowOpts.Contents(activeContainer),
+
+		widget.WindowOpts.Modal(),
+
+		widget.WindowOpts.MoveHandler(func(args *widget.WindowChangedEventArgs) {
+			fmt.Println("Window Moved")
+		}),
+		widget.WindowOpts.ResizeHandler(func(args *widget.WindowChangedEventArgs) {
+			fmt.Println("Window Resized")
+		}),
+		widget.WindowOpts.Location(image.Rect(100, 100, 500, 500)),
+	)
+
+	removeFunc := ui.AddWindow(window)
+
+	return removeFunc
+}
+
+func MainMenuSubs(magazine *Magazine, ui *ebitenui.UI, hub *tasks.EventHub) {
 	var nextDay bool
 	var removeFunc widget.RemoveWindowFunc
 
@@ -104,6 +134,23 @@ func MainMenuSubs(ui *ebitenui.UI, hub *tasks.EventHub) {
 		if ev.UiSprite == "pillow" && ev.UiSpriteAction == "clicked" && !nextDay {
 			nextDay = true
 			removeFunc = TriggerNextDayWindow(ui, hub)
+		}
+	})
+
+	hub.Subscribe(events.UISpriteAction{}, func(e tasks.Event) {
+		ev := e.(events.UISpriteAction)
+		if ev.UiSprite == "magazine" {
+			removeFunc = TriggerMagWindow(magazine, ui, hub)
+		}
+	})
+
+	hub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
+		//subs for updating mag window
+		ev := e.(events.ButtonClickedEvent)
+		println(ev.ButtonText, "button event received")
+		switch ev.ButtonText {
+		case "Fish":
+			removeFunc = TriggerMagWindow(magazine, ui, hub)
 		}
 	})
 
@@ -123,13 +170,13 @@ func MainMenuSubs(ui *ebitenui.UI, hub *tasks.EventHub) {
 
 func loadSubmitButtonImage() (*widget.ButtonImage, error) {
 
-	img, err := loaders.LoadImageAssetAsEbitenImage("menuAssets/submitButton3")
+	img, err := loader.LoadImageAssetAsEbitenImage("menuAssets/submitButton3")
 
 	if err != nil {
 		return nil, err
 	}
 
-	imgClicked, err := loaders.LoadImageAssetAsEbitenImage("menuAssets/submitButtonAlt")
+	imgClicked, err := loader.LoadImageAssetAsEbitenImage("menuAssets/submitButtonAlt")
 
 	if err != nil {
 		return nil, err
@@ -156,13 +203,13 @@ func loadSubmitButtonImage() (*widget.ButtonImage, error) {
 
 func loadSpriteSelectButtonImage(t string) (*widget.ButtonImage, error) {
 
-	img, err := loaders.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButton")
+	img, err := loader.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButton")
 
 	if err != nil {
 		return nil, err
 	}
 
-	imgClicked, err := loaders.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButtonAlt")
+	imgClicked, err := loader.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButtonAlt")
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +240,7 @@ func loadSpriteSelectButtonImage(t string) (*widget.ButtonImage, error) {
 
 func loadBackButtonImage() (*widget.ButtonImage, error) {
 
-	img, err := loaders.LoadImageAssetAsEbitenImage("menuAssets/backButton")
+	img, err := loader.LoadImageAssetAsEbitenImage("menuAssets/backButton")
 
 	if err != nil {
 		return nil, err
@@ -321,12 +368,12 @@ func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, fontS
 
 	imgForTransform.DrawImage(fishImg, dopts)
 
-	img, err := loaders.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButton")
+	img, err := loader.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButton")
 	if err != nil {
 		return nil, err
 	}
 
-	imgClicked, err := loaders.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButtonAlt")
+	imgClicked, err := loader.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButtonAlt")
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +434,7 @@ func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, fontS
 			button.GetWidget().CustomData = false
 		}),
 		widget.ButtonOpts.Text(buttonText, face, &widget.ButtonTextColor{
-			Idle:    color.NRGBA{0, 0, 0, 0xff},
+			Idle:    color.NRGBA{0, 255, 255, 255},
 			Hover:   color.NRGBA{255, 255, 0, 255},
 			Pressed: color.NRGBA{255, 255, 0, 255},
 		}),

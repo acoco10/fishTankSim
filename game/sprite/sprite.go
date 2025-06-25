@@ -150,7 +150,7 @@ func (as *AnimatedSprite) Draw(screen *ebiten.Image) {
 	img := as.Img.SubImage(frameRect).(*ebiten.Image)
 
 	if as.NormalMap != nil {
-		as.DrawNormal(screen, as.shaderOpts)
+		as.DrawNormal(screen)
 		return
 	}
 
@@ -168,9 +168,10 @@ func (as *AnimatedSprite) Draw(screen *ebiten.Image) {
 	screen.DrawImage(img, as.drawOpts)
 }
 
-func (as *AnimatedSprite) DrawNormal(screen *ebiten.Image, shaderOpts *ebiten.DrawRectShaderOptions) {
+func (as *AnimatedSprite) DrawNormal(screen *ebiten.Image) {
 
 	if as.shaderOpts == nil {
+		log.Printf("nil shader opts")
 		as.shaderOpts = &ebiten.DrawRectShaderOptions{}
 		as.shaderOpts.GeoM.Translate(float64(as.X), float64(as.Y))
 	}

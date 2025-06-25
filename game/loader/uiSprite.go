@@ -1,4 +1,4 @@
-package loaders
+package loader
 
 import (
 	"encoding/json"
@@ -73,6 +73,10 @@ func LoadUISprites(spritesToLoad []iObj.Label, hub *tasks.EventHub, screenWidth,
 			pillowSprite := iObj.PillowUI{UiSprite: uSprite, Triggered: false}
 			pillowSprite.Subscribe(hub)
 			sprites = append(sprites, &pillowSprite)
+			continue
+		case iObj.Magazine:
+			mag := iObj.MagazineUI{UiSprite: uSprite}
+			sprites = append(sprites, &mag)
 			continue
 		}
 

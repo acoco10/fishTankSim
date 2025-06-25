@@ -54,7 +54,7 @@ func newGame() *Game {
 	g.offScreenParams = shaderParams
 	//s.shader = outlineShader
 
-	fishSprite := loaders.LoadFishSprite(entities.Fish, 2)
+	fishSprite := loader.LoadFishSprite(entities.Fish, 2)
 	fishSprite.X = 150
 	fishSprite.Y = 100
 

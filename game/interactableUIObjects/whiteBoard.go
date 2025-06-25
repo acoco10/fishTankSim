@@ -3,15 +3,14 @@ package interactableUIObjects
 import (
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/events"
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/textEffects"
 	"github.com/acoco10/fishTankWebGame/shaders"
-	"log"
-
-	//"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"log"
 )
 
 type WhiteBoardSprite struct {
@@ -173,14 +172,15 @@ func (w *WhiteBoardSprite) DrawText() {
 	for index, txt := range w.textMap {
 		if txt != nil {
 			if index == 0 && !txt.IsFullyDrawn() {
+				log.Printf("DrawingText")
 				//first one draw that shit
-				txt.Draw()
+				txt.Draw(w.dstImg.Img)
 				return
 			}
 			if index > 0 {
 				// not first one, first one or greater finished, draw that shit
 				if w.textMap[index-1].IsFullyDrawn() {
-					txt.Draw()
+					txt.Draw(w.dstImg.Img)
 				}
 			}
 		}
@@ -191,6 +191,7 @@ func (w *WhiteBoardSprite) DrawText() {
 func (w *WhiteBoardSprite) updateText() {
 	for index, txt := range w.textMap {
 		if index == 0 && !txt.IsFullyDrawn() {
+			log.Printf("updating Text")
 			txt.Update()
 			return
 		}
@@ -205,6 +206,7 @@ func (w *WhiteBoardSprite) updateText() {
 
 func (w *WhiteBoardSprite) Subscribe(hub *tasks.EventHub) {
 	hub.Subscribe(tasks.TaskRequirementsCompleted{}, func(e tasks.Event) {
+
 		taskPublished := false //hack way to limit to one event for each task
 		ev := e.(tasks.TaskRequirementsCompleted)
 
@@ -227,7 +229,7 @@ func (w *WhiteBoardSprite) Subscribe(hub *tasks.EventHub) {
 	hub.Subscribe(tasks.TaskCreated{}, func(e tasks.Event) {
 		ev := e.(tasks.TaskCreated)
 		if len(w.tasks) == 0 {
-			w.ResetImg()
+			log.Println("Appending first task")
 			w.appendTextToOpenSlot(ev.Task.Text)
 			w.tasks = append(w.tasks, ev.Task)
 			return
@@ -272,6 +274,7 @@ func (w *WhiteBoardSprite) Subscribe(hub *tasks.EventHub) {
 func (w *WhiteBoardSprite) updateTextToBeWritten() {
 
 	if len(w.textToBeWrittenQueue) > 0 {
+		log.Printf("adding tex: %s to queue", w.textToBeWrittenQueue[0])
 		w.appendTextToOpenSlot(w.textToBeWrittenQueue[0])
 		w.textToBeWrittenQueue = w.textToBeWrittenQueue[1:]
 	}
@@ -279,8 +282,7 @@ func (w *WhiteBoardSprite) updateTextToBeWritten() {
 }
 
 func (w *WhiteBoardSprite) initErase() {
-	erase := shaders.LoadEraseShader()
-	w.dstImg.LoadShader(erase)
+	w.dstImg.LoadShader(registry.ShaderMap["Erase"])
 	w.dstImg.ShaderParams = make(map[string]any)
 	w.dstImg.ShaderParams["Counter"] = 0
 	w.dstImg.ShaderParams["MaxCounter"] = 100
@@ -299,8 +301,9 @@ func (w *WhiteBoardSprite) checkAllTasksCompleted() {
 
 func (w *WhiteBoardSprite) appendTextToOpenSlot(txt string) {
 	insets := [2]float64{10, float64((w.textIndex + 1) * 20)}
-	ts := textEffects.NewTextWithMarkerShader(txt, w.dstImg.Img, insets)
+	ts := textEffects.NewTextWithMarkerShader(txt, w.dstImg.Img.Bounds(), insets, ColorScaleSlice[0])
 	log.Printf("whiteboard text index = %d, appending new text: %s at this slot", w.textIndex, txt)
+
 	w.textMap[w.textIndex] = ts
 	w.textIndex++
 }

@@ -3,7 +3,7 @@ package graphicManagerSubscriptions
 import (
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/graphics"
-	"github.com/acoco10/fishTankWebGame/game/loaders"
+	"github.com/acoco10/fishTankWebGame/game/loader"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image/color"
@@ -34,7 +34,7 @@ func WhiteBoardGMSubs(hub *tasks.EventHub, manager *graphics.GraphicManager) {
 	})
 
 	hub.Subscribe(tasks.AllTasksCompleted{}, func(e tasks.Event) {
-		cg, err := loaders.LoadClothGraphic()
+		cg, err := loader.LoadClothGraphic()
 		if err != nil {
 			log.Fatal("error loading cloth Graphic\n", err)
 		}
@@ -45,7 +45,7 @@ func WhiteBoardGMSubs(hub *tasks.EventHub, manager *graphics.GraphicManager) {
 	})
 
 	hub.Subscribe(events.DayOver{}, func(e tasks.Event) {
-		cg, err := loaders.LoadClothGraphic()
+		cg, err := loader.LoadClothGraphic()
 		if err != nil {
 			log.Fatal("error loading cloth Graphic\n", err)
 		}

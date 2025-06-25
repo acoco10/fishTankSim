@@ -181,7 +181,7 @@ func main() {
 
 	mainImgName := "uiSprites/" + inputText + "Main"
 
-	_, err = loaders.LoadImageAssetAsEbitenImage(mainImgName)
+	_, err = loader.LoadImageAssetAsEbitenImage(mainImgName)
 	if err != nil {
 		log.Printf("no main image found for new ui sprite%q", err)
 	} else {

@@ -1,4 +1,4 @@
-package loaders
+package loader
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/drawables"
@@ -42,7 +42,7 @@ func StartScreenCoordinatePositioner(screenHeight int, screenWidth int, spriteMa
 	minButtonHeight := 100
 	rowSpacing := 20
 
-	_, headerHeight := util.MeasureNK57("Select Your Fish", 54)
+	_, headerHeight := util.MeasureText("Select Your Fish", 54, "nk57")
 
 	yLocation := screenHeight/5 + rowSpacing + int(headerHeight)
 
@@ -52,7 +52,7 @@ func StartScreenCoordinatePositioner(screenHeight int, screenWidth int, spriteMa
 	for _, key := range orderKeys {
 		fish, ok := spriteMap[key].(*sprite.AnimatedSprite)
 		if ok {
-			width, _ := util.MeasureNK57(key, fontsize)
+			width, _ := util.MeasureText(key, fontsize, "nk57")
 			widthAndBuffer := int(width) + 2*textBuffer
 
 			if widthAndBuffer < minButtonWidth {

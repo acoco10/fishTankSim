@@ -111,6 +111,19 @@ func (c *Creature) NextPoint() {
 		c.AddTargetPointToQueue(c.RandomTarget())
 	}
 
+	//scaling needs smoothing
+	/*	x := rand.Intn(3)
+
+		switch x {
+
+		case 0:
+			c.Scale = 1.0
+		case 1:
+			c.Scale = 1.0
+		case 2:
+			c.Scale = 0.9
+		}*/
+
 	if c.Flip && c.PointQueue[0].X-c.X < -50 {
 		c.Flip = false
 	}
