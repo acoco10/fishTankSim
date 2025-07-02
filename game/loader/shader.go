@@ -16,11 +16,14 @@ func LoadShaderRegistry() {
 
 	hwr := shaders.LoadHandWritingShader()
 
+	opl := shaders.LoadOnePointLightingBlue()
+
 	registry.ShaderMap = make(map[string]*ebiten.Shader)
 
 	registry.ShaderMap["Outline"] = ols
 	registry.ShaderMap["Erase"] = erase
 	registry.ShaderMap["HandWriting"] = hwr
 	registry.ShaderMap["NormalMap"] = normalMap
+	registry.ShaderMap["OnePointLighting"] = opl
 
 }

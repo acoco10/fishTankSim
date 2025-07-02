@@ -23,6 +23,8 @@ type StartScene struct {
 	fishOptions      []*sprite.AnimatedSprite
 	nextSceneTrigger *entities.Timer
 	gameLog          *sceneManagement.GameLog
+	selectedFish     entities.SavedFish
+	selectedProp     entities.TankObject
 }
 
 func NewStartScene(gameLog *sceneManagement.GameLog) *StartScene {
@@ -88,7 +90,7 @@ func (s *StartScene) OnEnter(gameLog *sceneManagement.GameLog) {
 }
 
 func (s *StartScene) OnExit() {
-	println("leaving start scene")
+	log.Printf("Leaving Start Scene")
 	s.gameLog.SongPlayer.Pause()
 }
 
@@ -98,43 +100,44 @@ func (s *StartScene) IsLoaded() bool {
 
 func (s *StartScene) subs(gameLog *sceneManagement.GameLog) {
 	gameLog.GlobalEventHub.Subscribe(events.ButtonEvent{}, func(e tasks.Event) {
+
 		ev := e.(events.ButtonEvent)
 		if ev.EType == "cursor exited" {
 			if ev.ButtonText != "Select" {
 				if len(s.ui.SelectSpritesToDraw) > 1 {
+					//this filter logic doesnt follow from anything about the code
 					s.ui.DrawOptions[ev.ButtonText].(*sprite.AnimatedSprite).UnLoadShader()
 				}
 			}
 		}
+
 	})
 
 	gameLog.GlobalEventHub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
 		ev := e.(events.ButtonClickedEvent)
+
 		switch ev.ButtonText {
+
 		case "Common Molly":
 			gameLog.SoundPlayer.Play(soundFX.SelectSound2)
 			saveFish := entities.SavedFish{FishType: "mollyFish", Progress: 0, Size: 1}
-			gameLog.Save.Fish = append(gameLog.Save.Fish, saveFish)
+			s.selectedFish = saveFish
 
 		case "Goldfish":
 			gameLog.SoundPlayer.Play(soundFX.SelectSound2)
 			saveFish := entities.SavedFish{FishType: "fish", Progress: 0, Size: 1}
-			gameLog.Save.Fish = append(gameLog.Save.Fish, saveFish)
+			s.selectedFish = saveFish
+
+		case "Castle", "Log":
+			prop := entities.TankObject{Name: ev.ButtonText}
+			s.selectedProp = prop
 
 		case "Submit":
-			ev2 := entities.SendData{
-				DataFor: "Name Input",
-				Data:    s.ui.TextInput.GetText(),
-			}
-			gameLog.GlobalEventHub.Publish(ev2)
-		}
-	})
-
-	gameLog.GlobalEventHub.Subscribe(entities.SendData{}, func(e tasks.Event) {
-		ev := e.(entities.SendData)
-		if ev.DataFor == "Name Input" {
-			gameLog.Save.Fish[0].Name = ev.Data
+			s.nextSceneTrigger.TurnOn()
 			s.gameLog.SoundPlayer.Play(soundFX.SelectSound)
+			//s.selectedFish.Name = s.ui.TextInput.GetText()
+			gameLog.Save.Fish = append(gameLog.Save.Fish, s.selectedFish)
+			gameLog.Save.TankObjects = append(gameLog.Save.TankObjects, s.selectedProp)
 		}
 	})
 

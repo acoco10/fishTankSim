@@ -12,6 +12,8 @@ type Manager struct {
 func (m *Manager) Subscriptions() {
 	m.Hub.Subscribe(entities.FishLevelUp{}, func(e tasks.Event) {
 		ev := e.(entities.FishLevelUp)
-		LoadLevlUpSprite(&ev.Fish)
+		println("fish level up received for", ev.Fish.FishType)
+		LoadLevlUpSprite(ev.Fish)
 	})
+
 }

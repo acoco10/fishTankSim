@@ -20,6 +20,7 @@ func (pb *PiggyBankSprite) Update() {
 	aniSprite, ok := pb.AnimationMap[pb.triggeredAnimation].(*sprite.AnimatedSprite)
 	if ok {
 		if aniSprite.LastF == aniSprite.Frame() {
+			aniSprite.Reset()
 			pb.triggeredAnimation = ""
 		}
 	}
@@ -35,6 +36,7 @@ func (pb *PiggyBankSprite) Update() {
 			pb.EventHub.Publish(ev)
 			pb.triggeredAnimation = "allowance"
 			pb.Shader = nil
+			pb.state = Idle
 		}
 	}
 

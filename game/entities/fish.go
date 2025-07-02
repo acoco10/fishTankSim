@@ -5,6 +5,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"math/rand"
 )
 
@@ -65,9 +66,14 @@ func (c *Creature) Update() {
 
 	c.AnimatedSprite.Update()
 
+	dopts := c.TranSlateFishOpts()
+	sopts := c.TranSlateFishShaderOpts()
+	c.UpdateOpts(sopts)
+	c.UpdateOpts(dopts)
+
 	if c.Selected {
 		c.publishStats("statsMenu")
-		if ebiten.IsKeyPressed(ebiten.KeyEscape) || ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && !c.SpriteHovered() {
+		if ebiten.IsKeyPressed(ebiten.KeyEscape) || inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && !c.SpriteHovered() {
 			c.Selected = false
 			c.Shader = nil
 			ev := SendData{Data: "fish deselect", DataFor: "statsMenu"}
@@ -116,10 +122,5 @@ func (c *Creature) eatingUpdate() {
 }
 
 func (c *Creature) Draw(screen *ebiten.Image) {
-
-	opts := c.TranSlateFishOpts()
-	shaderOpts := c.TranSlateFishShaderOpts()
-	c.AnimatedSprite.UpdateOpts([]any{*opts, *shaderOpts})
 	c.AnimatedSprite.Draw(screen)
-
 }

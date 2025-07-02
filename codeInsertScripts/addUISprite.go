@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/acoco10/fishTankWebGame/game/drawables"
-	"github.com/acoco10/fishTankWebGame/game/loaders"
+	"github.com/acoco10/fishTankWebGame/game/loader"
 	"go/ast"
 	"go/format"
 	"go/parser"

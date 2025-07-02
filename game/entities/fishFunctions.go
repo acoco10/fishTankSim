@@ -140,7 +140,7 @@ func (c *Creature) calcSpeed() {
 			c.speed = c.maxSpeed
 		}
 	} else {
-		c.speed = float32(math.Min(rand.Float64()*float64(c.maxSpeed)+0.7, float64(c.maxSpeed)))
+		c.speed = float32(math.Min(rand.Float64()*float64(c.maxSpeed)+float64(c.avgSpeed), float64(c.maxSpeed)))
 	}
 
 	fmt.Printf("random speed generated = %f\n", c.speed)
@@ -222,7 +222,7 @@ func (c *Creature) UpdateToNextPoint() {
 }
 
 func (c *Creature) CheckAndLevelUp() {
-	if c.progress >= c.nextLevel {
+	if c.progress >= c.nextLevel && c.Size < 3 {
 		c.Size += 1
 		x, y := c.X, c.Y
 		c.X = x
@@ -230,7 +230,7 @@ func (c *Creature) CheckAndLevelUp() {
 		c.nextLevel *= 1.2
 		c.progress = 0
 
-		ev := FishLevelUp{Fish: *c}
+		ev := FishLevelUp{Fish: c}
 		c.EventHub.Publish(ev)
 	}
 }
@@ -241,14 +241,18 @@ func randomBool() bool {
 
 func (c *Creature) RandomTarget() *geometry.Point {
 	randomTargetX := max(c.TankBoundaries.X1+float32(c.SpriteWidth), rand.Float32()*c.TankBoundaries.X2-float32(c.SpriteWidth))
-	randomTargetY := max(c.TankBoundaries.Y1, rand.Float32()*c.TankBoundaries.Y2)
+
+	//normally distributed y based on avg depth stat
+	//standard dev = entire tank?
+	sample := float32(rand.NormFloat64())*50 + c.TankBoundaries.Y2 - c.avgDepth - 100
+	randomTargetY := max(c.TankBoundaries.Y1+float32(c.SpriteHeight), sample)
 
 	targetX := randomTargetX
 	targetY := randomTargetY
 
 	fmt.Printf("random point generated of x: %f y: %f\n", targetX, targetY)
 
-	newPoint := geometry.Point{targetX, targetY, geometry.Structure}
+	newPoint := geometry.Point{X: targetX, Y: targetY, PType: geometry.Structure}
 	return &newPoint
 }
 
@@ -434,6 +438,8 @@ type FishStats struct {
 	maxEnergy   float32
 	energy      float32
 	maxSpeed    float32
+	avgSpeed    float32
+	avgDepth    float32
 	speed       float32
 	Size        int
 	progress    float32
@@ -476,13 +482,14 @@ func GenMollyFishStats() (*FishStats, error) {
 
 	fs.Size = 1
 	fs.maxSpeed = rand.Float32() + 0.7
+	fs.avgSpeed = 1.0
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
 	fs.FishType = MollyFish
 	fs.maxEnergy = 25
 	fs.energy = fs.maxEnergy / 2
 	fs.Hunger = 5
 	fs.maxHunger = 8*rand.Float32() + 4
-
+	fs.avgDepth = 100
 	fs.progress = 0
 	fs.nextLevel = 10
 
@@ -500,6 +507,8 @@ func GenMollyFishStats() (*FishStats, error) {
 func GenGoldFishStats() (*FishStats, error) {
 	fs := &FishStats{}
 	fs.Size = 1
+	fs.avgDepth = 0.0
+	fs.avgSpeed = 2.0
 	fs.maxSpeed = rand.Float32() + 0.5
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
 	fs.FishType = Fish
@@ -523,6 +532,8 @@ func GenGoldFishStats() (*FishStats, error) {
 func GenGuppyFishStats() (*FishStats, error) {
 	fs := &FishStats{}
 	fs.Size = 1
+	fs.avgDepth = 150
+	fs.avgSpeed = 2.0
 	fs.maxSpeed = rand.Float32() + 0.5
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
 	fs.FishType = Guppy

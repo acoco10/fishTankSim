@@ -45,32 +45,38 @@ func LoadFishNormal(fType entities.FishList, level int) (*ebiten.Image, error) {
 	img, err := LoadImageAssetAsEbitenImage("fishSpriteSheets/" + fishImgName)
 
 	if err != nil {
-		log.Printf("normal map not found for: %s", fishImgName)
-		return nil, err
+		log.Printf("normal map not found for: %s, trying with lazy export name", fishImgName)
+		switch fType {
+		case entities.Fish:
+			fishImgName = fmt.Sprintf("fish%dSpriteSheet_n", level)
+		case entities.MollyFish:
+			fishImgName = fmt.Sprintf("mollyFish%dSpriteSheet_n", level)
+		case entities.Guppy:
+			fishImgName = fmt.Sprintf("guppy%dSpriteSheet_n", level)
+		}
+		img, err = LoadImageAssetAsEbitenImage("fishSpriteSheets/" + fishImgName)
+		if err != nil {
+			log.Printf("normal map not found for: %s", fishImgName)
+			return nil, err
+		}
 	}
 
 	return img, nil
 }
 
-func LoadFishSprite(creatureType entities.FishList, creatureLvl int) *sprite.AnimatedSprite {
+func LoadFishSprite(creatureType entities.FishList, creatureLvl int) (*sprite.AnimatedSprite, error) {
 	var c sprite.AnimatedSprite
 	c.Sprite = &sprite.Sprite{}
 	c.Scale = 1
-	dopts := ebiten.DrawImageOptions{}
-	dopts.GeoM.Translate(float64(c.X), float64(c.Y))
-	sopts := ebiten.DrawRectShaderOptions{}
-	sopts.GeoM.Translate(float64(c.X), float64(c.Y))
-
-	c.UpdateOpts([]any{sopts, dopts})
 
 	img, err := LoadFishImg(creatureType, creatureLvl)
 	if err != nil {
-		log.Fatal("cant load next level for creature", err)
+		return nil, err
 	}
 
 	normalImg, err := LoadFishNormal(creatureType, creatureLvl)
 	if err != nil {
-		log.Fatal("cant load next level normal for creature", err)
+		return nil, err
 	}
 
 	switch creatureLvl {
@@ -106,7 +112,7 @@ func LoadFishSprite(creatureType entities.FishList, creatureLvl int) *sprite.Ani
 		c.SpriteSheet = spritesheet.NewSpritesheet(4, 1, 24, 11)
 	}
 
-	return &c
+	return &c, nil
 }
 
 func LoadFishSpriteAltAnimations(fType entities.FishList) (*sprite.AnimatedSprite, error) {
@@ -161,7 +167,10 @@ func NewFish(hub *tasks.EventHub, tankSize geometry.Rect, saveData entities.Save
 		false,
 	}
 
-	c.AnimatedSprite = LoadFishSprite(c.FishType, c.Size)
+	c.AnimatedSprite, err = LoadFishSprite(c.FishType, c.Size)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	//LoadRotatingHighlightOutlineAnimated(c.AnimatedSprite)
 
@@ -177,5 +186,13 @@ func NewFish(hub *tasks.EventHub, tankSize geometry.Rect, saveData entities.Save
 }
 
 func LoadLevlUpSprite(c *entities.Creature) {
-	LoadFishSprite(c.FishType, c.Size)
+	newFish, err := LoadFishSprite(c.FishType, c.Size)
+
+	log.Printf("loading fish type: %s to level:%d", string(c.FishType), c.Size)
+
+	if err != nil {
+		log.Fatal("tried to lvl up a fish that dont exish")
+	}
+
+	c.AnimatedSprite = newFish
 }

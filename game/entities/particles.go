@@ -22,6 +22,11 @@ type Particle struct {
 	eventHub          *tasks.EventHub
 }
 
+func (p *Particle) SpriteHovered() bool {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (p *Particle) float() {
 	vy := 10.0
 	dx := float32(-5.0)

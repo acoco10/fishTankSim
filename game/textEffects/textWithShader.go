@@ -13,7 +13,6 @@ import (
 type TextWithShader struct {
 	insets            [2]float64
 	renderShaderImage *ebiten.Image
-	image             *ebiten.Image
 	shader            *ebiten.Shader
 	shaderParams      map[string]any
 	text              string
@@ -51,6 +50,10 @@ func (t *TextWithShader) IsFullyDrawn() bool {
 
 func (t *TextWithShader) Update() {
 
+	if t.FullyDrawn {
+		return
+	}
+
 	if t.shaderParams == nil {
 		println("nil map for params in text with shader")
 		return
@@ -87,33 +90,33 @@ func (t *TextWithShader) Update() {
 }
 
 func (t *TextWithShader) Draw(dst *ebiten.Image) {
-	if !t.FullyDrawn {
-		log.Printf("Drawing text shader: |%s|", t.text)
-		if t.shader == nil {
-			t.FullyDrawn = true
-			return
-		}
-		if t.shaderParams == nil {
-			t.FullyDrawn = true
-			log.Printf("Text Shader shader Parameters were reset but draw is being called skipping to avoid nil pointer errors\n")
-			return
-		}
-		dopts := &text.DrawOptions{}
-
-		dopts.ColorScale.SetR(0)
-		dopts.ColorScale.SetG(1)
-		dopts.ColorScale.SetB(1)
-		dopts.ColorScale.SetA(1)
-
-		dopts.GeoM.Translate(t.insets[0], t.insets[1])
-
-		text.Draw(t.renderShaderImage, t.text, t.face, dopts)
-
-		shaderOpts := &ebiten.DrawRectShaderOptions{}
-		shaderOpts.Uniforms = t.shaderParams
-		shaderOpts.Images[0] = t.renderShaderImage
-		dst.DrawRectShader(dst.Bounds().Dx(), dst.Bounds().Dy(), t.shader, shaderOpts)
+	if t.FullyDrawn {
 		return
 	}
-	//text.Draw(dst, t.text, t.face, dopts)
+
+	log.Printf("Drawing text shader: |%s|", t.text)
+	if t.shader == nil {
+		t.FullyDrawn = true
+		return
+	}
+
+	if t.shaderParams == nil {
+		t.FullyDrawn = true
+		log.Printf("Text Shader shader Parameters were reset but draw is being called skipping to avoid nil pointer errors\n")
+		return
+	}
+	dopts := &text.DrawOptions{}
+	dopts.ColorScale.SetR(0)
+	dopts.ColorScale.SetG(1)
+	dopts.ColorScale.SetB(1)
+	dopts.ColorScale.SetA(1)
+
+	dopts.GeoM.Translate(t.insets[0], t.insets[1])
+
+	text.Draw(t.renderShaderImage, t.text, t.face, dopts)
+
+	shaderOpts := &ebiten.DrawRectShaderOptions{}
+	shaderOpts.Uniforms = t.shaderParams
+	shaderOpts.Images[0] = t.renderShaderImage
+	dst.DrawRectShader(dst.Bounds().Dx(), dst.Bounds().Dy(), t.shader, shaderOpts)
 }

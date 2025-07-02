@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/graphics"
-	"github.com/acoco10/fishTankWebGame/game/loaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
 )

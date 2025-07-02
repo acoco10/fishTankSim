@@ -6,6 +6,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/geometry"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
+	"log"
 )
 
 func LoadDay1Tasks(gameLog *sceneManagement.GameLog) {
@@ -33,7 +34,7 @@ func LoadDay1Tasks(gameLog *sceneManagement.GameLog) {
 		return ok
 	}
 
-	gameTask3 := tasks.NewTask(entities.AllFishFed{}, "3. Feed them until they're full", taskCondition3)
+	gameTask3 := tasks.NewTask(entities.AllFishFed{}, "3. Feed them until they're\n full", taskCondition3)
 	gameTask3.Subscribe(gameLog.GlobalEventHub)
 
 	gameLog.Tasks = append(gameLog.Tasks, gameTask, gameTask2, gameTask3)
@@ -46,7 +47,7 @@ func LoadDay2Tasks(gameLog *sceneManagement.GameLog) {
 		return ok
 	}
 
-	gameTask := tasks.NewTask(events.MoneyAdded{}, "1. Collect Your Allowance", taskCondition)
+	gameTask := tasks.NewTask(events.MoneyAdded{}, "1. Collect your Allowance", taskCondition)
 	gameTask.Subscribe(gameLog.GlobalEventHub)
 
 	taskCondition2 := func(e tasks.Event) bool {
@@ -60,8 +61,14 @@ func LoadDay2Tasks(gameLog *sceneManagement.GameLog) {
 	gameLog.Tasks = []*tasks.Task{}
 	gameLog.Tasks = append(gameLog.Tasks, gameTask, gameTask2)
 
-	gameTask3 := tasks.NewTask(entities.AllFishFed{}, "3. Buy a new fish.", taskCondition2)
-	gameTask2.Subscribe(gameLog.GlobalEventHub)
+	taskCondition3 := func(e tasks.Event) bool {
+		log.Printf("Day 2 purchase task condition met")
+		_, ok := e.(events.NewPurchase)
+		return ok
+	}
+
+	gameTask3 := tasks.NewTask(events.NewPurchase{}, "3. Buy a new fish.", taskCondition3)
+	gameTask3.Subscribe(gameLog.GlobalEventHub)
 
 	gameLog.Tasks = []*tasks.Task{}
 	gameLog.Tasks = append(gameLog.Tasks, gameTask, gameTask2, gameTask3)

@@ -20,4 +20,5 @@ type Drawable interface {
 	Draw(screen *ebiten.Image)
 	Update()
 	SpriteHovered() bool
+	Coord() (float32, float32)
 }

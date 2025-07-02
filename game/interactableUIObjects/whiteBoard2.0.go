@@ -80,8 +80,7 @@ func (w *WhiteBoardSprite2) Draw(screen *ebiten.Image) {
 
 	if w.state == Drawing {
 		w.textBeingWritten.Draw(w.dstImg.Img)
-		w.dstImg.Draw(w.Img)
-		w.dstImg.Img.Clear()
+		w.dstImg.Draw(screen)
 	}
 
 	w.Sprite.Draw(screen)
@@ -89,6 +88,7 @@ func (w *WhiteBoardSprite2) Draw(screen *ebiten.Image) {
 
 func subscribe(w *WhiteBoardSprite2) {
 	w.EventHub.Subscribe(tasks.TaskCreated{}, func(e tasks.Event) {
+
 		println("Recieving Event")
 		ev := e.(tasks.TaskCreated)
 		task := ev.Task
@@ -97,6 +97,7 @@ func subscribe(w *WhiteBoardSprite2) {
 }
 
 func (w *WhiteBoardSprite2) updateTextBeingDrawn(text string) {
+	w.dstImg.Img.Clear()
 
 	yInset := float64(w.taskIndex * 10)
 	insets := [2]float64{10, yInset}

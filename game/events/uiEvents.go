@@ -13,3 +13,6 @@ type UISpriteAction struct {
 	UiSprite       string
 	UiSpriteAction string
 }
+
+type CloseWindow struct {
+}

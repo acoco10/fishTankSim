@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/graphics"
 	"github.com/acoco10/fishTankWebGame/game/loader"
@@ -11,17 +10,17 @@ import (
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
-	"golang.org/x/image/colornames"
 	"image"
 	"image/color"
 	"log"
+	"strings"
 )
 
 type Magazine struct {
-	triggered     bool
-	pages         []*widget.Container
-	activeIndex   int
-	background    *sprite.Sprite
+	triggered   bool
+	pages       []*widget.Container
+	activeIndex int
+	//background    *sprite.Sprite
 	buttonGraphic *graphics.SpriteGraphic
 	fish          map[string]*ebiten.Image
 }
@@ -49,7 +48,7 @@ func LoadMagazineUiMenu(eHub *tasks.EventHub, screenWidth int, screenHeight int)
 	x := float32(screenWidth-b.Dx()) / 2
 	y := float32(screenHeight-b.Dy()) / 2
 
-	s := sprite.Sprite{Img: bground, X: x, Y: y}
+	//s := sprite.Sprite{Img: bground, X: x, Y: y}
 	buttonSprite := sprite.Sprite{Img: buttonGraphicImg, X: x + float32(b.Dx()-10), Y: y + float32(b.Dy()-10)}
 	buttonGraphic := graphics.NewFadeInSprite(buttonSprite)
 
@@ -59,7 +58,7 @@ func LoadMagazineUiMenu(eHub *tasks.EventHub, screenWidth int, screenHeight int)
 	}
 
 	magUI := Magazine{}
-	magUI.background = &s
+	//magUI.background = &s
 	magUI.activeIndex = 0
 	magUI.buttonGraphic = buttonGraphic
 
@@ -116,13 +115,38 @@ func (m *Magazine) Update() {
 	}
 }
 
-func LoadMagazineIndexPage(eHub *tasks.EventHub, b image.Rectangle) (*widget.Container, error) {
+func LoadMagNineSlice() (*eimage.NineSlice, *eimage.NineSlice, error) {
 	bground, err := loader.LoadImageAssetAsEbitenImage("uiSprites/magazineAlt")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	magNineSlice := eimage.NewNineSlice(
+		bground, [3]int{32, bground.Bounds().Dx() - 64, 32},
+		[3]int{32, bground.Bounds().Dy() - 64, 32})
+
+	flipImg := ebiten.NewImage(bground.Bounds().Dx(), bground.Bounds().Dy())
+	flipOpts := &ebiten.DrawImageOptions{}
+
+	flipOpts.GeoM.Scale(-1, 1)
+
+	flipImg.DrawImage(bground, flipOpts)
+
+	flipNineSlice := eimage.NewNineSlice(
+		flipImg, [3]int{32, bground.Bounds().Dx() - 64, 32},
+		[3]int{32, bground.Bounds().Dy() - 64, 32})
+
+	return magNineSlice, flipNineSlice, nil
+
+}
+
+func LoadMagazineIndexPage(eHub *tasks.EventHub, b image.Rectangle) (*widget.Container, error) {
+
+	magNineSlice, _, err := LoadMagNineSlice()
 	if err != nil {
 		return nil, err
 	}
 
-	magNineSlice := eimage.NewNineSlice(bground, [3]int{9, bground.Bounds().Dx() - 18, 9}, [3]int{8, 9, 10})
 	headerText := "Index"
 
 	rootContainer := widget.NewContainer(
@@ -226,11 +250,10 @@ func LoadMagazineIndexPage(eHub *tasks.EventHub, b image.Rectangle) (*widget.Con
 
 func LoadFishPages(eHub *tasks.EventHub, fishImgMap map[string]*ebiten.Image) (*widget.Container, error) {
 
-	bground, err := loader.LoadImageAssetAsEbitenImage("uiSprites/magazineAlt")
+	magNineSlice, flippedMagNineSlice, err := LoadMagNineSlice()
 	if err != nil {
 		return nil, err
 	}
-	magNineSlice := eimage.NewNineSlice(bground, [3]int{9, bground.Bounds().Dx() - 18, 9}, [3]int{8, 9, 10})
 
 	rootContainer := widget.NewContainer(
 		widget.ContainerOpts.Layout(
@@ -278,7 +301,7 @@ func LoadFishPages(eHub *tasks.EventHub, fishImgMap map[string]*ebiten.Image) (*
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.MinSize(400, 500),
 		),
-		widget.ContainerOpts.BackgroundImage(magNineSlice),
+		widget.ContainerOpts.BackgroundImage(flippedMagNineSlice),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(
 				widget.GridLayoutData{
@@ -305,7 +328,7 @@ func LoadFishPages(eHub *tasks.EventHub, fishImgMap map[string]*ebiten.Image) (*
 			return nil, err
 		}
 
-		container := LoadStackedButtonWithText(button, fishDescriptions[key], eHub)
+		container := LoadStackedButtonWithText(button, fishDescriptions[key], eHub, "Buy: "+key)
 		leftPage.AddChild(container)
 	}
 
@@ -322,63 +345,24 @@ func MagSubscriptions(magUi *Magazine, eHub *tasks.EventHub) {
 		ev := e.(events.ButtonClickedEvent)
 		println(ev.ButtonText, "button event received")
 		switch ev.ButtonText {
+		//button text = event published cases
 		case "Fish":
 			magUi.activeIndex = 1
 		}
+		// text processing for buy events
+		if strings.HasPrefix(ev.ButtonText, "Buy:") {
+			// Extract the part after "Buy"
+
+			itemName := strings.TrimSpace(ev.ButtonText[len("Buy:"):])
+			itemName = util.LowCase(itemName)
+
+			pev := events.BuyAttempt{
+				Name: itemName,
+				Cost: 1,
+				Item: "fish",
+			}
+			eHub.Publish(pev)
+		}
 	})
 
-}
-
-func InitStoreTextBlock(x, y int, fishName string, eHub *tasks.EventHub) (*widget.Window, error) {
-
-	windowContainer := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(eimage.NewNineSliceColor(colornames.Red)),
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Padding(widget.Insets{
-				Top: 20},
-			),
-			widget.RowLayoutOpts.Spacing(20),
-			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-		),
-		),
-	)
-
-	infoBlock, err := NewTextBlock(eHub, StoreMenu)
-	if err != nil {
-		return nil, fmt.Errorf("erorr inititaing store info block: %q", err)
-	}
-
-	buyButton := LoadSubmitButton("Buy", eHub, 10)
-
-	windowContainer.AddChild(infoBlock)
-	windowContainer.AddChild(buyButton)
-
-	window := widget.NewWindow(
-		//Set the main contents of the window
-		widget.WindowOpts.Contents(windowContainer),
-		//Set the titlebar for the window (Optional)
-		//Set the window above everything else and block input elsewhere
-		widget.WindowOpts.Modal(),
-		//Set how to close the window. CLICK_OUT will close the window when clicking anywhere
-		//that is not a part of the window object
-		widget.WindowOpts.CloseMode(widget.CLICK_OUT),
-		//Indicates that the window is draggable. It must have a TitleBar for this to work
-		widget.WindowOpts.Draggable(),
-		//Set the window resizeable
-		widget.WindowOpts.Resizeable(),
-		//Set the minimum size the window can be
-		widget.WindowOpts.MinSize(200, 100),
-		//Set the maximum size a window can be
-		widget.WindowOpts.MaxSize(300, 300),
-		//Set the callback that triggers when a move is complete
-		widget.WindowOpts.MoveHandler(func(args *widget.WindowChangedEventArgs) {
-			fmt.Println("Window Moved")
-		}),
-		//Set the callback that triggers when a resize is complete
-		widget.WindowOpts.ResizeHandler(func(args *widget.WindowChangedEventArgs) {
-			fmt.Println("Window Resized")
-		}),
-		widget.WindowOpts.Location(image.Rect(x, y, x+200, y+200)),
-	)
-	return window, nil
 }

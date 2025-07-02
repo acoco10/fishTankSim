@@ -209,8 +209,6 @@ func (s *StartMenu) subs() {
 		ev := e.(events.ButtonClickedEvent)
 		switch ev.ButtonText {
 		case "Submit":
-			s.TextInputButton.Press()
-			s.TextInput.Focus(false)
 		case "Back":
 			s.Back()
 		default:
@@ -268,7 +266,13 @@ func (s *StartMenu) SpriteSelected(tx string) {
 
 	case fishSelected:
 		s.propButtonContainer.RemoveChildren()
-		s.propButtonContainer.AddChild(s.propButtons[0])
+		switch tx {
+		case "Castle":
+			s.propButtonContainer.AddChild(s.propButtons[0])
+		case "Log":
+			s.propButtonContainer.AddChild(s.propButtons[1])
+		}
+
 		textinputContainer, _, textInputButton, err := NewTextInput(s.eventHub)
 		if err != nil {
 			log.Fatal("text input dun fucked up", err)
