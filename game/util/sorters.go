@@ -1,11 +1,12 @@
 package util
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/entities"
+	"github.com/acoco10/fishTankWebGame/game/drawables"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image"
 	"math"
+	"reflect"
 )
 
 func ClosestPoint(point1 image.Point, candidates []image.Point) image.Point {
@@ -54,18 +55,29 @@ func ClosestSpriteToCursor(sps []*sprite.Sprite) *sprite.Sprite {
 	return distMap[closestDistance]
 }
 
-func ClosestCreatureToCursor(creList []*entities.Creature, filter func(any) bool) *entities.Creature {
-	cursorX, cursorY := ebiten.CursorPosition()
+func ClosestDrawableToCursor(cursorX int, cursorY int, drawSlice []drawables.Drawable, filter func(any) bool, sortFor string) drawables.Drawable {
+	//cursor x and y taking as inputs in case cursor position changes?
+	var toBeSorted []drawables.Drawable
+
+	for _, draw := range drawSlice {
+		println(reflect.TypeOf(draw).String())
+
+		if reflect.TypeOf(draw).String() == sortFor {
+			toBeSorted = append(toBeSorted, draw)
+		}
+	}
+
 	cursorPoint := image.Point{X: cursorX, Y: cursorY}
 
-	var distMap = make(map[float64]*entities.Creature)
+	var distMap = make(map[float64]drawables.Drawable)
 	var closestDistance float64
 	closestDistance = 1000
 
-	for _, cre := range creList {
-		pt := SpriteToPoint(*cre.Sprite)
+	for _, draw := range toBeSorted {
+		x, y := draw.Coord()
+		pt := image.Point{X: int(x), Y: int(y)}
 		dis := Distance(cursorPoint, pt)
-		distMap[dis] = cre
+		distMap[dis] = draw
 		if dis < closestDistance {
 			closestDistance = dis
 		}

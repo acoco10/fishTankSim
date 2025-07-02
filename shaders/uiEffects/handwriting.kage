@@ -6,11 +6,12 @@ var Counter int
 func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
       color := imageSrc0UnsafeAt(texCoord)
       if color.a > 0.0{
-        if int(texCoord.x) <= Counter{
+        if int(dstCoord.x) <= Counter{
                return color
       }
-       if int(texCoord.x) <= Counter+50{
-              return color * 0.1
+       if int(dstCoord.x) <= Counter+50{
+              dis := float(Counter) + 50.0 - dstCoord.x
+              return color * 0.5/dis
 
          }
        return color * 0.0

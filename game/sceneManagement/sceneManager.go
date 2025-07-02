@@ -21,7 +21,7 @@ type GameLog struct {
 
 func NewGameLog(state entities.SaveGameState) *GameLog {
 	g := GameLog{}
-	g.Save = &entities.SaveGameState{Fish: []entities.SavedFish{}}
+	g.Save = &entities.SaveGameState{}
 	g.Save = &state
 	eHub := tasks.NewEventHub()
 	g.GlobalEventHub = eHub

@@ -29,8 +29,8 @@ func loadUiSpritesImgs(label iObj.Label) ([]*ebiten.Image, error) {
 	return imgs, nil
 }
 
-func LoadUISprites(spritesToLoad []iObj.Label, hub *tasks.EventHub, screenWidth, screenHeight int) ([]drawables.DrawableSaveAbleSprite, error) {
-	var sprites []drawables.DrawableSaveAbleSprite
+func LoadUISprites(spritesToLoad []iObj.Label, hub *tasks.EventHub, screenWidth, screenHeight int) ([]drawables.Drawable, error) {
+	var sprites []drawables.Drawable
 
 	spritePositions, err := loadSpritePositionData()
 	if err != nil {

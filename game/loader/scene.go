@@ -5,20 +5,31 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/util"
+	"log"
 )
 
 func LoadAnimatedSelectSprites(screenWidth, screeheight int) (map[string]drawables.Drawable, error) {
 
 	fishOptions := make(map[string]drawables.Drawable)
 
-	fishSprite := LoadFishSprite(entities.Fish, 1)
+	fishSprite, err := LoadFishSprite(entities.Fish, 1)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	fishSprite.NormalMap = nil
 	fishSprite.Shader = nil
 	LoadRotatingHighlightOutlineAnimated(fishSprite)
 
 	fishSprite.Scale = 4
 
-	mollyFishSprite := LoadFishSprite(entities.MollyFish, 1)
+	mollyFishSprite, err := LoadFishSprite(entities.MollyFish, 1)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	mollyFishSprite.Shader = nil
 	mollyFishSprite.NormalMap = nil
 

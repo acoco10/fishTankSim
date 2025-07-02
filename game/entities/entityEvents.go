@@ -33,5 +33,5 @@ type FishEvent struct {
 }
 
 type FishLevelUp struct {
-	Fish Creature
+	Fish *Creature
 }

@@ -3,7 +3,6 @@ package entities
 import (
 	"encoding/json"
 	"github.com/acoco10/fishTankWebGame/assets"
-	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"log"
 )
 
@@ -16,9 +15,15 @@ type SavedFish struct {
 	MaxSpeed  float32 `json:"MaxSpeed"`
 }
 
+type TankObject struct {
+	Name string
+	X, Y float32
+}
+
 type SaveGameState struct {
-	Fish  []SavedFish   `json:"State"`
-	Tasks []*tasks.Task `json:"tasks"`
+	Fish        []SavedFish      `json:"State"`
+	Tasks       []map[string]any `json:"tasks"`
+	TankObjects []TankObject
 }
 
 func (gs *SaveGameState) ToJSON() string {

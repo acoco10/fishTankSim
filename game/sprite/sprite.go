@@ -93,7 +93,7 @@ type AnimatedSprite struct {
 	shaderOpts *ebiten.DrawRectShaderOptions
 }
 
-func (s *Sprite) Coord() (x, y float32) {
+func (s *Sprite) Coord() (float32, float32) {
 	return s.X, s.Y
 }
 
@@ -129,7 +129,6 @@ func (as *AnimatedSprite) Update() {
 	}
 
 	drawOpts.GeoM.Translate(float64(as.X), float64(as.Y))
-
 	as.drawOpts = drawOpts
 	as.UpdateShader()
 	as.Animation.Update()

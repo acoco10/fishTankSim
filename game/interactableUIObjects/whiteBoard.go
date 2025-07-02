@@ -172,7 +172,6 @@ func (w *WhiteBoardSprite) DrawText() {
 	for index, txt := range w.textMap {
 		if txt != nil {
 			if index == 0 && !txt.IsFullyDrawn() {
-				log.Printf("DrawingText")
 				//first one draw that shit
 				txt.Draw(w.dstImg.Img)
 				return
@@ -274,7 +273,7 @@ func (w *WhiteBoardSprite) Subscribe(hub *tasks.EventHub) {
 func (w *WhiteBoardSprite) updateTextToBeWritten() {
 
 	if len(w.textToBeWrittenQueue) > 0 {
-		log.Printf("adding tex: %s to queue", w.textToBeWrittenQueue[0])
+		log.Printf("adding text: %s to queue", w.textToBeWrittenQueue[0])
 		w.appendTextToOpenSlot(w.textToBeWrittenQueue[0])
 		w.textToBeWrittenQueue = w.textToBeWrittenQueue[1:]
 	}

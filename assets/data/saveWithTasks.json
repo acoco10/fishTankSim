@@ -1,12 +1,1 @@
-
-{"username": "aidan",
-  "state": [
-    {
-      "Name": "Todd",
-      "FishType": "fish",
-      "NextLevel": 10,
-      "Progress": 0,
-      "Size": 1
-    }
-  ]
-}
+{"State":[{"Name":"dsaf","Size":1,"Progress":0,"NextLevel":10,"FishType":"fish","MaxSpeed":0},{"Name":"","Size":1,"Progress":0,"NextLevel":10,"FishType":"mollyFish","MaxSpeed":0},{"Name":"","Size":3,"Progress":0,"NextLevel":10,"FishType":"mollyFish","MaxSpeed":0}],"tasks":[{"completed":false,"name":"","text":"1. Feed your fish"},{"completed":false,"name":"","text":"2. Click your fish"},{"completed":false,"name":"","text":"3. Feed them until they're full"}],"TankObjects":[{"Name":"Log","X":390,"Y":364}]}

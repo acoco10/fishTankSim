@@ -18,9 +18,10 @@ const (
 )
 
 type Game struct {
-	eventHub   *tasks.EventHub
-	whiteBoard *interactableUIObjects.WhiteBoardSprite2
-	testTask   *tasks.Task
+	eventHub     *tasks.EventHub
+	whiteBoard   *interactableUIObjects.WhiteBoardSprite2
+	testTaskLisr []*tasks.Task
+	taskn        int
 }
 
 func newGame() *Game {
@@ -34,11 +35,19 @@ func newGame() *Game {
 		return ok && ev.DataFor == "statsMenu"
 	}
 
+	gameTask1 := tasks.NewTask(entities.SendData{}, "1. Click your fish", taskCondition2)
+
+	gameTask1.Subscribe(g.eventHub)
+
 	gameTask2 := tasks.NewTask(entities.SendData{}, "2. Click your fish", taskCondition2)
 
 	gameTask2.Subscribe(g.eventHub)
 
-	g.testTask = gameTask2
+	gameTask3 := tasks.NewTask(entities.SendData{}, "3. Click your fish", taskCondition2)
+
+	gameTask3.Subscribe(g.eventHub)
+
+	g.testTaskLisr = append(g.testTaskLisr, gameTask1, gameTask2, gameTask3)
 
 	//shader := shaders
 	//s.shader = outlineShader
@@ -65,8 +74,9 @@ func (g *Game) Update() error {
 	g.whiteBoard.Update()
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
-		g.testTask.Activate()
-		g.testTask.Publish(g.eventHub)
+		g.testTaskLisr[g.taskn].Activate()
+		g.testTaskLisr[g.taskn].Publish(g.eventHub)
+		g.taskn++
 	}
 
 	return nil

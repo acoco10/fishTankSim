@@ -96,7 +96,7 @@ func (r *Rect) Save() error {
 	println(
 		outputSave)
 
-	err = os.WriteFile("../assets/data/collisionPosition.json", outputSave, 999)
+	err = os.WriteFile("assets/data/collisionPosition.json", outputSave, 999)
 	if err != nil {
 		return err
 	}

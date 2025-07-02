@@ -34,7 +34,7 @@ func UpdatePulseWithText(params map[string]any) map[string]any {
 
 func UpdateCounter(params map[string]any) map[string]any {
 	if params["Counter"] == nil {
-		log.Printf("nil counter value inside shader update parameters")
+		//log.Printf("nil counter value inside shader update parameters")
 		return nil
 	}
 
@@ -61,7 +61,7 @@ func UpdateCounter(params map[string]any) map[string]any {
 func UpdateCounterOneShot(params map[string]any) map[string]any {
 
 	if params["Counter"] == nil {
-		log.Printf("nil counter value inside shader update parameters")
+		//log.Printf("nil counter value inside shader update counter one shot parameters")
 		return nil
 	}
 
@@ -73,6 +73,7 @@ func UpdateCounterOneShot(params map[string]any) map[string]any {
 		}
 	} else {
 		log.Printf("No max counter value recieved in one shot time update func: recheck code")
+		return nil
 	}
 
 	counter := params["Counter"].(int)
