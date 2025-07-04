@@ -26,7 +26,7 @@ type TextWithShader struct {
 func NewTextWithMarkerShader(text string, rect image.Rectangle, insets [2]float64, clr ebiten.ColorScale) *TextWithShader {
 	ts := &TextWithShader{}
 	ts.text = text
-	ts.face = registry.FontMap["RockSalt"]
+	ts.face = registry.FontMap["RockSalt_12"]
 
 	ts.insets = insets
 

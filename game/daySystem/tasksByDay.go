@@ -34,7 +34,7 @@ func LoadDay1Tasks(gameLog *sceneManagement.GameLog) {
 		return ok
 	}
 
-	gameTask3 := tasks.NewTask(entities.AllFishFed{}, "3. Feed them until they're\n full", taskCondition3)
+	gameTask3 := tasks.NewTask(entities.AllFishFed{}, "3. Feed them until they're full", taskCondition3)
 	gameTask3.Subscribe(gameLog.GlobalEventHub)
 
 	gameLog.Tasks = append(gameLog.Tasks, gameTask, gameTask2, gameTask3)

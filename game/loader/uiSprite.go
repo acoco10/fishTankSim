@@ -8,6 +8,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/drawables"
 	iObj "github.com/acoco10/fishTankWebGame/game/interactableUIObjects"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
+	"github.com/acoco10/fishTankWebGame/game/system"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
@@ -29,7 +30,7 @@ func loadUiSpritesImgs(label iObj.Label) ([]*ebiten.Image, error) {
 	return imgs, nil
 }
 
-func LoadUISprites(spritesToLoad []iObj.Label, hub *tasks.EventHub, screenWidth, screenHeight int) ([]drawables.Drawable, error) {
+func LoadUISprites(spritesToLoad []iObj.Label, environment *system.Environment, hub *tasks.EventHub, screenWidth, screenHeight int) ([]drawables.Drawable, error) {
 	var sprites []drawables.Drawable
 
 	spritePositions, err := loadSpritePositionData()
@@ -46,7 +47,7 @@ func LoadUISprites(spritesToLoad []iObj.Label, hub *tasks.EventHub, screenWidth,
 			return sprites, err
 		}
 
-		uSprite := iObj.NewUiSprite(imgs, hub, x, y, string(elem), screenWidth, screenHeight)
+		uSprite := iObj.NewUiSprite(environment, imgs, hub, x, y, string(elem), screenWidth, screenHeight)
 
 		iObj.Pubs(hub, *uSprite)
 		switch elem {

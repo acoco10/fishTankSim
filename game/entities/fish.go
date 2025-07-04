@@ -3,6 +3,7 @@ package entities
 import (
 	"github.com/acoco10/fishTankWebGame/game/geometry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
+	"github.com/acoco10/fishTankWebGame/game/system"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -47,6 +48,7 @@ type Creature struct {
 	State          FishState
 	Selected       bool
 	TickClicked    bool
+	Environment    *system.Environment
 	*FishStats
 	*sprite.AnimatedSprite
 	Flip bool

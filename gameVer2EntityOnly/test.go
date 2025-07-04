@@ -31,7 +31,10 @@ type Game struct {
 }
 
 func NewGame() *Game {
-	sprite := loader.LoadFishSprite(entities2.Fish, 1)
+	sprite, err := loader.LoadFishSprite(entities2.Fish, 1)
+	if err != nil {
+		log.Fatal(err)
+	}
 	entities := make([]Entity, 100)
 	for i := range entities {
 		entities[i] = Entity{Sprite: sprite}

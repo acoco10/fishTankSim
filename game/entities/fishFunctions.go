@@ -432,20 +432,21 @@ func GameFishToSaveFish(creature *Creature) SavedFish {
 }
 
 type FishStats struct {
-	name        string
-	Hunger      float32
-	maxHunger   float32
-	maxEnergy   float32
-	energy      float32
-	maxSpeed    float32
-	avgSpeed    float32
-	avgDepth    float32
-	speed       float32
-	Size        int
-	progress    float32
-	nextLevel   float32
-	Personality FishPersonality
-	FishType    FishList
+	name             string
+	Hunger           float32
+	maxHunger        float32
+	maxEnergy        float32
+	energy           float32
+	maxSpeed         float32
+	avgSpeed         float32
+	avgDepth         float32
+	speed            float32
+	Size             int
+	progress         float32
+	nextLevel        float32
+	idealTemperature int
+	Personality      FishPersonality
+	FishType         FishList
 }
 
 func GenFishStats(fType FishList, name string) (*FishStats, error) {
@@ -481,6 +482,7 @@ func GenMollyFishStats() (*FishStats, error) {
 	fs := &FishStats{}
 
 	fs.Size = 1
+	fs.Size = 1
 	fs.maxSpeed = rand.Float32() + 0.7
 	fs.avgSpeed = 1.0
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
@@ -492,6 +494,7 @@ func GenMollyFishStats() (*FishStats, error) {
 	fs.avgDepth = 100
 	fs.progress = 0
 	fs.nextLevel = 10
+	fs.idealTemperature = 75
 
 	persRoll := rand.Intn(10)
 
@@ -507,6 +510,7 @@ func GenMollyFishStats() (*FishStats, error) {
 func GenGoldFishStats() (*FishStats, error) {
 	fs := &FishStats{}
 	fs.Size = 1
+	fs.idealTemperature = 70
 	fs.avgDepth = 0.0
 	fs.avgSpeed = 2.0
 	fs.maxSpeed = rand.Float32() + 0.5
@@ -542,6 +546,7 @@ func GenGuppyFishStats() (*FishStats, error) {
 	fs.Hunger = 4
 	fs.progress = 0
 	fs.nextLevel = 10
+	fs.idealTemperature = 80
 	fs.maxHunger = 10*rand.Float32() + 4
 	persRoll := rand.Intn(10)
 

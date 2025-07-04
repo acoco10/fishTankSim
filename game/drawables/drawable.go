@@ -21,4 +21,5 @@ type Drawable interface {
 	Update()
 	SpriteHovered() bool
 	Coord() (float32, float32)
+	ShouldRemove() bool
 }

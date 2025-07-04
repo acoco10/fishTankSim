@@ -1,9 +1,12 @@
 package interactableUIObjects
 
 import (
+	"fmt"
 	"github.com/acoco10/fishTankWebGame/game/drawables"
 	"github.com/acoco10/fishTankWebGame/game/events"
+	"github.com/acoco10/fishTankWebGame/game/graphics"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
+	"github.com/acoco10/fishTankWebGame/game/system"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -41,11 +44,18 @@ type UiSprite struct {
 	gameMode
 	clicked                   bool
 	Label                     string
+	highlight                 bool
 	screenHeight, screenWidth int
+	graphicPublishedID        int
+	Environment               *system.Environment
 }
 
 func (us *UiSprite) Draw(screen *ebiten.Image) {
 	us.Sprite.Draw(screen)
+}
+
+func (us *UiSprite) Highlighted() bool {
+	return us.highlight
 }
 
 func (us *UiSprite) Update() {
@@ -80,6 +90,11 @@ func (us *UiSprite) UpdateNormal() {
 	us.clicked = false
 
 	us.updateState()
+
+	switch us.Label {
+	case "thermometer":
+		ThermometerUpdater(us)
+	}
 
 	if us.state == HoveredOver && us.stateWas != HoveredOver {
 
@@ -155,6 +170,22 @@ func (us *UiSprite) returnToBase() {
 	us.XYUpdater = nil
 }
 
+func ThermometerUpdater(us *UiSprite) {
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && us.SpriteHovered() {
+		println("thermometer message triggered")
+		msg := fmt.Sprintf("Temperature: %d", us.Environment.Temperature)
+		us.graphicPublishedID = graphics.NewFadeInTextGraphic(msg, float64(us.X), float64(us.Y))
+	}
+
+	if us.state == Idle && us.stateWas == Selected {
+		if us.graphicPublishedID != 99 {
+			graphics.DeInitGraphicId(us.graphicPublishedID)
+			us.graphicPublishedID = 99
+		}
+	}
+
+}
+
 func (us *UiSprite) updateState() {
 	if !us.SpriteHovered() {
 		us.state = Idle
@@ -177,7 +208,7 @@ func (us *UiSprite) updateState() {
 	}
 }
 
-func NewUiSprite(imgs []*ebiten.Image, hub *tasks.EventHub, x, y float32, label string, screenWidth, screenHeight int) *UiSprite {
+func NewUiSprite(environment *system.Environment, imgs []*ebiten.Image, hub *tasks.EventHub, x, y float32, label string, screenWidth, screenHeight int) *UiSprite {
 
 	var paramaMappa = make(map[string]any)
 
@@ -187,6 +218,7 @@ func NewUiSprite(imgs []*ebiten.Image, hub *tasks.EventHub, x, y float32, label 
 	uis.baseY = y
 	uis.Label = label
 	uis.EventHub = hub
+	uis.Environment = environment
 
 	uis.Img = &ebiten.Image{}
 	uis.Img = imgs[0]
@@ -257,7 +289,7 @@ func initClickMeEffect(us *UiSprite) {
 		events.ClickMeGraphicEvent{
 			X: float64(us.X), Y: float64(us.Y), SpriteWidth: float64(us.Img.Bounds().Dx())},
 	)
-
+	us.highlight = true
 	ols := shaders.LoadOutlineShader()
 
 	us.Shader = ols
@@ -267,6 +299,7 @@ func initClickMeEffect(us *UiSprite) {
 }
 
 func turnOffClickMeEffect(us *UiSprite) {
+	us.highlight = false
 	us.Shader = nil
 	ev := events.TurnOffGraphic{X: float64(us.X), Y: float64(us.Y)}
 	us.EventHub.Publish(ev)

@@ -17,10 +17,22 @@ func LoadFontRegistry() {
 	}
 	registry.FontMap["RockSalt"] = face
 
+	face, err = util.LoadFont(12, "rockSalt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	registry.FontMap["RockSalt_12"] = face
+
 	face, err = util.LoadFont(16, "nk57")
 	if err != nil {
 		log.Fatal(err)
 	}
 	registry.FontMap["nk57"] = face
+
+	face, err = util.LoadFont(12, "nk57")
+	if err != nil {
+		log.Fatal(err)
+	}
+	registry.FontMap["nk57_12"] = face
 
 }

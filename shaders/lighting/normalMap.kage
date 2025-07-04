@@ -18,7 +18,7 @@ func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 
 	srcNormal := imageSrc1UnsafeAt(srcPos)
     normal := normalize(vec3(srcNormal.r, 1.0 - srcNormal.g, srcNormal.b) - 0.5)
-	const ambient = 0.5
+	const ambient = 0.9
 	diffuse := 0.75 * max(0.0, dot(normal.xyz, lightdir))
 
 	// You can treat multiple source images by

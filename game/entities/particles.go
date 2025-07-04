@@ -19,12 +19,17 @@ type Particle struct {
 	waterLevel        float32
 	floorLevel        float32
 	underWaterCounter int
+	remove            bool
 	eventHub          *tasks.EventHub
 }
 
 func (p *Particle) SpriteHovered() bool {
 	//TODO implement me
 	panic("implement me")
+}
+
+func (p *Particle) ShouldRemove() bool {
+	return p.remove
 }
 
 func (p *Particle) float() {
@@ -63,6 +68,7 @@ func (p *Particle) Update() {
 	if p.Y < p.floorLevel {
 		p.float()
 	}
+
 }
 
 func (p *Particle) Draw(screen *ebiten.Image) {
@@ -74,15 +80,26 @@ func NewParticle(point *geometry.Point, rect geometry.Rect, hub *tasks.EventHub)
 	println("calling new particle function", n)
 	n++
 	p := Particle{
-		point,
-		0,
-		false,
-		rect.Y1,
-		rect.Y2,
-		0,
-		hub,
+		Point:             point,
+		counter:           0,
+		underWater:        false,
+		waterLevel:        rect.Y1,
+		floorLevel:        rect.Y2,
+		underWaterCounter: 0,
+		eventHub:          hub,
+		remove:            false,
 	}
 	pointEvent := PointGenerated{Point: point, Source: "new particle function"}
 	p.eventHub.Publish(pointEvent)
+	p.subscribe()
 	return &p
+}
+
+func (p *Particle) subscribe() {
+	p.eventHub.Subscribe(CreatureReachedPoint{}, func(e tasks.Event) {
+		ev := e.(CreatureReachedPoint)
+		if ev.Point != nil && p.Point == ev.Point {
+			p.remove = true
+		}
+	})
 }

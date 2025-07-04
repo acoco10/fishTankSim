@@ -20,6 +20,7 @@ type Sprite struct {
 	CPUShaderParams    map[string]any
 	UpdateShaderParams func(map[string]any) map[string]any
 	UpdateBothParams   func(map[string]any, map[string]any) (map[string]any, map[string]any)
+	remove             bool
 }
 
 func (s *Sprite) Update() {
@@ -42,6 +43,10 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 	dOpts.GeoM.Translate(float64(s.X), float64(s.Y))
 	screen.DrawImage(s.Img, dOpts)
 
+}
+
+func (s *Sprite) ShouldRemove() bool {
+	return s.remove
 }
 
 func (s *Sprite) UpdateShader() {
