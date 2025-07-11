@@ -39,6 +39,9 @@ func LoadUISprites(spritesToLoad []iObj.Label, environment *system.Environment, 
 	}
 
 	for _, elem := range spritesToLoad {
+		if spritePositions[string(elem)] == nil {
+			log.Fatal("No position data for sprite door")
+		}
 		x := spritePositions[string(elem)].X
 		y := spritePositions[string(elem)].Y
 
@@ -52,6 +55,7 @@ func LoadUISprites(spritesToLoad []iObj.Label, environment *system.Environment, 
 		iObj.Pubs(hub, *uSprite)
 		switch elem {
 		case iObj.FishFood:
+			uSprite.Draggable = true
 			ffSprite := iObj.FishFoodSprite{UiSprite: uSprite}
 			ffSprite.Subscribe()
 			sprites = append(sprites, &ffSprite)
@@ -70,8 +74,8 @@ func LoadUISprites(spritesToLoad []iObj.Label, environment *system.Environment, 
 			aniMap := LoadPiggyBankAnimationMap(x, y, float32(pbSprite.Img.Bounds().Dy()))
 			pbSprite.AnimationMap = aniMap
 			continue
-		case iObj.Pillow:
-			pillowSprite := iObj.PillowUI{UiSprite: uSprite, Triggered: false}
+		case iObj.Pillow, iObj.Door:
+			pillowSprite := iObj.EventUI{UiSprite: uSprite, Triggered: false}
 			pillowSprite.Subscribe(hub)
 			sprites = append(sprites, &pillowSprite)
 			continue

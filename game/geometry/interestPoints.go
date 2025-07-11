@@ -14,7 +14,7 @@ type Point struct {
 	PType InterestPoint
 }
 
-func (p *Point) Coord() (float32, float32) {
+func (p *Point) PointCoord() (float32, float32) {
 	return p.X, p.Y
 }
 

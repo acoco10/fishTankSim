@@ -17,6 +17,7 @@ type PiggyBankSprite struct {
 }
 
 func (pb *PiggyBankSprite) Update() {
+	UpdateUiSpriteTimers(pb.UiSprite)
 	aniSprite, ok := pb.AnimationMap[pb.triggeredAnimation].(*sprite.AnimatedSprite)
 	if ok {
 		if aniSprite.LastF == aniSprite.Frame() {

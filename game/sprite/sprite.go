@@ -21,6 +21,7 @@ type Sprite struct {
 	UpdateShaderParams func(map[string]any) map[string]any
 	UpdateBothParams   func(map[string]any, map[string]any) (map[string]any, map[string]any)
 	remove             bool
+	highlight          bool
 }
 
 func (s *Sprite) Update() {
@@ -40,7 +41,13 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 	}
 
 	dOpts := &ebiten.DrawImageOptions{}
+
+	if s.Scale != 0.0 {
+		dOpts.GeoM.Scale(s.Scale, s.Scale)
+	}
+
 	dOpts.GeoM.Translate(float64(s.X), float64(s.Y))
+	
 	screen.DrawImage(s.Img, dOpts)
 
 }
@@ -107,6 +114,10 @@ func (s *Sprite) LoadShader(shader *ebiten.Shader) {
 	s.Shader = shader
 }
 
+func (s *Sprite) Highlighted() bool {
+	return s.highlight
+}
+
 func (s *Sprite) UnLoadShader() {
 	s.Shader = nil
 }
@@ -147,7 +158,11 @@ func (as *AnimatedSprite) UpdateSpriteFrameImg() {
 	img := as.Img.SubImage(frameRect).(*ebiten.Image)
 	as.frameImg = img
 }
-
+func (as *AnimatedSprite) GetFirstFrameAsStaticImage() *ebiten.Image {
+	frameRect := as.SpriteSheet.Rect(1)
+	img := as.Img.SubImage(frameRect).(*ebiten.Image)
+	return img
+}
 func (as *AnimatedSprite) Draw(screen *ebiten.Image) {
 	frame := as.Frame()
 	frameRect := as.SpriteSheet.Rect(frame)

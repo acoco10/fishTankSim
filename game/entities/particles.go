@@ -2,6 +2,7 @@ package entities
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/geometry"
+	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
@@ -21,11 +22,7 @@ type Particle struct {
 	underWaterCounter int
 	remove            bool
 	eventHub          *tasks.EventHub
-}
-
-func (p *Particle) SpriteHovered() bool {
-	//TODO implement me
-	panic("implement me")
+	*sprite.Sprite
 }
 
 func (p *Particle) ShouldRemove() bool {
@@ -45,27 +42,27 @@ func (p *Particle) float() {
 	if p.counter%5 == 0 && p.underWater {
 		vx := math.Sin(float64(p.counter)*0.5) * 0.3 * 1
 		noise := rand.Float64()*0.1 - 0.05
-		p.X = p.X + float32(vx+noise)
+		p.Point.X = p.Point.X + float32(vx+noise)
 	}
 
-	p.Y += float32(vy)
-	p.X += dx
+	p.Point.Y += float32(vy)
+	p.Point.X += dx
 
 }
 
 func (p *Particle) Update() {
 	p.counter++
 
-	if !p.underWater && p.Y > p.waterLevel+10 {
+	if !p.underWater && p.Point.Y > p.waterLevel+10 {
 		ev := SendData{Data: "particle entered water",
 			DataFor: "soundFx"}
 		p.eventHub.Publish(ev)
 
 		initialNoise := math.Sin(rand.Float64()*10) * 30
-		p.X += float32(initialNoise)
+		p.Point.X += float32(initialNoise)
 		p.underWater = true
 	}
-	if p.Y < p.floorLevel {
+	if p.Point.Y < p.floorLevel {
 		p.float()
 	}
 
@@ -73,7 +70,7 @@ func (p *Particle) Update() {
 
 func (p *Particle) Draw(screen *ebiten.Image) {
 	clr := color.RGBA{255, 234, 0, 255}
-	vector.DrawFilledCircle(screen, p.X, p.Y, 2, clr, false)
+	vector.DrawFilledCircle(screen, p.Point.X, p.Point.Y, 2, clr, false)
 }
 
 func NewParticle(point *geometry.Point, rect geometry.Rect, hub *tasks.EventHub) *Particle {
@@ -88,7 +85,9 @@ func NewParticle(point *geometry.Point, rect geometry.Rect, hub *tasks.EventHub)
 		underWaterCounter: 0,
 		eventHub:          hub,
 		remove:            false,
+		Sprite:            &sprite.Sprite{},
 	}
+
 	pointEvent := PointGenerated{Point: point, Source: "new particle function"}
 	p.eventHub.Publish(pointEvent)
 	p.subscribe()

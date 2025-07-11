@@ -17,11 +17,18 @@ type GameLog struct {
 	SoundPlayer    *soundFX.SoundPlayer
 	Day            int
 	Tasks          []*tasks.Task
+	DayType        DayType
 }
+type DayType uint8
+
+const (
+	Free DayType = iota
+	Chores
+	Camp
+)
 
 func NewGameLog(state entities.SaveGameState) *GameLog {
 	g := GameLog{}
-	g.Save = &entities.SaveGameState{}
 	g.Save = &state
 	eHub := tasks.NewEventHub()
 	g.GlobalEventHub = eHub
@@ -50,6 +57,7 @@ const (
 	FishTank SceneId = iota
 	StartScene
 	TransitionScene
+	MowingMiniGameScene
 )
 
 type GameMode uint
@@ -61,8 +69,8 @@ const (
 type Scene interface {
 	Update() (SceneId, error)
 	Draw(screen *ebiten.Image)
-	FirstLoad(gameLog *GameLog)
-	OnEnter(gameLog *GameLog)
+	FirstLoad()
+	OnEnter()
 	OnExit()
 	IsLoaded() bool
 }

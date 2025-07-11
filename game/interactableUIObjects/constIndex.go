@@ -12,4 +12,5 @@ const (
 	Magazine    Label = "magazine"
 	Pillow      Label = "pillow"
 	Thermometer Label = "thermometer"
+	Door        Label = "door"
 )

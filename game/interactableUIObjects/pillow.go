@@ -7,12 +7,12 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
-type PillowUI struct {
+type EventUI struct {
 	*UiSprite
 	Triggered bool
 }
 
-func (p *PillowUI) Update() {
+func (p *EventUI) Update() {
 
 	if p.SpriteHovered() {
 		//shader := shaders.LoadOutlineShader()
@@ -25,7 +25,7 @@ func (p *PillowUI) Update() {
 	}
 
 	if p.Triggered && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && p.SpriteHovered() {
-		p.EventHub.Publish(events.UISpriteAction{UiSprite: "pillow", UiSpriteAction: "clicked"})
+		p.EventHub.Publish(events.UISpriteAction{UiSprite: p.Label, UiSpriteAction: "clicked"})
 		turnOffClickMeEffect(p.UiSprite)
 	}
 
@@ -33,17 +33,29 @@ func (p *PillowUI) Update() {
 
 }
 
-func (p *PillowUI) Draw(screen *ebiten.Image) {
+func (p *EventUI) Draw(screen *ebiten.Image) {
 	if p.Triggered == true {
 		p.Sprite.Draw(screen)
 	}
 }
 
-func (p *PillowUI) Subscribe(hub *tasks.EventHub) {
-	hub.Subscribe(tasks.AllTasksCompleted{}, func(e tasks.Event) {
-		initClickMeEffect(p.UiSprite)
-		p.Triggered = true
-	})
+func (p *EventUI) Subscribe(hub *tasks.EventHub) {
+	if p.Label == "pillow" {
+		hub.Subscribe(tasks.AllTasksCompleted{}, func(e tasks.Event) {
+			initClickMeEffect(p.UiSprite)
+			p.Triggered = true
+		})
+	}
+
+	if p.Label == "door" {
+		hub.Subscribe(events.NewDay{}, func(e tasks.Event) {
+			ev := e.(events.NewDay)
+			if ev.Type == "Chores" {
+				initClickMeEffect(p.UiSprite)
+				p.Triggered = true
+			}
+		})
+	}
 
 	hub.Subscribe(events.DayOver{}, func(e tasks.Event) {
 		p.Triggered = false

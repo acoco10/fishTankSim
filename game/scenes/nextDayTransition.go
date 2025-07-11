@@ -23,6 +23,7 @@ type TransitionScene struct {
 
 func LoadTransitionScene(gameLog *sceneManagement.GameLog) *TransitionScene {
 	s := TransitionScene{}
+	s.gameLog = gameLog
 	s.dots = 1
 	s.loadingMsg = "Next Day Loading"
 	return &s
@@ -61,20 +62,19 @@ func (s *TransitionScene) Draw(screen *ebiten.Image) {
 	text.Draw(screen, s.loadingMsg, face, dopts)
 }
 
-func (s *TransitionScene) FirstLoad(gameLog *sceneManagement.GameLog) {
-
-}
-
-func (s *TransitionScene) OnEnter(gameLog *sceneManagement.GameLog) {
+func (s *TransitionScene) FirstLoad() {
+	s.isLoaded = true
 	s.dotTimer = entities.NewTimer(0.5)
 	s.nextSceneTrigger = entities.NewTimer(2)
+}
+
+func (s *TransitionScene) OnEnter() {
 
 	s.nextSceneTrigger.TurnOn()
 	s.dotTimer.TurnOn()
 
-	s.gameLog = gameLog
-	daySystem.LoadDaysTasks(gameLog)
-	s.isLoaded = true
+	daySystem.LoadDaysTasks(s.gameLog)
+
 }
 
 func (s *TransitionScene) OnExit() {

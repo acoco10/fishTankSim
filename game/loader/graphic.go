@@ -5,9 +5,9 @@ import (
 	sprite "github.com/acoco10/fishTankWebGame/game/sprite"
 )
 
-func LoadClothGraphic() (*graphics.SpriteGraphic, error) {
-	origin := [2]float32{721, 250}
-	mx := [2]float32{800, 300}
+func LoadClothGraphic(origin [2]float32) (*graphics.SpriteGraphic, error) {
+	mx := [2]float32{origin[0] + 100, origin[1] + 100}
+
 	direction := "right"
 
 	img, err := LoadImageAssetAsEbitenImage("menuAssets/cloth")

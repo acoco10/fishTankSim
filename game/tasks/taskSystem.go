@@ -16,6 +16,7 @@ type Task struct {
 	Condition     EventCondition
 	EventType     Event
 	activated     bool
+	UIEffect      Event
 }
 
 func NewTask(EventType Event, text string, condition EventCondition) *Task {
@@ -32,11 +33,16 @@ func NewTask(EventType Event, text string, condition EventCondition) *Task {
 }
 
 func (t *Task) PublishIfCompleted(hub *EventHub) {
-	if t.CurrentCount >= t.CountRequired {
-		ev := TaskRequirementsCompleted{
-			Task: *t,
+	if t.activated {
+		if t.CurrentCount >= t.CountRequired {
+			ev := TaskRequirementsCompleted{
+				Task: *t,
+			}
+			hub.Publish(ev)
+			if t.UIEffect != nil {
+				hub.Publish(t.UIEffect)
+			}
 		}
-		hub.Publish(ev)
 	}
 }
 
@@ -44,10 +50,19 @@ func (t *Task) Publish(hub *EventHub) {
 	ev := TaskCreated{
 		Task: t,
 	}
+
 	hub.Publish(ev)
+
+	if t.UIEffect != nil {
+		hub.Publish(t.UIEffect)
+	}
+
 }
-func (t *Task) Activate() {
+func (t *Task) Activate(eventHub *EventHub) {
+	println("publishing task:", t.Text)
 	t.activated = true
+	t.Subscribe(eventHub)
+	t.Publish(eventHub)
 }
 
 func (t *Task) Activated() bool {
@@ -56,11 +71,9 @@ func (t *Task) Activated() bool {
 
 func (t *Task) Subscribe(hub *EventHub) {
 	hub.Subscribe(t.EventType, func(e Event) {
-		if t.activated {
-			if t.Condition == nil || t.Condition(e) && t.CurrentCount < t.CountRequired {
-				t.CurrentCount++
-				t.PublishIfCompleted(hub)
-			}
+		if t.Condition == nil || t.Condition(e) && t.CurrentCount < t.CountRequired {
+			t.CurrentCount++
+			t.PublishIfCompleted(hub)
 		}
 	})
 

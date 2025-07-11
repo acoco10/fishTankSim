@@ -4,9 +4,9 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/geometry"
 	"github.com/acoco10/fishTankWebGame/game/input"
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
-	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"image"
@@ -47,8 +47,8 @@ func (ff *FishFoodSprite) Update() {
 	ff.updateState()
 
 	if ff.state == HoveredOver && ff.stateWas != HoveredOver {
-		ols := shaders.LoadOutlineShader()
-		ff.Shader = ols
+
+		ff.Shader = registry.ShaderMap["Outline"]
 		ff.ShaderParams = make(map[string]any)
 		ff.ShaderParams["OutlineColor"] = [4]float64{1, 1, 0, 1}
 
@@ -61,6 +61,7 @@ func (ff *FishFoodSprite) Update() {
 	if ff.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && ff.state == Selected {
 
 		if ff.XYUpdater == nil {
+			ff.highlight = true
 			ev := events.UISpriteAction{}
 			ev.UiSprite = ff.Label
 			ev.UiSpriteAction = "picked up"
@@ -85,12 +86,6 @@ func (ff *FishFoodSprite) Update() {
 	}
 
 	baseDis := math.Hypot(float64(ff.X-ff.baseX), float64(ff.Y-ff.baseY))
-
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		if ff.state == Selected && baseDis < 100 && ff.stateWas == Selected {
-			ff.returnToBase()
-		}
-	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyE) {
 		if baseDis != 0 {

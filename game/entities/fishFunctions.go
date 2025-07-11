@@ -38,6 +38,16 @@ func CreatureEventSubscriptions(c *Creature) {
 		c.CheckAndLevelUp()
 	})
 
+	c.EventHub.Subscribe(events.NewDay{}, func(e tasks.Event) {
+		if math.Abs(float64(c.Environment.Temperature-c.idealTemperature)) > 10 {
+			c.Happiness -= 1
+			c.Stress += 2
+		}
+	})
+}
+
+func (c *Creature) Highlighted() bool {
+	return c.Selected
 }
 
 func (c *Creature) ownPointReached(ev CreatureReachedPoint) {
@@ -64,8 +74,8 @@ func (c *Creature) ownPointReached(ev CreatureReachedPoint) {
 
 	default:
 		println("reached own point, setting random speed and random next target")
-
-		if c.energy == 0 {
+		restCheck := rand.Intn(2)
+		if c.energy == 0 || restCheck > 1 {
 			c.State = Resting
 		}
 		//newTarg := c.RandomTarget()
@@ -162,8 +172,8 @@ func (c *Creature) sortPoints() {
 
 	sort.Slice(c.PointQueue, func(i, j int) bool {
 
-		xI, yI := c.PointQueue[i].Coord()
-		xJ, yJ := c.PointQueue[j].Coord()
+		xI, yI := c.PointQueue[i].PointCoord()
+		xJ, yJ := c.PointQueue[j].PointCoord()
 
 		distI := math.Hypot(float64(c.X-xI), float64(c.Y-yI))
 		distJ := math.Hypot(float64(c.X-xJ), float64(c.Y-yJ))
@@ -240,12 +250,23 @@ func randomBool() bool {
 }
 
 func (c *Creature) RandomTarget() *geometry.Point {
-	randomTargetX := max(c.TankBoundaries.X1+float32(c.SpriteWidth), rand.Float32()*c.TankBoundaries.X2-float32(c.SpriteWidth))
+	nextX := c.X + float32(rand.NormFloat64())*c.TankBoundaries.X2/4
+	randomTargetX := max(c.TankBoundaries.X1+float32(c.SpriteWidth), nextX)
+
+	if randomTargetX > c.TankBoundaries.X2-float32(c.SpriteWidth) {
+		randomTargetX = c.TankBoundaries.X2 - float32(c.SpriteWidth)
+	}
 
 	//normally distributed y based on avg depth stat
 	//standard dev = entire tank?
-	sample := float32(rand.NormFloat64())*50 + c.TankBoundaries.Y2 - c.avgDepth - 100
+	// lowest point (highest y) - (a randomly, normally distributed number * std dev(50) +
+	//then we subtract the mean depth of our species and the height since were dealing with a left corner of sprite)
+	offsetFromBottom := float32(rand.NormFloat64())*20 + c.avgDepth + float32(c.SpriteHeight)
+	println("fish offset =", offsetFromBottom)
+	sample := c.TankBoundaries.Y2 - offsetFromBottom
+	//clamp below highest possible point
 	randomTargetY := max(c.TankBoundaries.Y1+float32(c.SpriteHeight), sample)
+	randomTargetY = min(c.TankBoundaries.Y2-float32(c.SpriteHeight), randomTargetY)
 
 	targetX := randomTargetX
 	targetY := randomTargetY
@@ -398,18 +419,19 @@ func (c *Creature) publishStats(sendTo string) {
 	}
 
 	if len(c.PointQueue) > 0 {
-		targetPoint = fmt.Sprintf("Target Point: %f, %f", c.PointQueue[0].X, c.PointQueue[0].Y)
+		targetPoint = fmt.Sprintf("Target Point: %d, %d", int(c.PointQueue[0].X), int(c.PointQueue[0].Y))
 	}
 
 	nameString := fmt.Sprintf("Name: %s\n", c.name)
-	hungerString := fmt.Sprintf("Hunger : %f/%f\n", c.Hunger, c.maxHunger)
-	energyString := fmt.Sprintf("Energy : %f/%f\n", c.energy, c.maxEnergy)
+	hungerString := fmt.Sprintf("Hunger : %d/%d\n", int(c.Hunger), int(c.maxHunger))
+	energyString := fmt.Sprintf("Energy : %d/%d\n", int(c.energy), int(c.maxEnergy))
 	SizeString := fmt.Sprintf("Size : %d\n", c.Size)
-	experienceString := fmt.Sprintf("Growth : %f/%f\n", c.progress, c.nextLevel)
+	experienceString := fmt.Sprintf("Growth : %d/%d\n", int(c.progress), int(c.nextLevel))
 	stateString := fmt.Sprintf("State: %s\n", state)
-	speedString := fmt.Sprintf("Speed: %f/%f\n", c.speed, c.maxSpeed)
+	speedString := fmt.Sprintf("Speed: %d/%d\n", int(c.speed), int(c.maxSpeed))
+	stressString := fmt.Sprintf("Stress: %d\n", int(c.Stress))
 
-	ev.Data = nameString + stateString + SizeString + hungerString + energyString + experienceString + speedString
+	ev.Data = nameString + stateString + SizeString + hungerString + energyString + experienceString + speedString + stressString
 
 	if targetPoint != "" {
 		ev.Data += targetPoint
@@ -433,6 +455,8 @@ func GameFishToSaveFish(creature *Creature) SavedFish {
 
 type FishStats struct {
 	name             string
+	Stress           float32
+	Happiness        float32
 	Hunger           float32
 	maxHunger        float32
 	maxEnergy        float32
@@ -511,7 +535,7 @@ func GenGoldFishStats() (*FishStats, error) {
 	fs := &FishStats{}
 	fs.Size = 1
 	fs.idealTemperature = 70
-	fs.avgDepth = 0.0
+	fs.avgDepth = 40.0
 	fs.avgSpeed = 2.0
 	fs.maxSpeed = rand.Float32() + 0.5
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3

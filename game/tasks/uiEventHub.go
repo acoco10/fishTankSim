@@ -26,6 +26,7 @@ func (h *EventHub) Subscribe(eventType Event, handler Handler) {
 }
 
 func (h *EventHub) Publish(event Event) {
+	fmt.Printf("Publishg: %T\n", event)
 	t := reflect.TypeOf(event).String()
 	for _, handler := range h.subscribers[t] {
 		handler(event)

@@ -16,12 +16,19 @@ type State uint8
 
 const (
 	Moveable State = iota
+	SettingInPlace
 	SetInPlace
 )
 
 type Prop interface {
 	Draw(screen *ebiten.Image)
 	Update()
+}
+
+type PropQueue struct {
+	ActiveProp  *StructureProp
+	DrawProps   []*StructureProp
+	QueuedProps []*StructureProp
 }
 
 type StructureProp struct {
@@ -32,6 +39,10 @@ type StructureProp struct {
 	boundaries   image.Rectangle
 	StaticShadow bool
 	baseY        float32
+}
+
+func (p *StructureProp) State() State {
+	return p.state
 }
 
 func NewStructureProp(x float32, y float32, img *ebiten.Image, normal *ebiten.Image, hub *tasks.EventHub) *StructureProp {
@@ -57,8 +68,9 @@ func NewStructureProp(x float32, y float32, img *ebiten.Image, normal *ebiten.Im
 }
 
 func (p *StructureProp) Draw(screen *ebiten.Image) {
+
 	baseOffset := float32(10.0)
-	if p.state == SetInPlace && p.Y >= float32(p.boundaries.Max.Y-p.Img.Bounds().Dy())-30 && p.StaticShadow {
+	if p.state == SetInPlace {
 		//static shadow
 		vector.StrokeRect(screen, p.X+20, p.Y+float32(p.Img.Bounds().Dy())-6, float32(p.Img.Bounds().Dx())-60, 2, 4, color.RGBA{0, 0, 0, 100}, false)
 	}
@@ -72,7 +84,7 @@ func (p *StructureProp) Draw(screen *ebiten.Image) {
 		vector.StrokeRect(screen, x, y, width, height, 4, color.RGBA{0, 0, 0, 100}, false)
 	}
 
-	if p.state == SetInPlace && p.Y < float32(p.boundaries.Max.Y-p.Img.Bounds().Dy())-35 {
+	if p.state == SettingInPlace {
 
 		dist := float32(p.boundaries.Max.Y-p.Img.Bounds().Dy()) - p.Y
 		//fishtank base - image height = base comparable to image y
@@ -111,16 +123,15 @@ func (p *StructureProp) Update() {
 		}
 
 		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-			p.state = SetInPlace
+			p.state = SettingInPlace
 		}
 	}
-	if p.state == SetInPlace && p.Y < float32(p.boundaries.Max.Y-p.Img.Bounds().Dy())-27 {
+	if p.state == SettingInPlace {
 		p.Sprite.UnLoadShader()
 		p.Y++
 	}
-
-	if p.state == SetInPlace && p.SpriteHovered() && ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && p.stateWas == SetInPlace {
-
+	if p.Y >= float32(p.boundaries.Max.Y-p.Img.Bounds().Dy())-35 {
+		p.state = SetInPlace
 	}
 
 	p.stateWas = p.state
@@ -142,4 +153,31 @@ func GamePropToSaveProp(prop *StructureProp, name string) entities.TankObject {
 	save.Y = prop.Y
 	save.Name = name
 	return save
+}
+
+func UpdateProps(queue *PropQueue) {
+
+	if queue.ActiveProp == nil {
+		return
+	}
+
+	queue.ActiveProp.Update()
+
+	if len(queue.DrawProps) == 0 {
+		queue.DrawProps = append(queue.DrawProps, queue.ActiveProp)
+	}
+
+	if queue.ActiveProp.state == SetInPlace {
+		if len(queue.QueuedProps) > 0 {
+			queue.ActiveProp = queue.QueuedProps[0]
+			queue.QueuedProps = queue.QueuedProps[1:]
+			queue.DrawProps = append(queue.DrawProps, queue.ActiveProp)
+		}
+	}
+}
+
+func DrawProps(queue *PropQueue, screen *ebiten.Image) {
+	for _, prop := range queue.DrawProps {
+		prop.Draw(screen)
+	}
 }

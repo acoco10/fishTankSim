@@ -18,13 +18,15 @@ import (
 )
 
 type StartScene struct {
-	ui               *ui.StartMenu
-	isLoaded         bool
-	fishOptions      []*sprite.AnimatedSprite
-	nextSceneTrigger *entities.Timer
-	gameLog          *sceneManagement.GameLog
-	selectedFish     entities.SavedFish
-	selectedProp     entities.TankObject
+	ui                 *ui.StartMenu
+	smallerResoloution *ebiten.Image
+	isLoaded           bool
+	fishOptions        []*sprite.AnimatedSprite
+	nextSceneTrigger   *entities.Timer
+	gameLog            *sceneManagement.GameLog
+	selectedFish       entities.SavedFish
+	smallerResolution  *ebiten.Image
+	selectedProp       entities.TankObject
 }
 
 func NewStartScene(gameLog *sceneManagement.GameLog) *StartScene {
@@ -40,6 +42,8 @@ func NewStartScene(gameLog *sceneManagement.GameLog) *StartScene {
 	s.subs(gameLog)
 	timer := entities.NewTimer(1)
 	s.nextSceneTrigger = timer
+	s.smallerResolution = ebiten.NewImage(1000, 1000)
+
 	return &s
 }
 
@@ -66,26 +70,23 @@ func (s *StartScene) Update() (sceneManagement.SceneId, error) {
 }
 
 func (s *StartScene) Draw(screen *ebiten.Image) {
-	screen.Fill(color.RGBA{R: 120, G: 170, B: 210, A: 255})
+	s.smallerResolution.Fill(color.RGBA{R: 120, G: 170, B: 210, A: 255})
 	opts := &ebiten.DrawImageOptions{}
-	sopts := &ebiten.DrawRectShaderOptions{}
-
-	s.ui.Draw(screen)
 
 	for _, fish := range s.ui.SelectSpritesToDraw {
 		fish.Draw(screen)
-		opts.GeoM.Reset()
-		sopts.GeoM.Reset()
 	}
+	screen.DrawImage(s.smallerResolution, opts)
+	s.ui.Draw(screen)
 
 }
 
-func (s *StartScene) FirstLoad(gameLog *sceneManagement.GameLog) {
+func (s *StartScene) FirstLoad() {
 	s.isLoaded = true
 	s.gameLog.SongPlayer.Play(soundFX.BestAdventureEver)
 }
 
-func (s *StartScene) OnEnter(gameLog *sceneManagement.GameLog) {
+func (s *StartScene) OnEnter() {
 
 }
 
@@ -129,6 +130,7 @@ func (s *StartScene) subs(gameLog *sceneManagement.GameLog) {
 			s.selectedFish = saveFish
 
 		case "Castle", "Log":
+			gameLog.SoundPlayer.Play(soundFX.SelectSound2)
 			prop := entities.TankObject{Name: ev.ButtonText}
 			s.selectedProp = prop
 

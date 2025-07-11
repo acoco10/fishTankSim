@@ -36,10 +36,10 @@ import (
 
 type FishScene struct {
 	backGroundParams  map[string]any
-	propMap           map[string]*props.StructureProp
+	propQueue         *props.PropQueue
 	loaded            bool
 	tankSize          image.Rectangle
-	sprites           map[int][]drawables.Drawable
+	sprites           [4][]drawables.Drawable
 	ui                *ebitenui.UI
 	gameLog           *sceneManagement.GameLog
 	timers            map[string]*entities.Timer
@@ -54,6 +54,8 @@ type FishScene struct {
 	images            *loader.BackGroundImages
 	mouseFlags        *input.MouseFlags
 	debug             *debug.DebugData
+	state             *FishSceneState
+	currentTask       int
 }
 
 var backGroundImgShelfHeight = 248
@@ -110,9 +112,6 @@ func NewFishScene(gameLog *sceneManagement.GameLog) *FishScene {
 
 	tankRect := image.Rect(startingX, startingY, tankX+startingX, tankY+startingY)
 	g.tankSize = tankRect
-
-	g.loaded = true
-
 	store := system.NewStore(g.gameLog.GlobalEventHub)
 	g.store = &store
 
@@ -136,84 +135,67 @@ func NewFishScene(gameLog *sceneManagement.GameLog) *FishScene {
 		interactableUIObjects.Pillow,
 		interactableUIObjects.Thermometer,
 		interactableUIObjects.Magazine,
+		interactableUIObjects.Door,
 	}
 
-	g.sprites = make(map[int][]drawables.Drawable)
+	g.sprites = [4][]drawables.Drawable{}
 
 	uiSprites, err := loader.LoadUISprites(fishSceneUISprites, g.environment, gameLog.GlobalEventHub, ScreenWidth, ScreenHeight)
-	g.sprites[0] = uiSprites
+	g.sprites[0] = append(g.sprites[0], uiSprites...)
+
+	g.state = &FishSceneState{}
 
 	return g
 }
 
 func LoadPurchasedSprite(environment *system.Environment, inputName string, hub *tasks.EventHub, tankSize geometry.Rect) *entities.Creature {
-
 	fData := entities.SavedFish{
 		FishType: inputName,
 		Size:     1,
 	}
-
 	creature := loader.NewFish(environment, hub, tankSize, fData)
-
 	return creature
 }
 
 func (g *FishScene) LoadStuff() {
-	propMap := loader.LoadProps(g.gameLog.Save.TankObjects, g.tankSize, g.gameLog.GlobalEventHub)
-	g.propMap = propMap
+	propq := loader.LoadProps(g.gameLog.Save.TankObjects, g.tankSize, g.gameLog.GlobalEventHub)
+	g.propQueue = propq
 
 	g.playerState = &entities.Player{Money: 10, EventHub: g.gameLog.GlobalEventHub}
 	g.playerState.Subscribe()
 
 	loaderMan := loader.Manager{Hub: g.gameLog.GlobalEventHub}
 	loaderMan.Subscriptions()
-
 }
 
-func (g *FishScene) DrawProps(screen *ebiten.Image) {
-	for _, prop := range g.propMap {
-		prop.Draw(screen)
-	}
-}
-
-func (g *FishScene) UpdateProps() {
-	for _, prop := range g.propMap {
-		prop.Update()
-	}
-}
-
-func (g *FishScene) FirstLoad(gameLog *sceneManagement.GameLog) {
-}
-
-func (g *FishScene) OnExit() {
-}
-
-func (g *FishScene) OnEnter(gameLog *sceneManagement.GameLog) {
-	g.mouseFlags = &input.MouseFlags{HandledClick: false, CursorOccupied: false}
-	g.backGroundParams["Cursor"] = []float64{440, 200}
-	collisionMap, err := geometry.LoadCollisions()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	g.gameLog = gameLog
-
+func (g *FishScene) FirstLoad() {
+	log.Println("----fishScene.firstLoad() entered----")
 	if g.gameLog.Day == 1 {
 		println("length of game log save =", len(g.gameLog.Save.Fish))
 		fishes := g.gameLog.Save
 
 		for _, fish := range fishes.Fish {
-			loadedFish := loader.NewFish(g.environment, gameLog.GlobalEventHub, collisionMap["tank"], fish)
+			loadedFish := loader.NewFish(g.environment, g.gameLog.GlobalEventHub, g.collisionMap["tank"], fish)
 			g.sprites[0] = append(g.sprites[0], loadedFish)
 		}
-		g.LoadStuff()
 	}
+	g.LoadStuff()
+	g.loaded = true
 
 	ev2 := events.FishTankLayout{
 		Rectangle: g.tankSize,
 	}
 
 	g.gameLog.GlobalEventHub.Publish(ev2)
+	log.Println("----fishScene.firstLoad() finished----")
+
+}
+
+func (g *FishScene) OnEnter() {
+	log.Println("----FishScene OnEnter() called----")
+
+	g.mouseFlags = &input.MouseFlags{HandledClick: false, CursorOccupied: false}
+	g.backGroundParams["Cursor"] = []float64{440, 200}
 
 	//No music on the base level as of now
 	//g.timers["songTimer"].TurnOn()
@@ -221,16 +203,27 @@ func (g *FishScene) OnEnter(gameLog *sceneManagement.GameLog) {
 	g.gameLog.GlobalEventHub.Publish(events.MoneyAvailable{Amount: 1})
 	g.returnScene = sceneManagement.FishTank
 
-	/*tutMngr := tutorial.Manager{}
-	tutorial.InitData(&tutMngr, gameLog.GlobalEventHub)
-	g.tutorialManager = &tutMngr*/
+	tutMngr := tutorial.Manager{}
+	tutorial.InitData(&tutMngr, g.gameLog.GlobalEventHub)
+	g.tutorialManager = &tutMngr
 
-	ev := events.NewDay{NTasks: len(g.gameLog.Tasks)}
-	g.gameLog.GlobalEventHub.Publish(ev)
+	if g.gameLog.Day != g.state.lastDayEntered {
+		ev := events.NewDay{NTasks: len(g.gameLog.Tasks)}
+		switch g.gameLog.DayType {
+		case sceneManagement.Chores:
+			ev.Type = "Chores"
+		case sceneManagement.Free:
+			ev.Type = "Free"
+		}
+		g.gameLog.GlobalEventHub.Publish(ev)
+		g.state.lastDayEntered = g.gameLog.Day
+		g.gameLog.Tasks[0].Activate(g.gameLog.GlobalEventHub)
+	}
+	log.Println("----FishScene OnEnter() finished----")
+}
 
-	g.gameLog.Tasks[0].Activate()
-	g.gameLog.Tasks[0].Publish(g.gameLog.GlobalEventHub)
-
+func (g *FishScene) OnExit() {
+	log.Println("----FishScene Exit----")
 }
 
 func (g *FishScene) LoadTimers() {
@@ -240,6 +233,7 @@ func (g *FishScene) LoadTimers() {
 	g.timers["pointGeneratedTimer"].TurnOn()
 	g.timers["songTimer"] = entities.NewTimer(15)
 	g.timers["sceneTransition"] = entities.NewTimer(2.5)
+	g.timers["publishNewTask"] = entities.NewTimer(0.2)
 
 }
 
@@ -251,7 +245,9 @@ func (g *FishScene) Update() (sceneManagement.SceneId, error) {
 
 	g.mouseFlags.HandledClick = false
 
-	g.UpdateProps()
+	props.UpdateProps(g.propQueue)
+
+	g.tutorialManager.Update()
 
 	g.gameLog.SoundPlayer.Update()
 
@@ -259,37 +255,25 @@ func (g *FishScene) Update() (sceneManagement.SceneId, error) {
 		sprite.Update()
 	}
 
-	// Phase 2: Remove dead sprites
 	for i := len(g.sprites[0]) - 1; i >= 0; i-- {
 		if g.sprites[0][i].ShouldRemove() {
 			g.sprites[0] = append(g.sprites[0][:i], g.sprites[0][i+1:]...)
 		}
 	}
 
-	for i, sprite := range g.sprites[0] {
-		uis, ok := sprite.(*interactableUIObjects.PiggyBankSprite)
-		if ok {
-			if uis.Highlighted() {
-				log.Printf("Adding highlighted ui sprite to higher draw layer")
-				g.sprites[1] = append(g.sprites[1], uis)
-				g.sprites[0] = append(g.sprites[0][:i], g.sprites[0][i+1:]...)
-			}
-		}
-
-		uis2, ok := sprite.(*interactableUIObjects.WhiteBoardSprite)
-		if ok {
-			g.sprites[1] = append(g.sprites[1], uis2)
+	// Fix: iterate backwards when moving from sprites[0] to sprites[1]
+	for i := len(g.sprites[0]) - 1; i >= 0; i-- {
+		if g.sprites[0][i].Highlighted() {
+			g.sprites[1] = append(g.sprites[1], g.sprites[0][i])
 			g.sprites[0] = append(g.sprites[0][:i], g.sprites[0][i+1:]...)
 		}
 	}
 
-	for i, sprite := range g.sprites[1] {
-		uis, ok := sprite.(*interactableUIObjects.PiggyBankSprite)
-		if ok {
-			if !uis.Highlighted() {
-				g.sprites[0] = append(g.sprites[0], uis)
-				g.sprites[1] = append(g.sprites[1][:i], g.sprites[1][i+1:]...)
-			}
+	// Fix: iterate backwards when moving from sprites[1] to sprites[0]
+	for i := len(g.sprites[1]) - 1; i >= 0; i-- {
+		if !g.sprites[1][i].Highlighted() {
+			g.sprites[0] = append(g.sprites[0], g.sprites[1][i])
+			g.sprites[1] = append(g.sprites[1][:i], g.sprites[1][i+1:]...)
 		}
 	}
 
@@ -312,7 +296,7 @@ func (g *FishScene) Update() (sceneManagement.SceneId, error) {
 
 	g.updateInput()
 
-	//g.tutorialManager.Update()
+	//g.tutorialManager.CharUpdate()
 
 	if g.debug.GameMode == debug.Debug {
 		if g.debug.DebugParameter[debug.Position] {
@@ -346,7 +330,7 @@ func (g *FishScene) DrawOffScreen() {
 
 	g.images.OffScreen.DrawRectShader(b.Dx(), b.Dy(), registry.ShaderMap["NormalMap"], shaderOpts)
 
-	g.DrawProps(g.images.OffScreen)
+	props.DrawProps(g.propQueue, g.images.OffScreen)
 
 	for _, s := range g.sprites[0] {
 		s.Draw(g.images.OffScreen)
@@ -434,6 +418,16 @@ func (g *FishScene) updateTimers() {
 			g.returnScene = sceneManagement.TransitionScene
 			g.gameLog.GlobalEventHub.Publish(events.DayOverTransitionComplete{})
 		}
+
+		if key == "publishNewTask" && state == entities.Done {
+			if len(g.gameLog.Tasks) > g.currentTask {
+				timer.TurnOff()
+				g.gameLog.Tasks[g.currentTask].Activate(g.gameLog.GlobalEventHub)
+			} else {
+				timer.TurnOff()
+				g.currentTask = 0
+			}
+		}
 	}
 }
 
@@ -447,26 +441,27 @@ func (g *FishScene) updateInput() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		g.gameLog.GlobalEventHub.Publish(events.CloseWindow{})
 	}
-
 }
 
 func (g *FishScene) checkForFishSelected() {
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		x, y := ebiten.CursorPosition()
-		xCheck := x > g.tankSize.Min.X && x < g.tankSize.Max.X
-		yCheck := y > g.tankSize.Min.Y && y < g.tankSize.Max.Y
+	if g.currentTask > 0 || g.gameLog.Day > 1 {
+		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+			x, y := ebiten.CursorPosition()
+			xCheck := x > g.tankSize.Min.X && x < g.tankSize.Max.X
+			yCheck := y > g.tankSize.Min.Y && y < g.tankSize.Max.Y
 
-		if xCheck && yCheck {
-			filterFunc := func(distance any) bool {
-				return distance.(float64) < 50
-			}
-			cursorX, cursorY := ebiten.CursorPosition()
-			closestCreature := util.ClosestDrawableToCursor(cursorX, cursorY, g.sprites[0], filterFunc, "*entities.Creature")
+			if xCheck && yCheck {
+				filterFunc := func(distance any) bool {
+					return distance.(float64) < 50
+				}
+				cursorX, cursorY := ebiten.CursorPosition()
+				closestCreature := util.ClosestDrawableToCursor(cursorX, cursorY, g.sprites[0], filterFunc, "*entities.Creature")
 
-			if closestCreature != nil {
-				cre, ok := closestCreature.(*entities.Creature)
-				if ok {
-					SelectCreature(cre)
+				if closestCreature != nil {
+					cre, ok := closestCreature.(*entities.Creature)
+					if ok {
+						SelectCreature(cre)
+					}
 				}
 			}
 		}
@@ -511,7 +506,6 @@ func (g *FishScene) debugInputCheck() {
 }
 
 func SelectCreature(creature *entities.Creature) {
-	println("selecting creature")
 	creature.Selected = true
 	creature.Shader = registry.ShaderMap["Outline"]
 	loader.LoadRotatingHighlightOutlineAnimated(creature.AnimatedSprite)
@@ -563,7 +557,8 @@ func (g *FishScene) uiSubs() {
 		case "Save":
 			g.SaveGame()
 		case "Mode":
-			println("Mode button event received")
+		case "Chores":
+			g.returnScene = sceneManagement.MowingMiniGameScene
 		}
 	})
 
@@ -607,8 +602,8 @@ func (g *FishScene) soundSubs() {
 		g.gameLog.SoundPlayer.AddToQueue(soundFX.SuccessMusic, 1)
 		ev := e.(tasks.TaskCompleted)
 		if len(g.gameLog.Tasks) > ev.Slot {
-			g.gameLog.Tasks[ev.Slot].Activate()
-			g.gameLog.Tasks[ev.Slot].Publish(g.gameLog.GlobalEventHub)
+			g.currentTask++ // this is zero indexed but slot is not so the current index is the just finished slot // FIX
+			g.timers["publishNewTask"].TurnOn()
 		}
 	})
 
@@ -627,7 +622,6 @@ func (g *FishScene) creatureSubs(colMap map[string]geometry.Rect) {
 			pt.X = pt.X - 50 + rand.Float32()*10
 			pt.Y += 50
 			p := entities.NewParticle(pt, colMap["tank"], g.gameLog.GlobalEventHub)
-
 			g.sprites[0] = append(g.sprites[0], p)
 		}
 	})

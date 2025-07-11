@@ -22,4 +22,5 @@ type Drawable interface {
 	SpriteHovered() bool
 	Coord() (float32, float32)
 	ShouldRemove() bool
+	Highlighted() bool
 }

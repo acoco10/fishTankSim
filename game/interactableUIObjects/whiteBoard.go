@@ -1,6 +1,7 @@
 package interactableUIObjects
 
 import (
+	"fmt"
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/registry"
@@ -15,7 +16,7 @@ import (
 
 type WhiteBoardSprite struct {
 	*UiSprite
-	textMap              map[int]*textEffects.TextWithShader
+	textBeingWritten     *textEffects.TextWithShader
 	dstImg               *sprite.Sprite
 	dstShader            *ebiten.Shader
 	textIndex            int
@@ -37,12 +38,7 @@ func (w *WhiteBoardSprite) Init() {
 	w.timers["TaskCreatedBuffer"] = entities.NewTimer(0.5)
 	w.timers["AllTasksCompletedBuffer"] = entities.NewTimer(1)
 	w.timers["EraseAnimationCompleted"] = entities.NewTimer(2)
-	w.textMap = make(map[int]*textEffects.TextWithShader)
 	w.dstImg.ShaderParams = make(map[string]any)
-}
-
-func (w *WhiteBoardSprite) ResetTextMap() {
-	w.textMap = make(map[int]*textEffects.TextWithShader)
 }
 
 func (w *WhiteBoardSprite) ResetImg() {
@@ -59,7 +55,7 @@ func (w *WhiteBoardSprite) Update() {
 		ev2 := tasks.TaskCompleted{}
 
 		ev2.Task = w.completedTaskQueue[0]
-		ev2.Slot = w.textIndex
+		ev2.Slot = w.textIndex - 1
 		w.EventHub.Publish(ev2)
 
 		w.completedTaskQueue = w.completedTaskQueue[1:]
@@ -107,7 +103,6 @@ func (w *WhiteBoardSprite) Update() {
 			}
 		}
 	}
-
 	w.updateText()
 	w.UpdateTimers()
 }
@@ -116,7 +111,6 @@ func (w *WhiteBoardSprite) Draw(screen *ebiten.Image) {
 
 	opts := ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(float64(w.X), float64(w.Y))
-
 	w.DrawText()
 	w.dstImg.Draw(w.Img)
 	w.Sprite.Draw(screen)
@@ -146,11 +140,7 @@ func (w *WhiteBoardSprite) UpdateTimers() {
 			if state == entities.Done {
 				println("animation completed timer in whiteboard was triggered and completed")
 				timer.TurnOff()
-				w.ResetTextMap()
 				w.textIndex = 0
-				/*x := float64(w.Sprite.Img.Bounds().Dx())/2.0 - 45
-				y := float64(w.Sprite.Img.Bounds().Dy()/2.0) - 25
-				insets := [2]float64{x, y}*/
 				w.ResetImg()
 				w.appendTextToOpenSlot("All Done =)")
 			}
@@ -168,43 +158,26 @@ func (w *WhiteBoardSprite) reset() {
 }
 
 func (w *WhiteBoardSprite) DrawText() {
-
-	for index, txt := range w.textMap {
-		if txt != nil {
-			if index == 0 && !txt.IsFullyDrawn() {
-				//first one draw that shit
-				txt.Draw(w.dstImg.Img)
-				return
-			}
-			if index > 0 {
-				// not first one, first one or greater finished, draw that shit
-				if w.textMap[index-1].IsFullyDrawn() {
-					txt.Draw(w.dstImg.Img)
-				}
-			}
-		}
+	if w.textBeingWritten != nil {
+		w.textBeingWritten.Draw(w.dstImg.Img)
 	}
 
 }
 
 func (w *WhiteBoardSprite) updateText() {
-	for index, txt := range w.textMap {
-		if index == 0 && !txt.IsFullyDrawn() {
-			log.Printf("updating Text")
-			txt.Update()
-			return
-		}
-
-		if index > 0 {
-			if w.textMap[index-1].IsFullyDrawn() {
-				txt.Update()
-			}
-		}
+	if w.textBeingWritten == nil {
+		return
 	}
+	w.textBeingWritten.Update()
+	if w.textBeingWritten.FullyDrawn {
+		w.textBeingWritten = nil
+	}
+
 }
 
 func (w *WhiteBoardSprite) Subscribe(hub *tasks.EventHub) {
 	hub.Subscribe(tasks.TaskRequirementsCompleted{}, func(e tasks.Event) {
+		fmt.Printf("task requirment event recieved")
 
 		taskPublished := false //hack way to limit to one event for each task
 		ev := e.(tasks.TaskRequirementsCompleted)
@@ -216,24 +189,17 @@ func (w *WhiteBoardSprite) Subscribe(hub *tasks.EventHub) {
 		}
 
 		if !taskPublished {
-			println("appending completed task to whiteboard")
+			println("moving task to completed queue")
 			w.completedTaskQueue = append(w.completedTaskQueue, ev.Task)
-			if w.textMap[w.textIndex] != nil {
-				w.textMap[w.textIndex].FullyDrawn = true
-			}
 			initClickMeEffect(w.UiSprite)
 		}
 	})
 
 	hub.Subscribe(tasks.TaskCreated{}, func(e tasks.Event) {
+		log.Printf("new task recieved")
 		ev := e.(tasks.TaskCreated)
-		if len(w.tasks) == 0 {
-			log.Println("Appending first task")
-			w.appendTextToOpenSlot(ev.Task.Text)
-			w.tasks = append(w.tasks, ev.Task)
-			return
-		}
-		w.textToBeWrittenQueue = append(w.textToBeWrittenQueue, ev.Task.Text)
+		w.appendTextToOpenSlot(ev.Task.Text)
+		w.tasks = append(w.tasks, ev.Task)
 		w.timers["TaskCreatedBuffer"].TurnOn()
 	})
 
@@ -250,7 +216,6 @@ func (w *WhiteBoardSprite) Subscribe(hub *tasks.EventHub) {
 	})
 
 	hub.Subscribe(events.DayOverTransitionComplete{}, func(e tasks.Event) {
-		w.ResetTextMap()
 		w.ResetImg()
 		w.reset()
 		w.textIndex = 0
@@ -299,10 +264,9 @@ func (w *WhiteBoardSprite) checkAllTasksCompleted() {
 }
 
 func (w *WhiteBoardSprite) appendTextToOpenSlot(txt string) {
-	insets := [2]float64{10, float64((w.textIndex + 1) * 20)}
+	w.textIndex++
+	insets := [2]float64{10, float64((w.textIndex) * 20)}
 	ts := textEffects.NewTextWithMarkerShader(txt, w.dstImg.Img.Bounds(), insets, ColorScaleSlice[0])
 	log.Printf("whiteboard text index = %d, appending new text: %s at this slot", w.textIndex, txt)
-
-	w.textMap[w.textIndex] = ts
-	w.textIndex++
+	w.textBeingWritten = ts
 }

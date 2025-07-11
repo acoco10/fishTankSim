@@ -37,24 +37,26 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenu
 			widget.WidgetOpts.LayoutData(
 				widget.AnchorLayoutData{
 					HorizontalPosition: widget.AnchorLayoutPositionStart,
-					VerticalPosition:   widget.AnchorLayoutPositionCenter,
+					VerticalPosition:   widget.AnchorLayoutPositionStart,
 				}),
 		),
 		widget.ContainerOpts.Layout(
 			widget.NewRowLayout(
 				widget.RowLayoutOpts.Spacing(20),
 				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-				widget.RowLayoutOpts.Padding(widget.Insets{Right: 0, Left: 50, Top: 100, Bottom: 0}),
+				widget.RowLayoutOpts.Padding(widget.Insets{Right: 0, Left: 0, Top: 100, Bottom: 0}),
 			)),
 	)
 
 	button := LoadSubmitButton("Save", eHub, 16)
+	choreButton := LoadSubmitButton("Chores", eHub, 16)
+	//choreButton.GetWidget().Visibility = widget.Visibility_Hide
+	//choreButton.GetWidget().Disabled = true
 	//modeButton := LoadSubmitButton("Mode", eHub, 12)
 
 	//button2 := LoadSubmitButton("Mute Music", eHub, 12)
 	//button3 := LoadSubmitButton("Mute Sounds", eHub, 12)
 
-	buttonContainer.AddChild(button)
 	//buttonContainer.AddChild(button2)
 	//buttonContainer.AddChild(button3)
 	//buttonContainer.AddChild(modeButton)
@@ -72,7 +74,9 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenu
 
 	//notePad.text.SetText("To Do:")
 
-	rootContainer.AddChild(fishStats)
+	buttonContainer.AddChild(fishStats)
+	buttonContainer.AddChild(button)
+	buttonContainer.AddChild(choreButton)
 	rootContainer.AddChild(buttonContainer)
 
 	// construct the UI
@@ -152,7 +156,11 @@ func MainMenuSubs(magazine *Magazine, ui *ebitenui.UI, hub *tasks.EventHub) {
 		case "Fish":
 			removeFunc()
 			removeFunc = TriggerMagWindow(magazine, ui, hub)
+		case "Info":
+			removeFunc()
+			removeFunc = TriggerMagWindow(magazine, ui, hub)
 		}
+
 	})
 
 	hub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
@@ -233,15 +241,17 @@ func loadSpriteSelectButtonImage(t string) (*widget.ButtonImage, error) {
 	pressed := nineSliceImageClicked
 	if t == "Selected Button" {
 		return &widget.ButtonImage{
-			Idle:    hover,
-			Hover:   hover,
-			Pressed: pressed,
+			Idle:     hover,
+			Hover:    hover,
+			Pressed:  pressed,
+			Disabled: pressed,
 		}, nil
 	} else {
 		return &widget.ButtonImage{
-			Idle:    idle,
-			Hover:   hover,
-			Pressed: pressed,
+			Idle:     idle,
+			Hover:    hover,
+			Pressed:  pressed,
+			Disabled: pressed,
 		}, nil
 	}
 }
@@ -397,9 +407,10 @@ func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, fontS
 	pressed := nineSliceImageClicked
 
 	btnimg := &widget.ButtonImage{
-		Idle:    idle,
-		Hover:   hover,
-		Pressed: pressed,
+		Idle:     idle,
+		Hover:    hover,
+		Pressed:  pressed,
+		Disabled: pressed,
 	}
 
 	buttonStackedLayout := widget.NewContainer(
@@ -442,9 +453,10 @@ func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, fontS
 			button.GetWidget().CustomData = false
 		}),
 		widget.ButtonOpts.Text(buttonText, face, &widget.ButtonTextColor{
-			Idle:    color.NRGBA{0, 255, 255, 255},
-			Hover:   color.NRGBA{255, 255, 0, 255},
-			Pressed: color.NRGBA{255, 255, 0, 255},
+			Idle:     color.NRGBA{0, 0, 0, 0xff},
+			Hover:    color.NRGBA{255, 255, 0, 255},
+			Pressed:  color.NRGBA{255, 255, 0, 255},
+			Disabled: color.NRGBA{255, 255, 0, 255},
 		}),
 		widget.ButtonOpts.TextProcessBBCode(true),
 		// specify that the button's text needs some padding for correct display
@@ -584,9 +596,10 @@ func LoadSpriteSelectButton(buttonText string, hub *tasks.EventHub, fontSize flo
 		// specify the button's text, the font face, and the color
 		//widget.ButtonOpts.Text("Hello, World!", face, &widget.ButtonTextColor{
 		widget.ButtonOpts.Text(buttonText, face, &widget.ButtonTextColor{
-			Idle:    color.NRGBA{0, 0, 0, 0xff},
-			Hover:   color.NRGBA{255, 255, 0, 255},
-			Pressed: color.NRGBA{255, 255, 0, 255},
+			Idle:     color.NRGBA{0, 0, 0, 0xff},
+			Hover:    color.NRGBA{255, 255, 0, 255},
+			Pressed:  color.NRGBA{255, 255, 0, 255},
+			Disabled: color.NRGBA{255, 255, 0, 255},
 		}),
 		widget.ButtonOpts.TextProcessBBCode(true),
 		// specify that the button's text needs some padding for correct display
@@ -598,8 +611,13 @@ func LoadSpriteSelectButton(buttonText string, hub *tasks.EventHub, fontSize flo
 		}),
 		//Move the text down and right on press
 		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
-			button.GetWidget().CustomData = true
-			button.KeepPressedOnExit = true
+			ev := events.ButtonClickedEvent{
+				ButtonText: buttonText,
+			}
+
+			button.Text().Inset.Top = 2
+			button.Text().Inset.Left = 2
+			hub.Publish(ev)
 		}),
 		//Move the text back to start on press released
 		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
@@ -611,14 +629,6 @@ func LoadSpriteSelectButton(buttonText string, hub *tasks.EventHub, fontSize flo
 
 		// add a handler that reacts to clicking the button
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-			if button.GetWidget().Disabled == false {
-				button.GetWidget().Disabled = true
-				ev := events.ButtonClickedEvent{
-					ButtonText: buttonText,
-				}
-				hub.Publish(ev)
-
-			}
 
 		}),
 

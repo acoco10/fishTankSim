@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/acoco10/fishTankWebGame/game/entities"
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
-	"github.com/acoco10/fishTankWebGame/game/util"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -99,8 +99,8 @@ func LoadPadding(tp TextBoxType) (widget.Insets, widget.Insets) {
 	var w2 widget.Insets
 	switch tp {
 	case StatsMenu:
-		w = widget.Insets{Right: 0, Left: 50, Top: 0, Bottom: 200}
-		w2 = widget.Insets{Right: 10, Left: 10, Top: 10, Bottom: 10}
+		w = widget.Insets{Right: 0, Left: 50, Top: 0, Bottom: 0}
+		w2 = widget.Insets{Right: 10, Left: 10, Top: 10, Bottom: 100}
 	case StoreMenu:
 		w = widget.Insets{Right: 10, Left: 0, Top: 0, Bottom: 0}
 		w2 = widget.Insets{Right: 10, Left: 10, Top: 10, Bottom: 0}
@@ -114,7 +114,7 @@ func LoadMinSize(tp TextBoxType) (int, int) {
 	switch tp {
 	case StatsMenu:
 		w = 160
-		h = 120
+		h = 200
 	case StoreMenu:
 		w = 180
 		h = 135
@@ -124,22 +124,14 @@ func LoadMinSize(tp TextBoxType) (int, int) {
 }
 
 func LoadFontByType(tp TextBoxType) (text2.Face, color.Color, error) {
-	var face text2.Face
 	var clr color.Color
+	var face text2.Face
 	switch tp {
 	case StatsMenu:
-		lFace, err := util.LoadFont(10, "nk57")
-		if err != nil {
-			return face, clr, err
-		}
-		face = lFace
+		face = registry.FontMap["nk57_12"]
 		clr = color.White
 	case StoreMenu:
-		lFace, err := util.LoadFont(10, "nk57")
-		if err != nil {
-			return face, clr, err
-		}
-		face = lFace
+		face = registry.FontMap["nk57_12"]
 		clr = color.Black
 	}
 

@@ -8,7 +8,6 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
-	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -237,6 +236,7 @@ func (s *StartMenu) SpriteSelected(tx string) {
 
 		/*s.fishButtons["Selected Button"].GetWidget().Visibility = widget.Visibility_Show*/
 		s.fishButtons["Selected Button"].Text().Label = tx
+		s.fishButtons["Selected Button"].GetWidget().Disabled = true
 		//s.fishButtons["Selected Button"].Press()
 
 		s.SelectSpritesToDraw = []drawables.Drawable{}
@@ -246,8 +246,7 @@ func (s *StartMenu) SpriteSelected(tx string) {
 
 		selectedFish.X = float32(s.screenWidth/2 - (selectedFish.SpriteWidth)*2 - offset/2)
 
-		ols := shaders.LoadOutlineShader()
-		selectedFish.Shader = ols
+		selectedFish.Shader = registry.ShaderMap["Outline"]
 
 		s.SelectSpritesToDraw = append(s.SelectSpritesToDraw, selectedFish, s.DrawOptions["Back"])
 
@@ -273,16 +272,16 @@ func (s *StartMenu) SpriteSelected(tx string) {
 			s.propButtonContainer.AddChild(s.propButtons[1])
 		}
 
-		textinputContainer, _, textInputButton, err := NewTextInput(s.eventHub)
+		textinputContainer, textInput, textInputButton, err := NewTextInput(s.eventHub)
 		if err != nil {
 			log.Fatal("text input dun fucked up", err)
 		}
 		s.TextInputContainer = textinputContainer
 		s.TextInputButton = textInputButton
 		s.root.AddChild(textinputContainer)
+		textInput.Focus(true)
 		s.state = propSelected
 	}
-
 }
 
 func (s *StartMenu) Back() {
@@ -316,12 +315,9 @@ func moveBack(backButton drawables.Drawable, state startMenuState) {
 	case propSelected:
 		backButton.(*sprite.Sprite).X -= 100
 	case fishSelected:
-
 		backButton.(*sprite.Sprite).X -= 100
 		backButton.(*sprite.Sprite).Y += 150
-
 	}
-
 }
 
 func (s *StartMenu) ResetSpritePositions(imageWidth, height int, fishOptions map[string]drawables.Drawable) {
@@ -389,6 +385,5 @@ func addPickSpriteContainer(nButtons int) *widget.Container {
 		),
 		),
 	)
-
 	return pickPropContainer
 }

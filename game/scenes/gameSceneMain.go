@@ -1,6 +1,7 @@
 package scenes
 
 import (
+	"github.com/acoco10/fishTankWebGame/game/graphics"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -12,10 +13,19 @@ const (
 	ExistingUser
 )
 
+type State int8
+
+const (
+	Ready State = iota
+	LoadingNextScene
+)
+
 type Game struct {
-	sceneMap      map[sceneManagement.SceneId]sceneManagement.Scene
-	activeSceneId sceneManagement.SceneId
-	gameLog       *sceneManagement.GameLog
+	sceneMap       map[sceneManagement.SceneId]sceneManagement.Scene
+	activeSceneId  sceneManagement.SceneId
+	pendingSceneId sceneManagement.SceneId
+	gameLog        *sceneManagement.GameLog
+	state          State
 }
 
 const (
@@ -34,18 +44,20 @@ func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
 		ebiten.SetWindowSize(ScreenWidth, ScreenHeight)
 
 		sceneMap := map[sceneManagement.SceneId]sceneManagement.Scene{
-			sceneManagement.StartScene:      NewStartScene(log),
-			sceneManagement.FishTank:        NewFishScene(log),
-			sceneManagement.TransitionScene: LoadTransitionScene(log),
+			sceneManagement.StartScene:          NewStartScene(log),
+			sceneManagement.FishTank:            NewFishScene(log),
+			sceneManagement.TransitionScene:     LoadTransitionScene(log),
+			sceneManagement.MowingMiniGameScene: NewMowingScene(log),
 		}
 
 		game := &Game{
-			sceneMap,
-			activeSceneId,
-			log,
+			sceneMap:      sceneMap,
+			activeSceneId: activeSceneId,
+			gameLog:       log,
 		}
 
-		sceneMap[activeSceneId].FirstLoad(game.gameLog)
+		sceneMap[activeSceneId].FirstLoad()
+		sceneMap[activeSceneId].OnEnter()
 
 		return game
 
@@ -61,14 +73,14 @@ func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
 		}
 
 		game := &Game{
-			sceneMap,
-			activeSceneId,
-			log,
+			sceneMap:      sceneMap,
+			activeSceneId: activeSceneId,
+			gameLog:       log,
 		}
 
-		sceneMap[activeSceneId].FirstLoad(game.gameLog)
+		sceneMap[activeSceneId].FirstLoad()
 
-		sceneMap[activeSceneId].OnEnter(log)
+		sceneMap[activeSceneId].OnEnter()
 
 		return game
 	}
@@ -83,19 +95,28 @@ func (g *Game) Update() error {
 		return err
 	}
 
-	// switched scenes
 	if nextSceneId != g.activeSceneId {
-		g.gameLog.PreviousScene = g.activeSceneId
-		g.sceneMap[g.activeSceneId].OnExit()
+
 		nextScene := g.sceneMap[nextSceneId]
 		// if not loaded? then load in
-		if !nextScene.IsLoaded() {
-			nextScene.FirstLoad(g.gameLog)
+		if !nextScene.IsLoaded() && g.state == Ready {
+			nextScene.FirstLoad()
+			return nil
 		}
-		nextScene.OnEnter(g.gameLog)
-	}
 
-	g.activeSceneId = nextSceneId
+		g.state = LoadingNextScene
+
+		if nextScene.IsLoaded() {
+			g.sceneMap[g.activeSceneId].OnExit()
+			g.state = Ready
+			g.gameLog.PreviousScene = g.activeSceneId
+			graphics.DeInitAllGraphics()
+			g.activeSceneId = nextSceneId
+			g.sceneMap[g.activeSceneId].OnEnter()
+
+		}
+
+	}
 
 	return nil
 }
@@ -106,4 +127,29 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	return ScreenWidth, ScreenHeight
+}
+
+func NewMiniGameTest(miniGameName string, log *sceneManagement.GameLog) *Game {
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+
+	activeSceneId := sceneManagement.MowingMiniGameScene
+
+	ebiten.SetWindowSize(ScreenWidth, ScreenHeight)
+
+	sceneMap := make(map[sceneManagement.SceneId]sceneManagement.Scene)
+
+	switch miniGameName {
+	case "MowingGame":
+		sceneMap[sceneManagement.MowingMiniGameScene] = NewMowingScene(log)
+
+		sceneMap[sceneManagement.MowingMiniGameScene].OnEnter()
+	}
+
+	game := &Game{
+		sceneMap:      sceneMap,
+		activeSceneId: activeSceneId,
+		gameLog:       log,
+	}
+
+	return game
 }

@@ -110,7 +110,6 @@ func (c *Creature) restingUpdate() {
 	tState := c.Timers[Resting].Update()
 	if tState == Done {
 		c.energy += 10
-		c.State = Swimming
 	}
 }
 

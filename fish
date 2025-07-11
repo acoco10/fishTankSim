@@ -198,7 +198,7 @@ func (g *FishScene) DrawProps(screen *ebiten.Image) {
 
 func (g *FishScene) UpdateProps() {
 	for _, prop := range g.propMap {
-		prop.Update()
+		prop.CharUpdate()
 	}
 }
 
@@ -280,28 +280,28 @@ func (g *FishScene) IsLoaded() bool {
 	return g.loaded
 }
 
-func (g *FishScene) Update() (sceneManagement.SceneId, error) {
+func (g *FishScene) CharUpdate() (sceneManagement.SceneId, error) {
 
 	g.handledClick = false
 
 	g.UpdateProps()
 
-	g.gameLog.SoundPlayer.Update()
+	g.gameLog.SoundPlayer.CharUpdate()
 
 	for _, creature := range g.Creatures {
-		creature.Update()
+		creature.CharUpdate()
 	}
 
 	for _, particle := range g.particles {
-		particle.Update()
+		particle.CharUpdate()
 	}
 
 	for _, gSprite := range g.sprites {
-		gSprite.Update()
+		gSprite.CharUpdate()
 	}
 
 	for _, graphicMan := range g.graphicManagerMap {
-		graphicMan.Update()
+		graphicMan.CharUpdate()
 	}
 
 	if g.CheckIfAllFishFed() {
@@ -309,16 +309,16 @@ func (g *FishScene) Update() (sceneManagement.SceneId, error) {
 		g.gameLog.GlobalEventHub.Publish(ev2)
 	}
 
-	g.ui.Update()
+	g.ui.CharUpdate()
 
 	g.updateTimers()
 
 	g.updateInput()
 
-	//g.tutorialManager.Update()
+	//g.tutorialManager.CharUpdate()
 
 	if g.gameMode == Debug {
-		err := g.debugRect.Update()
+		err := g.debugRect.CharUpdate()
 		if err != nil {
 			//debug rect could error when saving collision location
 			return g.returnScene, err
@@ -417,7 +417,7 @@ func (g *FishScene) positionModeUpdate() {
 		g.saveUISpritePositions()
 	}
 
-	err := g.debugRect.Update()
+	err := g.debugRect.CharUpdate()
 
 	if err != nil {
 		log.Printf("Couldn't save positions or something with the debug rect got fucked up")
@@ -427,7 +427,7 @@ func (g *FishScene) positionModeUpdate() {
 func (g *FishScene) updateTimers() {
 
 	for key, timer := range g.timers {
-		state := timer.Update()
+		state := timer.CharUpdate()
 
 		if key == "songTimer" && state == entities.Done {
 			timer.TurnOff()

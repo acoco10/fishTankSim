@@ -12,6 +12,7 @@ import (
 
 const (
 	BestAdventureEver resource.AudioID = iota
+	IndieCafe         resource.AudioID = iota
 	PickUpOne         resource.AudioID = iota
 	PlopSound         resource.AudioID = iota
 	PouringFood       resource.AudioID = iota
@@ -32,7 +33,8 @@ func LoadSounds() (*resource.Loader, error) {
 	var rLoader *resource.Loader
 
 	volumeMap := map[resource.AudioID]float64{
-		BestAdventureEver: -0.5,
+		BestAdventureEver: 0.5,
+		IndieCafe:         0.0,
 		PickUpOne:         0.0,
 		PlopSound:         -0.3,
 		PouringFood:       0.0,

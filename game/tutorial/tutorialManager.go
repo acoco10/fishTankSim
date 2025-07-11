@@ -26,6 +26,10 @@ type tip struct {
 	msg         string
 }
 
+type flags struct {
+	FishClickable bool
+}
+
 type Manager struct {
 	lastPublishedGraphicID int
 	eventHub               *tasks.EventHub
@@ -33,6 +37,7 @@ type Manager struct {
 	tipMap                 map[string]*tip
 	tipHead                *tip
 	previousThread         *tip
+	flags                  flags
 }
 
 func InitData(m *Manager, hub *tasks.EventHub) {

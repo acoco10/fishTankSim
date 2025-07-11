@@ -1,17 +1,21 @@
 package interactableUIObjects
 
 import (
-	"fmt"
 	"github.com/acoco10/fishTankWebGame/game/drawables"
+	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/graphics"
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/system"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
+	"golang.org/x/image/colornames"
 	"math"
+	"strconv"
 )
 
 type uiSpriteState uint8
@@ -34,6 +38,7 @@ const (
 type UiSprite struct {
 	*sprite.Sprite
 	baseX, baseY           float32
+	MainImg                *ebiten.Image
 	HoverImg               *ebiten.Image
 	AltImg                 *ebiten.Image
 	AltOffsetX, AltOffsetY float32
@@ -41,8 +46,10 @@ type UiSprite struct {
 	*tasks.EventHub
 	state    uiSpriteState
 	stateWas uiSpriteState
+	timers   map[string]*entities.Timer
 	gameMode
 	clicked                   bool
+	Draggable                 bool
 	Label                     string
 	highlight                 bool
 	screenHeight, screenWidth int
@@ -84,6 +91,22 @@ func (us *UiSprite) UpdatePosition() {
 	}
 
 	us.stateWas = us.state
+
+	UpdateUiSpriteTimers(us)
+}
+
+func UpdateUiSpriteTimers(us *UiSprite) {
+	for name, timer := range us.timers {
+		switch name {
+		case "clickMeBuffer":
+			state := timer.Update()
+			if state == entities.Done {
+				us.highlight = false
+				timer.TurnOff()
+
+			}
+		}
+	}
 }
 
 func (us *UiSprite) UpdateNormal() {
@@ -93,25 +116,22 @@ func (us *UiSprite) UpdateNormal() {
 
 	switch us.Label {
 	case "thermometer":
-		ThermometerUpdater(us)
+		AltImageWhenClickedUpdater(us)
 	}
 
 	if us.state == HoveredOver && us.stateWas != HoveredOver {
-
-		ols := shaders.LoadOutlineShader()
-		us.Shader = ols
-		us.ShaderParams = make(map[string]any)
-		us.ShaderParams["OutlineColor"] = [4]float64{1, 1, 0, 1}
-
+		if us.Img == us.MainImg {
+			us.Shader = registry.ShaderMap["Outline"]
+			us.ShaderParams = make(map[string]any)
+			us.ShaderParams["OutlineColor"] = [4]float64{1, 1, 0, 1}
+		}
 	}
 
 	if us.Shader != nil && (us.state != HoveredOver && us.state != Selected) {
-
 		us.Shader = nil
-
 	}
 
-	if us.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && us.state == Selected {
+	if us.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && us.state == Selected && us.Draggable {
 
 		if us.XYUpdater == nil {
 			ev := events.UISpriteAction{}
@@ -170,20 +190,33 @@ func (us *UiSprite) returnToBase() {
 	us.XYUpdater = nil
 }
 
-func ThermometerUpdater(us *UiSprite) {
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && us.SpriteHovered() {
+func AltImageWhenClickedUpdater(us *UiSprite) {
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && us.SpriteHovered() && us.Img != us.HoverImg {
 		println("thermometer message triggered")
-		msg := fmt.Sprintf("Temperature: %d", us.Environment.Temperature)
-		us.graphicPublishedID = graphics.NewFadeInTextGraphic(msg, float64(us.X), float64(us.Y))
-	}
-
-	if us.state == Idle && us.stateWas == Selected {
-		if us.graphicPublishedID != 99 {
-			graphics.DeInitGraphicId(us.graphicPublishedID)
-			us.graphicPublishedID = 99
+		if us.Label == "thermometer" {
+			AddTempGuage(us)
 		}
+		us.Img = us.HoverImg
+		us.highlight = true
 	}
 
+	if us.Img == us.HoverImg && inpututil.IsKeyJustPressed(ebiten.KeyE) {
+		graphics.DeInitGraphicId(us.graphicPublishedID)
+		us.Img = us.MainImg
+		us.highlight = false
+		us.X = us.X + float32(us.HoverImg.Bounds().Dx())
+	}
+
+}
+
+func AddTempGuage(us *UiSprite) {
+	width := float32(4)
+	x := float32(us.HoverImg.Bounds().Dx()/2) - 1
+	y := float32(us.HoverImg.Bounds().Dy() - 3)
+	height := float32(us.Environment.Temperature-62) * 5
+	vector.StrokeLine(us.HoverImg, x, y, x, y-height, width, colornames.Red, false)
+	us.X = us.X - float32(us.HoverImg.Bounds().Dx()/4)
+	us.graphicPublishedID = graphics.NewFadeInTextGraphic("Temperature:"+strconv.Itoa(us.Environment.Temperature), float64(us.X+80), float64(us.Y))
 }
 
 func (us *UiSprite) updateState() {
@@ -220,8 +253,12 @@ func NewUiSprite(environment *system.Environment, imgs []*ebiten.Image, hub *tas
 	uis.EventHub = hub
 	uis.Environment = environment
 
+	uis.timers = map[string]*entities.Timer{}
+	uis.timers["clickMeBuffer"] = entities.NewTimer(1)
+
 	uis.Img = &ebiten.Image{}
 	uis.Img = imgs[0]
+	uis.MainImg = imgs[0]
 
 	//set alt img + offset for alt
 	if len(imgs) > 1 {
@@ -240,7 +277,7 @@ func NewUiSprite(environment *system.Environment, imgs []*ebiten.Image, hub *tas
 		uis.AltImg = imgs[2]
 	}
 
-	//Subs(hub, uis)
+	Subs(hub, &uis)
 
 	uis.state = Idle
 	uis.gameMode = Normal
@@ -257,12 +294,21 @@ func Pubs(hub *tasks.EventHub, uis UiSprite) {
 	hub.Publish(ev)
 }
 
-func Subs(hub *tasks.EventHub, uis UiSprite) {
+func Subs(hub *tasks.EventHub, uis *UiSprite) {
 	hub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
 		ev := e.(events.ButtonClickedEvent)
 		switch ev.ButtonText {
 		case "Mode":
 			uis.SwitchGameMode()
+		}
+	})
+	hub.Subscribe(events.UISpriteAction{}, func(e tasks.Event) {
+		ev := e.(events.UISpriteAction)
+		if ev.UiSprite == uis.Label {
+			switch ev.UiSpriteAction {
+			case "highlight":
+				FlipHighlight(uis)
+			}
 		}
 	})
 }
@@ -299,8 +345,19 @@ func initClickMeEffect(us *UiSprite) {
 }
 
 func turnOffClickMeEffect(us *UiSprite) {
-	us.highlight = false
 	us.Shader = nil
+	if us.timers != nil {
+		us.timers["clickMeBuffer"].TurnOn()
+	}
 	ev := events.TurnOffGraphic{X: float64(us.X), Y: float64(us.Y)}
 	us.EventHub.Publish(ev)
+}
+
+func FlipHighlight(us *UiSprite) {
+	switch us.highlight {
+	case true:
+		us.highlight = false
+	case false:
+		us.highlight = true
+	}
 }

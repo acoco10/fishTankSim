@@ -8,8 +8,8 @@ import (
 	"log"
 )
 
-func LoadProps(propList []entities.TankObject, tankBoundaries image.Rectangle, hub *tasks.EventHub) map[string]*props.StructureProp {
-	propMap := make(map[string]*props.StructureProp)
+func LoadProps(propList []entities.TankObject, tankBoundaries image.Rectangle, hub *tasks.EventHub) *props.PropQueue {
+	pQueue := props.PropQueue{}
 
 	for _, prop := range propList {
 		switch prop.Name {
@@ -17,11 +17,11 @@ func LoadProps(propList []entities.TankObject, tankBoundaries image.Rectangle, h
 			logPropImg, err := LoadImageAssetAsEbitenImage("tankProps/logProp")
 			logNormal, err := LoadImageAssetAsEbitenImage("tankProps/logProp_n")
 			logProp := props.NewStructureProp(float32(tankBoundaries.Min.X), float32(tankBoundaries.Max.Y), logPropImg, logNormal, hub)
-			propMap["Log"] = logProp
+
 			if err != nil {
 				log.Fatal(err)
 			}
-			logProp.StaticShadow = true
+			pQueue.ActiveProp = logProp
 		case "Castle":
 			castleImg, err := LoadImageAssetAsEbitenImage("tankProps/castleProp")
 			castleNormal, err := LoadImageAssetAsEbitenImage("tankProps/castleProp_n")
@@ -29,8 +29,20 @@ func LoadProps(propList []entities.TankObject, tankBoundaries image.Rectangle, h
 				log.Fatal(err)
 			}
 			castleProp := props.NewStructureProp(float32(tankBoundaries.Min.X), float32(tankBoundaries.Max.Y), castleImg, castleNormal, hub)
-			propMap["Castle"] = castleProp
+			pQueue.ActiveProp = castleProp
 		}
 	}
-	return propMap
+
+	grassImg, err := LoadImageAssetAsEbitenImage("tankProps/grass")
+	if err != nil {
+		log.Fatal(err, "tried to load plant img from wrong place")
+	}
+	grassNormal, err := LoadImageAssetAsEbitenImage("tankProps/grass_n")
+	if err != nil {
+		log.Fatal(err)
+	}
+	grassProp := props.NewStructureProp(float32(tankBoundaries.Min.X), float32(tankBoundaries.Max.Y), grassImg, grassNormal, hub)
+	pQueue.QueuedProps = append(pQueue.QueuedProps, grassProp)
+
+	return &pQueue
 }

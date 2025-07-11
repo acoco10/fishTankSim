@@ -1,6 +1,8 @@
 package events
 
-import "image"
+import (
+	"image"
+)
 
 type DayOver struct {
 }
@@ -10,6 +12,7 @@ type DayOverTransitionComplete struct {
 
 type NewDay struct {
 	NTasks int
+	Type   string
 }
 
 type FishTankLayout struct {

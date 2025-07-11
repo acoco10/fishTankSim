@@ -27,7 +27,10 @@ func DeInitGraphicId(id int) {
 	//no op if key doesnt exist
 	log.Printf("deInitiating graphic with graphic id: %d", id)
 	delete(GraphMap, id)
+}
 
+func DeInitAllGraphics() {
+	GraphMap = make(map[int]Graphic)
 }
 
 func DeInitGraphicBasedOnCoords(x, y float64) {
@@ -49,12 +52,28 @@ func DrawGraphics(screen *ebiten.Image) {
 	}
 }
 
+func UpdateGraphics() {
+	for _, graph := range GraphMap {
+		graph.Update()
+	}
+}
+
 func NewFadeInTextGraphic(msg string, x, y float64) int {
 	cs := ebiten.ColorScale{}
 	cs.SetR(0.9)
 	cs.SetB(0.9)
 	cs.SetG(0.9)
 	cs.SetA(1.0)
-	id := NewGraphicText(msg, 24, x, y, false, cs, 0)
+	id := NewGraphicText(&msg, 24, x, y, false, cs, 0, true)
+	return id
+}
+
+func NewUpdateAbleTextGraphic(msg *string, x, y float64) int {
+	cs := ebiten.ColorScale{}
+	cs.SetR(0.9)
+	cs.SetB(0.9)
+	cs.SetG(0.9)
+	cs.SetA(1.0)
+	id := NewGraphicText(msg, 24, x, y, false, cs, 0, false)
 	return id
 }

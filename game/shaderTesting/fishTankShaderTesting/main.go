@@ -66,7 +66,7 @@ func newGame() *Game {
 }
 
 func (g *Game) Update() error {
-	//g.testSprite.Update()
+	//g.testSprite.CharUpdate()
 	if ebiten.IsKeyPressed(ebiten.KeyS) {
 		g.animatedTestSprite.Y += 1.0
 	}
