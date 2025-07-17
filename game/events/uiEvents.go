@@ -15,4 +15,5 @@ type UISpriteAction struct {
 }
 
 type CloseWindow struct {
+	OverRide bool
 }

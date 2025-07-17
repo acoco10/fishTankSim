@@ -8,6 +8,7 @@ const (
 	Normal DebugOption = iota
 	Position
 	Print
+	ShaderTest
 )
 
 type GameMode uint8

@@ -18,6 +18,7 @@ const (
 	PouringFood       resource.AudioID = iota
 	SelectSound       resource.AudioID = iota
 	SuccessMusic      resource.AudioID = iota
+	TropicalHouse     resource.AudioID = iota
 	WaterBubbles      resource.AudioID = iota
 	SelectSound2      resource.AudioID = iota
 	WhiteBoardMarker1 resource.AudioID = iota
@@ -40,6 +41,7 @@ func LoadSounds() (*resource.Loader, error) {
 		PouringFood:       0.0,
 		SelectSound:       -0.5,
 		SuccessMusic:      -0.6,
+		TropicalHouse:     0.0,
 		WaterBubbles:      0.0,
 		SelectSound2:      0.0,
 		WhiteBoardMarker1: 0.5,

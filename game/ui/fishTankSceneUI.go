@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/loader"
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/ebitenui/ebitenui"
@@ -11,6 +12,7 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"golang.org/x/image/colornames"
 	"image"
 	"image/color"
 	"log"
@@ -48,18 +50,7 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenu
 			)),
 	)
 
-	button := LoadSubmitButton("Save", eHub, 16)
-	choreButton := LoadSubmitButton("Chores", eHub, 16)
-	//choreButton.GetWidget().Visibility = widget.Visibility_Hide
-	//choreButton.GetWidget().Disabled = true
-	//modeButton := LoadSubmitButton("Mode", eHub, 12)
-
-	//button2 := LoadSubmitButton("Mute Music", eHub, 12)
-	//button3 := LoadSubmitButton("Mute Sounds", eHub, 12)
-
-	//buttonContainer.AddChild(button2)
-	//buttonContainer.AddChild(button3)
-	//buttonContainer.AddChild(modeButton)
+	button := LoadSubmitButton("Save", eHub, 16, "")
 
 	fishStats, err := NewTextBlock(eHub, StatsMenu)
 
@@ -76,7 +67,6 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenu
 
 	buttonContainer.AddChild(fishStats)
 	buttonContainer.AddChild(button)
-	buttonContainer.AddChild(choreButton)
 	rootContainer.AddChild(buttonContainer)
 
 	// construct the UI
@@ -96,7 +86,193 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenu
 
 func TriggerNextDayWindow(ui *ebitenui.UI, hub *tasks.EventHub) widget.RemoveWindowFunc {
 
-	ndUI, err := LoadNextDayMenuUI(hub)
+	buttonText := []string{"Yes", "vibe awhile longer"}
+
+	ndUI, err := LoadNextOptionsMenuUI("Go to Bed?", buttonText, hub)
+	if err != nil {
+		log.Fatal(err, "error loading next day UI")
+	}
+
+	removeFunc := ui.AddWindow(ndUI)
+	return removeFunc
+}
+
+func TriggerTextWindow(hub *tasks.EventHub, ui *ebitenui.UI) widget.RemoveWindowFunc {
+	rootContainer := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout(
+		//widget.AnchorLayoutOpts.Padding(widget.NewInsetsSimple(200)))))
+		)))
+
+	childContainer := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(eimage.NewNineSliceColor(colornames.Darkmagenta)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				StretchHorizontal:  true,
+				StretchVertical:    false,
+			}),
+		),
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Spacing(20),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(50)),
+		)))
+
+	headerLbl := widget.NewText(
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			})),
+
+		widget.TextOpts.Text("Pick your first Decoration", registry.FontMap["nk57_12"], color.RGBA{R: 250, G: 160, B: 0, A: 255}),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionStart),
+		widget.TextOpts.Insets(widget.Insets{}),
+	)
+
+	textBox, err := NewTextBlock(hub, StoreMenu)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	childContainer.AddChild(headerLbl)
+	childContainer.AddChild(textBox)
+	rootContainer.AddChild(childContainer)
+
+	window := widget.NewWindow(
+		//Set the main contents of the window
+		widget.WindowOpts.Contents(rootContainer),
+		//Set the titlebar for the window (Optional)
+		//Set the window above everything else and block input elsewhere
+		widget.WindowOpts.Modal(),
+		//Set how to close the window. CLICK_OUT will close the window when clicking anywhere
+		//that is not a part of the window object
+		//widget.WindowOpts.CloseMode(widget.CLICK_OUT),
+		//Indicates that the window is draggable. It must have a TitleBar for this to work
+		//Set the window resizeable
+		//Set the minimum size the window can be
+		widget.WindowOpts.MinSize(200, 100),
+		//Set the maximum size a window can be
+		widget.WindowOpts.MaxSize(300, 300),
+		//Set the callback that triggers when a move is complete
+		widget.WindowOpts.MoveHandler(func(args *widget.WindowChangedEventArgs) {
+			fmt.Println("Window Moved")
+		}),
+		//Set the callback that triggers when a resize is complete
+		widget.WindowOpts.ResizeHandler(func(args *widget.WindowChangedEventArgs) {
+			fmt.Println("Window Resized")
+		}),
+
+		widget.WindowOpts.Location(image.Rect(500, 100, 700, 400)),
+	)
+
+	rfunc := ui.AddWindow(window)
+	return rfunc
+
+}
+
+func TriggerImageButtonSelectWindow(screenWidth int, screenHeight int, ui *ebitenui.UI, hub *tasks.EventHub) widget.RemoveWindowFunc {
+
+	windowWidth := 400
+	windowHeight := 400
+
+	x0 := screenWidth/2 - windowWidth/2
+	y0 := screenHeight/2 - windowHeight/2
+	x1 := screenWidth/2 + windowWidth/2
+	y1 := screenWidth/2 + windowHeight/2
+
+	castleImg, err := loader.LoadImageAssetAsEbitenImage("menuAssets/castleSelectButton")
+	logImg, err := loader.LoadImageAssetAsEbitenImage("menuAssets/logSelectButton")
+
+	propButton, err := LoadStackSpriteSelectButton("Castle", castleImg, 16, hub, []string{"+Hiding Spot", "-PH"})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	propButton2, err := LoadStackSpriteSelectButton("Log", logImg, 16, hub, []string{"+PH", "+Eco"})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	rootContainer := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout(
+		//widget.AnchorLayoutOpts.Padding(widget.NewInsetsSimple(200)))))
+		)))
+
+	childContainer := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(eimage.NewNineSliceColor(colornames.Darkmagenta)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				StretchHorizontal:  true,
+				StretchVertical:    false,
+			}),
+		),
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Spacing(20),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(50)),
+		)))
+
+	headerLbl := widget.NewText(
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			})),
+
+		widget.TextOpts.Text("Pick your first Decoration", registry.FontMap["nk57_12"], color.RGBA{R: 250, G: 160, B: 0, A: 255}),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionStart),
+		widget.TextOpts.Insets(widget.Insets{}),
+	)
+
+	widge := addPickSpriteContainer(2)
+
+	widge.AddChild(propButton, propButton2)
+	window := widget.NewWindow(
+		//Set the main contents of the window
+		widget.WindowOpts.Contents(rootContainer),
+		//Set the titlebar for the window (Optional)
+		//Set the window above everything else and block input elsewhere
+		widget.WindowOpts.Modal(),
+		//Set how to close the window. CLICK_OUT will close the window when clicking anywhere
+		//that is not a part of the window object
+		//widget.WindowOpts.CloseMode(widget.CLICK_OUT),
+		//Indicates that the window is draggable. It must have a TitleBar for this to work
+		//Set the window resizeable
+		//Set the minimum size the window can be
+		widget.WindowOpts.MinSize(200, 100),
+		//Set the maximum size a window can be
+		widget.WindowOpts.MaxSize(300, 300),
+		//Set the callback that triggers when a move is complete
+		widget.WindowOpts.MoveHandler(func(args *widget.WindowChangedEventArgs) {
+			fmt.Println("Window Moved")
+		}),
+		//Set the callback that triggers when a resize is complete
+		widget.WindowOpts.ResizeHandler(func(args *widget.WindowChangedEventArgs) {
+			fmt.Println("Window Resized")
+		}),
+
+		widget.WindowOpts.Location(image.Rect(x0, y0, x1, y1)),
+	)
+
+	b1 := LoadSubmitButton("Confirm", hub, 16, "Confirm for prop select")
+
+	childContainer.AddChild(headerLbl)
+	childContainer.AddChild(widge)
+	childContainer.AddChild(b1)
+	rootContainer.AddChild(childContainer)
+
+	removeFunc := ui.AddWindow(window)
+	return removeFunc
+}
+
+func TriggerOptionWindow(headerText string, ui *ebitenui.UI, hub *tasks.EventHub) widget.RemoveWindowFunc {
+
+	buttonText := []string{"Yes", "No"}
+
+	ndUI, err := LoadNextOptionsMenuUI(headerText, buttonText, hub)
 	if err != nil {
 		log.Fatal(err, "error loading next day UI")
 	}
@@ -132,6 +308,7 @@ func TriggerMagWindow(mag *Magazine, ui *ebitenui.UI, hub *tasks.EventHub) widge
 func MainMenuSubs(magazine *Magazine, ui *ebitenui.UI, hub *tasks.EventHub) {
 	var nextDay bool
 	var removeFunc widget.RemoveWindowFunc
+	var Closeable = true
 
 	hub.Subscribe(events.UISpriteAction{}, func(e tasks.Event) {
 		ev := e.(events.UISpriteAction)
@@ -139,12 +316,18 @@ func MainMenuSubs(magazine *Magazine, ui *ebitenui.UI, hub *tasks.EventHub) {
 			nextDay = true
 			removeFunc = TriggerNextDayWindow(ui, hub)
 		}
-	})
-
-	hub.Subscribe(events.UISpriteAction{}, func(e tasks.Event) {
-		ev := e.(events.UISpriteAction)
 		if ev.UiSprite == "magazine" {
 			removeFunc = TriggerMagWindow(magazine, ui, hub)
+			Closeable = true
+		}
+		if ev.UiSprite == "door" {
+			switch ev.UiSpriteAction {
+			case "clickedCamp":
+				removeFunc = TriggerOptionWindow("Go to Camp?", ui, hub)
+			case "clickedChores":
+				removeFunc = TriggerOptionWindow("Go do your Chores?", ui, hub)
+			}
+			Closeable = true
 		}
 	})
 
@@ -163,40 +346,47 @@ func MainMenuSubs(magazine *Magazine, ui *ebitenui.UI, hub *tasks.EventHub) {
 
 	})
 
+	hub.Subscribe(tasks.TaskCompleted{}, func(e tasks.Event) {
+		ev := e.(tasks.TaskCompleted)
+		if ev.Task.Text == "1. Take a ph reading of your tank" {
+			width, height := ebiten.WindowSize()
+			removeFunc = TriggerImageButtonSelectWindow(width, height, ui, hub)
+			Closeable = false
+		}
+	})
+
 	hub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
 		ev := e.(events.ButtonClickedEvent)
 		if ev.ButtonText == "Vibe awhile Longer" {
 			removeFunc()
 			nextDay = false
+			Closeable = true
 		}
 	})
 
 	hub.Subscribe(events.DayOver{}, func(e tasks.Event) {
-		removeFunc()
+		if removeFunc != nil {
+			removeFunc()
+			Closeable = true
+		}
 		nextDay = false
 	})
 
 	hub.Subscribe(events.CloseWindow{}, func(e tasks.Event) {
-		if removeFunc != nil {
+		ev := e.(events.CloseWindow)
+		if removeFunc != nil && Closeable || ev.OverRide {
 			removeFunc()
+			Closeable = true
 		}
 	})
 
 }
 
-func loadSubmitButtonImage() (*widget.ButtonImage, error) {
+func loadSubmitButtonImage() *widget.ButtonImage {
 
-	img, err := loader.LoadImageAssetAsEbitenImage("menuAssets/submitButton3")
+	img, _ := loader.LoadImageAssetAsEbitenImage("menuAssets/submitButton3")
 
-	if err != nil {
-		return nil, err
-	}
-
-	imgClicked, err := loader.LoadImageAssetAsEbitenImage("menuAssets/submitButtonAlt")
-
-	if err != nil {
-		return nil, err
-	}
+	imgClicked, _ := loader.LoadImageAssetAsEbitenImage("menuAssets/submitButtonAlt")
 
 	nineSliceImage := eimage.NewNineSlice(img, [3]int{9, img.Bounds().Dx() - 18, 9}, [3]int{8, 9, 10})
 
@@ -214,7 +404,7 @@ func loadSubmitButtonImage() (*widget.ButtonImage, error) {
 		Pressed:      pressed,
 		PressedHover: pressed,
 		Disabled:     eimage.NewNineSliceColor(color.NRGBA{R: 100, G: 100, B: 200, A: 255}),
-	}, nil
+	}
 }
 
 func loadSpriteSelectButtonImage(t string) (*widget.ButtonImage, error) {
@@ -374,7 +564,29 @@ func LoadMuteButton(buttonText string, hub *tasks.EventHub, fontSize float64) *w
 	return button
 }
 
-func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, fontSize float64, hub *tasks.EventHub) (*widget.Container, error) {
+func LoadStackedImageButton(buttonText string, img *ebiten.Image, fontSize float64, hub *tasks.EventHub) {
+
+}
+
+func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, fontSize float64, hub *tasks.EventHub, tipText []string) (*widget.Container, error) {
+
+	tooltipContainer := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(widget.RowLayoutOpts.Direction(widget.DirectionVertical))),
+		widget.ContainerOpts.AutoDisableChildren(),
+		widget.ContainerOpts.BackgroundImage(eimage.NewNineSliceColor(color.NRGBA{R: 170, G: 170, B: 230, A: 255})),
+	)
+
+	if len(tipText) > 0 {
+		for _, text := range tipText {
+			option1 := widget.NewText(
+				widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+				widget.TextOpts.Text(fmt.Sprint(text), registry.FontMap["nk57"], colornames.Greenyellow),
+				widget.TextOpts.WidgetOpts(widget.WidgetOpts.MinSize(100, 0)),
+			)
+			tooltipContainer.AddChild(option1)
+		}
+	}
+
 	face, err := util.LoadFont(fontSize, "nk57")
 	if err != nil {
 		log.Fatal(err)
@@ -436,12 +648,10 @@ func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, fontS
 
 		// add a handler that reacts to clicking the button
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-			println("button clicked")
 			btnIconG.GetWidget().Disabled = !btnIconG.GetWidget().Disabled
 
 		}),
 		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
-
 			button.GetWidget().CustomData = true
 			button.KeepPressedOnExit = true
 		}),
@@ -466,7 +676,19 @@ func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, fontS
 			Top:    100,
 			Bottom: 10,
 		}),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.MinSize(120, 100)),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.MinSize(120, 100),
+			widget.WidgetOpts.ToolTip(widget.NewToolTip(
+				widget.ToolTipOpts.Content(tooltipContainer),
+				//widget.WidgetToolTipOpts.Delay(1*time.Second),
+				widget.ToolTipOpts.Offset(image.Point{-5, 5}),
+				widget.ToolTipOpts.Position(widget.TOOLTIP_POS_WIDGET),
+				//When the Position is set to TOOLTIP_POS_WIDGET, you can configure where it opens with the optional parameters below
+				//They will default to what you see below if you do not provide them
+				widget.ToolTipOpts.AnchorOriginHorizontal(widget.TOOLTIP_ANCHOR_END),
+				widget.ToolTipOpts.AnchorOriginVertical(widget.TOOLTIP_ANCHOR_END),
+				widget.ToolTipOpts.ContentOriginHorizontal(widget.TOOLTIP_ANCHOR_END),
+				widget.ToolTipOpts.ContentOriginVertical(widget.TOOLTIP_ANCHOR_START),
+			))),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			if button.GetWidget().Disabled == false {
 				button.GetWidget().Disabled = true
@@ -475,7 +697,6 @@ func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, fontS
 				}
 				hub.Publish(ev)
 			}
-
 		}),
 	)
 	buttonStackedLayout.AddChild(button)
@@ -564,7 +785,7 @@ func LoadStackedButtonWithText(StackedButton *widget.Container, Description stri
 	)
 
 	txtContainer.AddChild(textarea)
-	buyButton := LoadSubmitButton(eventName, hub, 12)
+	buyButton := LoadSubmitButton(eventName, hub, 12, "")
 	txtContainer.AddChild(buyButton)
 
 	rootContainer.AddChild(StackedButton)
@@ -737,10 +958,7 @@ func LoadBackButton(hub *tasks.EventHub) *widget.Button {
 
 func LoadSubmitButtonAltEvent(buttonText string, hub *tasks.EventHub, fontSize float64, eventText string) *widget.Button {
 	//load a generic button labeled with button text string that will send a button clicked event to event hub
-	buttonImage, err := loadSubmitButtonImage()
-	if err != nil {
-		log.Fatal(err)
-	}
+	buttonImage := loadSubmitButtonImage()
 
 	face, err := util.LoadFont(fontSize, "nk57")
 	if err != nil {
@@ -817,12 +1035,9 @@ func LoadSubmitButtonAltEvent(buttonText string, hub *tasks.EventHub, fontSize f
 	return button
 }
 
-func LoadSubmitButton(buttonText string, hub *tasks.EventHub, fontSize float64) *widget.Button {
+func LoadSubmitButton(buttonText string, hub *tasks.EventHub, fontSize float64, eventText string) *widget.Button {
 	//load a generic button labeled with button text string that will send a button clicked event to event hub
-	buttonImage, err := loadSubmitButtonImage()
-	if err != nil {
-		log.Fatal(err)
-	}
+	buttonImage := loadSubmitButtonImage()
 
 	face, err := util.LoadFont(fontSize, "nk57")
 	if err != nil {
@@ -872,11 +1087,19 @@ func LoadSubmitButton(buttonText string, hub *tasks.EventHub, fontSize float64) 
 		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
 			if button.GetWidget().Disabled == false {
 				button.GetWidget().Disabled = true
-				println("button event generated for", buttonText)
-				ev := events.ButtonClickedEvent{
-					ButtonText: buttonText,
+				if eventText == "" {
+					println("button event generated for", buttonText)
+					ev := events.ButtonClickedEvent{
+						ButtonText: buttonText,
+					}
+					hub.Publish(ev)
+				} else {
+					println("button event generated for", eventText)
+					ev := events.ButtonClickedEvent{
+						ButtonText: eventText,
+					}
+					hub.Publish(ev)
 				}
-				hub.Publish(ev)
 			}
 			button.Text().Inset.Top = 2
 			button.Text().Inset.Left = -2
@@ -901,10 +1124,7 @@ func LoadSubmitButton(buttonText string, hub *tasks.EventHub, fontSize float64) 
 
 func LoadButton(buttonText string, hub *tasks.EventHub, fontSize float64) *widget.Button {
 	//load a generic button labeled with button text string that will send a button clicked event to event hub
-	buttonImage, err := loadSubmitButtonImage()
-	if err != nil {
-		log.Fatal(err)
-	}
+	buttonImage := loadSubmitButtonImage()
 
 	face, err := util.LoadFont(fontSize, "nk57")
 	if err != nil {

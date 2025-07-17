@@ -30,13 +30,13 @@ func LoadMowingUI(eHub *tasks.EventHub) *ebitenui.UI {
 			)),
 	)
 
-	button := LoadSubmitButton("Continue", eHub, 16)
+	button := LoadSubmitButton("Continue", eHub, 16, "")
 	//choreButton.GetWidget().Visibility = widget.Visibility_Hide
 	//choreButton.GetWidget().Disabled = true
-	//modeButton := LoadSubmitButton("Mode", eHub, 12)
+	//modeButton := LoadSubmitButton("Mode", eHub, 12, "")
 
-	//button2 := LoadSubmitButton("Mute Music", eHub, 12)
-	//button3 := LoadSubmitButton("Mute Sounds", eHub, 12)
+	//button2 := LoadSubmitButton("Mute Music", eHub, 12, "")
+	//button3 := LoadSubmitButton("Mute Sounds", eHub, 12, "")
 
 	//buttonContainer.AddChild(button2)
 	//buttonContainer.AddChild(button3)

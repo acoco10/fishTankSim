@@ -94,7 +94,7 @@ func (t *TextWithShader) Draw(dst *ebiten.Image) {
 		return
 	}
 
-	log.Printf("Drawing text shader: |%s|", t.text)
+	//log.Printf("Drawing text shader: |%s|", t.text)
 	if t.shader == nil {
 		t.FullyDrawn = true
 		return

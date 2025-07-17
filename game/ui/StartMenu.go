@@ -21,7 +21,7 @@ type startMenuState uint8
 const (
 	title startMenuState = iota
 	fishSelected
-	propSelected
+	nameInput
 )
 
 type StartMenu struct {
@@ -37,14 +37,12 @@ type StartMenu struct {
 	SelectSpritesToDraw []drawables.Drawable
 	eventHub            *tasks.EventHub
 	fishButtons         map[string]*widget.Button
-	propButtons         []*widget.Container
 	fishButtonContainer *widget.Container
-	propButtonContainer *widget.Container
 	selectContainer     *widget.Container
 }
 
 func LoadStartMenu(hub *tasks.EventHub, screenWidth int, screenHeight int) (*StartMenu, error) {
-	headerFontSize := 54.0
+	headerFontSize := 64.0
 
 	s := StartMenu{}
 	s.eventHub = hub
@@ -154,9 +152,9 @@ func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64) error {
 
 	headerContainer.AddChild(headerLbl)
 
-	b1 := LoadSpriteSelectButton("Goldfish", startMenu.eventHub, 16)
-	b2 := LoadSpriteSelectButton("Common Molly", startMenu.eventHub, 16)
-	b3 := LoadSpriteSelectButton("Select", startMenu.eventHub, 16)
+	b1 := LoadSpriteSelectButton("Goldfish", startMenu.eventHub, 24)
+	b2 := LoadSpriteSelectButton("Common Molly", startMenu.eventHub, 24)
+	b3 := LoadSpriteSelectButton("Select", startMenu.eventHub, 24)
 
 	fishButtonMap := make(map[string]*widget.Button)
 
@@ -183,7 +181,6 @@ func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64) error {
 
 	startMenu.fishButtons = fishButtonMap
 	startMenu.fishButtonContainer = pickFishContainer
-	startMenu.propButtonContainer = propButs
 	//startMenu.buttonContainer = childContainer
 	startMenu.UI = &ui
 	startMenu.root = childContainer
@@ -198,7 +195,10 @@ func (s *StartMenu) subs() {
 		if ev.EType == "cursor exited" {
 			if ev.ButtonText != "Select" {
 				if len(s.SelectSpritesToDraw) > 1 {
-					s.DrawOptions[ev.ButtonText].(*sprite.AnimatedSprite).UnLoadShader()
+					sp, ok := s.DrawOptions[ev.ButtonText].(*sprite.AnimatedSprite)
+					if ok {
+						sp.UnLoadShader()
+					}
 				}
 			}
 		}
@@ -219,8 +219,9 @@ func (s *StartMenu) subs() {
 		ev := e.(events.ButtonEvent)
 		if ev.EType == "cursor entered" {
 			if ev.ButtonText != "Select" {
-				if s.DrawOptions[ev.ButtonText] != nil {
-					s.DrawOptions[ev.ButtonText].(*sprite.AnimatedSprite).LoadShader(registry.ShaderMap["Outline"])
+				sp, ok := s.DrawOptions[ev.ButtonText].(*sprite.AnimatedSprite)
+				if ok {
+					sp.LoadShader(registry.ShaderMap["Outline"])
 				}
 			}
 		}
@@ -228,92 +229,58 @@ func (s *StartMenu) subs() {
 }
 
 func (s *StartMenu) SpriteSelected(tx string) {
-	switch s.state {
-	case title:
-		s.state = fishSelected
-		s.fishButtonContainer.RemoveChildren()
-		s.fishButtonContainer.AddChild(s.fishButtons["Selected Button"])
 
-		/*s.fishButtons["Selected Button"].GetWidget().Visibility = widget.Visibility_Show*/
-		s.fishButtons["Selected Button"].Text().Label = tx
-		s.fishButtons["Selected Button"].GetWidget().Disabled = true
-		//s.fishButtons["Selected Button"].Press()
+	s.state = fishSelected
+	s.fishButtonContainer.RemoveChildren()
+	s.fishButtonContainer.AddChild(s.fishButtons["Selected Button"])
 
-		s.SelectSpritesToDraw = []drawables.Drawable{}
+	/*s.fishButtons["Selected Button"].GetWidget().Visibility = widget.Visibility_Show*/
+	s.fishButtons["Selected Button"].Text().Label = tx
+	s.fishButtons["Selected Button"].GetWidget().Disabled = true
+	//s.fishButtons["Selected Button"].Press()
 
-		selectedFish := s.DrawOptions[tx].(*sprite.AnimatedSprite)
-		offset := 120 - selectedFish.SpriteWidth*4
+	s.SelectSpritesToDraw = []drawables.Drawable{}
 
-		selectedFish.X = float32(s.screenWidth/2 - (selectedFish.SpriteWidth)*2 - offset/2)
-
-		selectedFish.Shader = registry.ShaderMap["Outline"]
-
-		s.SelectSpritesToDraw = append(s.SelectSpritesToDraw, selectedFish, s.DrawOptions["Back"])
-
-		if s.propButtons != nil {
-		}
-
-		propButtons, err := propSelectChild(s.eventHub)
-		if err != nil {
-			log.Fatal("error initiating prop container", err)
-		}
-		s.propButtons = propButtons
-		for _, but := range propButtons {
-			s.propButtonContainer.AddChild(but)
-		}
-		moveBack(s.DrawOptions["Back"], s.state)
-
-	case fishSelected:
-		s.propButtonContainer.RemoveChildren()
-		switch tx {
-		case "Castle":
-			s.propButtonContainer.AddChild(s.propButtons[0])
-		case "Log":
-			s.propButtonContainer.AddChild(s.propButtons[1])
-		}
-
-		textinputContainer, textInput, textInputButton, err := NewTextInput(s.eventHub)
-		if err != nil {
-			log.Fatal("text input dun fucked up", err)
-		}
-		s.TextInputContainer = textinputContainer
-		s.TextInputButton = textInputButton
-		s.root.AddChild(textinputContainer)
-		textInput.Focus(true)
-		s.state = propSelected
+	selectedFish, ok := s.DrawOptions[tx].(*sprite.AnimatedSprite)
+	if !ok {
+		println("pollution from another scene")
+		return
 	}
+
+	offset := 120 - selectedFish.SpriteWidth*4
+	selectedFish.X = float32(s.screenWidth/2 - (selectedFish.SpriteWidth)*2 - offset/2)
+
+	selectedFish.Shader = registry.ShaderMap["Outline"]
+
+	s.SelectSpritesToDraw = append(s.SelectSpritesToDraw, selectedFish, s.DrawOptions["Back"])
+
+	moveBack(s.DrawOptions["Back"], s.state)
+
+	textinputContainer, textInput, textInputButton, err := NewTextInput(s.eventHub)
+	if err != nil {
+		log.Fatal("text input dun fucked up", err)
+	}
+	s.TextInputContainer = textinputContainer
+	s.TextInputButton = textInputButton
+	s.root.AddChild(textinputContainer)
+	textInput.Focus(true)
 }
 
 func (s *StartMenu) Back() {
 	switch s.state {
 	case fishSelected:
 		s.state = title
-		s.propButtonContainer.RemoveChildren()
 		s.fishButtonContainer.RemoveChildren()
 		s.fishButtonContainer.AddChild(s.fishButtons["Goldfish"])
 		s.fishButtonContainer.AddChild(s.fishButtons["Common Molly"])
 		loader.StartScreenCoordinatePositioner(s.screenHeight, s.screenWidth, s.DrawOptions, 12.0, 54)
 		s.SelectSpritesToDraw = []drawables.Drawable{}
 		s.SelectSpritesToDraw = append(s.SelectSpritesToDraw, s.DrawOptions["Common Molly"], s.DrawOptions["Goldfish"])
-
-	case propSelected:
-
-		s.state = fishSelected
-		s.propButtonContainer.RemoveChildren()
-
-		for _, but := range s.propButtons {
-			s.propButtonContainer.AddChild(but)
-		}
-
-		s.TextInputContainer.RemoveChildren()
-
 	}
 }
 
 func moveBack(backButton drawables.Drawable, state startMenuState) {
 	switch state {
-	case propSelected:
-		backButton.(*sprite.Sprite).X -= 100
 	case fishSelected:
 		backButton.(*sprite.Sprite).X -= 100
 		backButton.(*sprite.Sprite).Y += 150
@@ -352,13 +319,13 @@ func propSelectChild(eventHub *tasks.EventHub) ([]*widget.Container, error) {
 		return nil, err
 	}*/
 
-	b1, err := LoadStackSpriteSelectButton("Castle", ebiten.NewImage(10, 10), 16, eventHub)
+	b1, err := LoadStackSpriteSelectButton("Castle", ebiten.NewImage(10, 10), 16, eventHub, []string{})
 
 	if err != nil {
 		return nil, err
 	}
 
-	b2, err := LoadStackSpriteSelectButton("Log", ebiten.NewImage(10, 10), 16, eventHub)
+	b2, err := LoadStackSpriteSelectButton("Log", ebiten.NewImage(10, 10), 16, eventHub, []string{})
 
 	if err != nil {
 		return nil, err

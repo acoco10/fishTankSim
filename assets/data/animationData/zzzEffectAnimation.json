@@ -1,0 +1,110 @@
+{ "frames": [
+   {
+    "filename": "Sprite-0001 0.",
+    "frame": { "x": 0, "y": 0, "w": 34, "h": 45 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 34, "h": 45 },
+    "sourceSize": { "w": 34, "h": 45 },
+    "duration": 100
+   },
+   {
+    "filename": "Sprite-0001 1.",
+    "frame": { "x": 34, "y": 0, "w": 34, "h": 45 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 34, "h": 45 },
+    "sourceSize": { "w": 34, "h": 45 },
+    "duration": 100
+   },
+   {
+    "filename": "Sprite-0001 2.",
+    "frame": { "x": 68, "y": 0, "w": 34, "h": 45 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 34, "h": 45 },
+    "sourceSize": { "w": 34, "h": 45 },
+    "duration": 100
+   },
+   {
+    "filename": "Sprite-0001 3.",
+    "frame": { "x": 102, "y": 0, "w": 34, "h": 45 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 34, "h": 45 },
+    "sourceSize": { "w": 34, "h": 45 },
+    "duration": 100
+   },
+   {
+    "filename": "Sprite-0001 4.",
+    "frame": { "x": 136, "y": 0, "w": 34, "h": 45 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 34, "h": 45 },
+    "sourceSize": { "w": 34, "h": 45 },
+    "duration": 100
+   },
+   {
+    "filename": "Sprite-0001 5.",
+    "frame": { "x": 170, "y": 0, "w": 34, "h": 45 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 34, "h": 45 },
+    "sourceSize": { "w": 34, "h": 45 },
+    "duration": 100
+   },
+   {
+    "filename": "Sprite-0001 6.",
+    "frame": { "x": 204, "y": 0, "w": 34, "h": 45 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 34, "h": 45 },
+    "sourceSize": { "w": 34, "h": 45 },
+    "duration": 100
+   },
+   {
+    "filename": "Sprite-0001 7.",
+    "frame": { "x": 238, "y": 0, "w": 34, "h": 45 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 34, "h": 45 },
+    "sourceSize": { "w": 34, "h": 45 },
+    "duration": 100
+   },
+   {
+    "filename": "Sprite-0001 8.",
+    "frame": { "x": 272, "y": 0, "w": 34, "h": 45 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 34, "h": 45 },
+    "sourceSize": { "w": 34, "h": 45 },
+    "duration": 100
+   },
+   {
+    "filename": "Sprite-0001 9.",
+    "frame": { "x": 306, "y": 0, "w": 34, "h": 45 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 34, "h": 45 },
+    "sourceSize": { "w": 34, "h": 45 },
+    "duration": 100
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.3.9.2-arm64",
+  "image": "zzzSpriteSheet.png",
+  "format": "RGBA8888",
+  "size": { "w": 340, "h": 45 },
+  "scale": "1",
+  "frameTags": [
+  ],
+  "layers": [
+   { "name": "Layer 1", "opacity": 255, "blendMode": "normal" },
+   { "name": "fadedOpacity1", "opacity": 158, "blendMode": "normal" },
+   { "name": "fadedOpacity2", "opacity": 69, "blendMode": "normal" }
+  ],
+  "slices": [
+  ]
+ }
+}

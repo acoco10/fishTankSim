@@ -23,7 +23,8 @@ const (
 type Rect struct {
 	X1, Y1, X2, Y2 float32
 	RectState
-	tag string
+	tag                string
+	cursorMarkerRadius float32
 }
 
 func (r *Rect) Init(tag string) {
@@ -41,12 +42,27 @@ func (r *Rect) Draw(screen *ebiten.Image) {
 		clr := color.RGBA{R: 200, G: 100, B: 100, A: 255}
 		vector.StrokeRect(screen, r.X1, r.Y1, r.X2-r.X1, r.Y2-r.Y1, 2, clr, false)
 	}
+	if r.RectState == On {
+		clr := color.RGBA{R: 200, G: 100, B: 100, A: 255}
+		vector.StrokeCircle(screen, r.X1, r.Y1, r.cursorMarkerRadius, 1, clr, false)
+	}
 }
 
 func (r *Rect) Update() error {
+
+	r.cursorMarkerRadius++
+
+	if r.cursorMarkerRadius == 3 {
+		r.cursorMarkerRadius = 0
+	}
+
 	if r.RectState == On {
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			r.RectState = Initiated
+			x, y := ebiten.CursorPosition()
+			r.X1 = float32(x)
+			r.Y1 = float32(y)
+
 		}
 	}
 	if r.RectState == Initiated {
@@ -68,6 +84,9 @@ func (r *Rect) Update() error {
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			r.RectState = Off
 		}
+	}
+	if r.RectState == Off && inpututil.IsKeyJustPressed(ebiten.KeyN) {
+		r.RectState = On
 	}
 	return nil
 }

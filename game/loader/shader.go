@@ -18,12 +18,27 @@ func LoadShaderRegistry() {
 
 	opl := shaders.LoadOnePointLightingBlue()
 
+	turnOff := shaders.LoadTurnOffTheLights()
+
+	dayLight := shaders.LoadDayLight()
+
+	water := shaders.LoadWaterShader()
+
+	wall := shaders.LoadWallShader()
+
+	ph := shaders.LoadPHShader()
+
 	registry.ShaderMap = make(map[string]*ebiten.Shader)
 
+	// I gave these capitol letters to mirror go's way of making structs importable/ kage but im not sure i like it
 	registry.ShaderMap["Outline"] = ols
 	registry.ShaderMap["Erase"] = erase
 	registry.ShaderMap["HandWriting"] = hwr
 	registry.ShaderMap["NormalMap"] = normalMap
 	registry.ShaderMap["OnePointLighting"] = opl
-
+	registry.ShaderMap["TurnOff"] = turnOff
+	registry.ShaderMap["DayLight"] = dayLight
+	registry.ShaderMap["Water"] = water
+	registry.ShaderMap["Wall"] = wall
+	registry.ShaderMap["PH"] = ph
 }

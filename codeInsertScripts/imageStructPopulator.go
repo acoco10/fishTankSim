@@ -19,16 +19,20 @@ func main() {
 	// Put your image names here
 	fields := []string{
 		"offScreen",
+		"offScreen2",
 		"roomBackground",
 		"fishTank",
 		"frontLayer",
 		"fishTank_n",
 		"fishTankFrontLayer",
+		"fishTankFrontLayerNoLight",
+		"fishTankFrontLayerDayLight",
+		"fishTankFrontLayerNoLightSmaller",
 		// Add more as needed
 	}
 
 	// Create output file
-	f, err := os.Create("game/loader/roomImageLoaderGenerated.go")
+	f, err := os.Create("game/loader/GENroomImageLoader.go")
 	if err != nil {
 		panic(err)
 	}
@@ -79,7 +83,7 @@ func LoadImage(path string) (*ebiten.Image, error) {
 	fmt.Fprintln(f, " ")
 
 	for _, field := range fields {
-		if field == "offScreen" {
+		if field == "offScreen" || field == "offScreen2" {
 			continue
 		}
 		exportedField := upperFirst(field)

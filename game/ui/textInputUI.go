@@ -124,7 +124,7 @@ func NewTextInput(ehub *tasks.EventHub) (*widget.Container, *widget.TextInput, *
 		}),
 	)
 
-	b3 := LoadSubmitButton("Submit", ehub, 16)
+	b3 := LoadSubmitButton("Submit", ehub, 16, "")
 
 	textContainer.AddChild(textInput)
 	btnContainer.AddChild(b3)

@@ -18,3 +18,7 @@ type NewDay struct {
 type FishTankLayout struct {
 	image.Rectangle
 }
+
+type IntroFlow struct {
+	Event string
+}

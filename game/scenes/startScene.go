@@ -5,28 +5,35 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/daySystem"
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/events"
+	"github.com/acoco10/fishTankWebGame/game/loader"
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/acoco10/fishTankWebGame/game/soundFX"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/ui"
+	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"image/color"
+	"golang.org/x/image/colornames"
 	"log"
 )
 
 type StartScene struct {
-	ui                 *ui.StartMenu
-	smallerResoloution *ebiten.Image
-	isLoaded           bool
-	fishOptions        []*sprite.AnimatedSprite
-	nextSceneTrigger   *entities.Timer
-	gameLog            *sceneManagement.GameLog
-	selectedFish       entities.SavedFish
-	smallerResolution  *ebiten.Image
-	selectedProp       entities.TankObject
+	i                      int
+	ui                     *ui.StartMenu
+	isLoaded               bool
+	fishOptions            []*sprite.AnimatedSprite
+	nextSceneTrigger       *entities.Timer
+	gameLog                *sceneManagement.GameLog
+	selectedFish           entities.SavedFish
+	smallerResolution      *ebiten.Image
+	shaderUpdater          func(map[string]any) map[string]any
+	selectedProp           entities.TankObject
+	backGroundShader       *ebiten.Shader
+	offScreen1             *ebiten.Image
+	backGroundShaderParams map[string]any
+	resolutionScaling      int
 }
 
 func NewStartScene(gameLog *sceneManagement.GameLog) *StartScene {
@@ -42,14 +49,29 @@ func NewStartScene(gameLog *sceneManagement.GameLog) *StartScene {
 	s.subs(gameLog)
 	timer := entities.NewTimer(1)
 	s.nextSceneTrigger = timer
-	s.smallerResolution = ebiten.NewImage(1000, 1000)
+	s.smallerResolution = ebiten.NewImage(640, 360)
+	s.resolutionScaling = ScaleScreenToResolution(s.smallerResolution)
 
+	s.offScreen1, err = loader.LoadImageAssetAsEbitenImage("roomImages/startBackGround")
+	if err != nil {
+		log.Fatal("bad import path ya dingbat")
+	}
+
+	s.backGroundShader = registry.ShaderMap["Water"]
+	s.backGroundShaderParams = make(map[string]any)
+	s.backGroundShaderParams["TankRect"] = [4]float64{0, 0, ScreenWidth, ScreenHeight}
+	s.backGroundShaderParams["TankSize"] = [2]float64{ScreenWidth, ScreenHeight}
+	s.backGroundShaderParams["Counter"] = 0
+
+	s.shaderUpdater = shaders.UpdateCounter
 	return &s
 }
 
 func (s *StartScene) Update() (sceneManagement.SceneId, error) {
-
+	s.i++
 	s.ui.UI.Update()
+
+	s.backGroundShaderParams = s.shaderUpdater(s.backGroundShaderParams)
 
 	for _, fish := range s.ui.SelectSpritesToDraw {
 		fish.Update()
@@ -70,13 +92,29 @@ func (s *StartScene) Update() (sceneManagement.SceneId, error) {
 }
 
 func (s *StartScene) Draw(screen *ebiten.Image) {
-	s.smallerResolution.Fill(color.RGBA{R: 120, G: 170, B: 210, A: 255})
+	s.offScreen1.Fill(colornames.Aliceblue)
+	shaderOpts := &ebiten.DrawRectShaderOptions{}
+
+	shaderOpts.Uniforms = s.backGroundShaderParams
+	shaderOpts.Images[0] = s.offScreen1
+
+	s.smallerResolution.DrawRectShader(ScreenWidth, ScreenHeight, s.backGroundShader, shaderOpts)
+
 	opts := &ebiten.DrawImageOptions{}
+	if s.i > 2 {
+	}
 
 	for _, fish := range s.ui.SelectSpritesToDraw {
-		fish.Draw(screen)
+		if s.smallerResolution != nil {
+			fish.Draw(s.smallerResolution)
+		}
 	}
+
+	opts.GeoM.Scale(float64(s.resolutionScaling), float64(s.resolutionScaling))
+
 	screen.DrawImage(s.smallerResolution, opts)
+	opts.GeoM.Reset()
+
 	s.ui.Draw(screen)
 
 }

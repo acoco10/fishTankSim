@@ -5,6 +5,9 @@ import (
 	"reflect"
 )
 
+var eventId int
+var EventMap = make(map[int]Handler)
+
 type Event interface{}
 
 type Handler func(Event)
@@ -31,8 +34,4 @@ func (h *EventHub) Publish(event Event) {
 	for _, handler := range h.subscribers[t] {
 		handler(event)
 	}
-}
-
-func (h *EventHub) UnSubscribe() {
-
 }

@@ -1,11 +1,11 @@
 package events
 
 type MoneyAdded struct {
-	Amount float32
+	Amount float64
 }
 
 type MoneySpent struct {
-	Amount float32
+	Amount float64
 }
 
 type InsufficientFunds struct {
@@ -15,7 +15,7 @@ type PurchaseSuccessful struct {
 }
 
 type BuyAttempt struct {
-	Cost float32
+	Cost float64
 	Item string
 	Name string
 }

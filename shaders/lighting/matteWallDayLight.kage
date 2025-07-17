@@ -1,0 +1,52 @@
+//kage:unit pixels
+package main
+
+// Simple noise function for texture
+func noise(p vec2) float {
+    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453)
+}
+
+// Multi-octave noise for more complex texture
+func fbm(p vec2) float {
+    value := 0.0
+    amplitude := 0.5
+    frequency := 1.0
+
+    for i := 0; i < 3; i++ {
+       value += amplitude * noise(p * frequency)
+       amplitude *= 0.5
+       frequency *= 2.0
+    }
+
+    return value
+}
+
+func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
+    color := imageSrc0UnsafeAt(texCoord)
+
+    // Get screen dimensions for proper positioning
+    if color.a > 0 {
+
+       // Generate pixel art style texture using stepped noise
+       textureScale := 2.0 // Larger scale for chunkier pixel art feel
+       rawTexture := fbm(floor(dstCoord.xy / textureScale) * textureScale)
+
+       // Quantize the texture to discrete levels for pixel art look
+       steps := 4.0
+       wallTexture := floor(rawTexture * steps) / steps
+
+       // Add subtle color variation with discrete steps
+       colorVariation := vec3(
+          wallTexture * 0.03 - 0.015,
+          wallTexture * 0.025 - 0.0125,
+          wallTexture * 0.035 - 0.0175,
+       )
+       color.rgb += colorVariation
+
+       // Maintain alpha but make it less transparent in lit areas
+       color.a *= (0.8 + 0.2)
+       color.rgb *= color.a
+    }
+
+    return color
+}

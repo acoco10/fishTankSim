@@ -20,7 +20,7 @@ import (
 )
 
 func AppendConst(itemName string) error {
-	filePath := "../game/interactableUIObjects/constIndex.go"
+	filePath := "game/interactableUIObjects/constIndex.go"
 	lCaser := cases.Lower(language.English)
 	lowerCaseInput := lCaser.String(itemName)
 
@@ -118,7 +118,7 @@ func AppendConst(itemName string) error {
 
 func AppendJsonWithLocationData(newUIObj string) error {
 	var positions = make(map[string]*drawables.SavePositionData)
-	spritePosition, err := assets.DataDir.ReadFile("assets/data/spritePosition.json")
+	spritePosition, err := assets.DataDir.ReadFile("data/spritePosition.json")
 	if err != nil {
 		return err
 	}

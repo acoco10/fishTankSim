@@ -6,5 +6,5 @@ type UISpriteLayedOut struct {
 }
 
 type MoneyAvailable struct {
-	Amount float32
+	Amount float64
 }

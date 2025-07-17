@@ -2,8 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/loader"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
@@ -19,16 +17,18 @@ type GameState struct {
 
 func main() {
 
-	stateData, err := assets.DataDir.ReadFile("data/saveWithTasks.json")
+	var data GameState
+
+	/*stateData, err := assets.DataDir.ReadFile("data/saveWithTasks.json")
 	if err != nil {
 		fmt.Errorf("cant read test save file from embed dir %t", err)
 	}
 
-	var data GameState
+
 	err = json.Unmarshal(stateData, &data)
 	if err != nil {
 		log.Fatal(err)
-	}
+	}*/
 
 	loader.LoadShaderRegistry()
 	loader.LoadFontRegistry()

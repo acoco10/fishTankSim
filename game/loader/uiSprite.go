@@ -33,15 +33,17 @@ func loadUiSpritesImgs(label iObj.Label) ([]*ebiten.Image, error) {
 func LoadUISprites(spritesToLoad []iObj.Label, environment *system.Environment, hub *tasks.EventHub, screenWidth, screenHeight int) ([]drawables.Drawable, error) {
 	var sprites []drawables.Drawable
 
-	spritePositions, err := loadSpritePositionData()
+	spritePositions, err := LoadSpritePositionData()
 	if err != nil {
 		return nil, err
 	}
 
 	for _, elem := range spritesToLoad {
+
 		if spritePositions[string(elem)] == nil {
-			log.Fatal("No position data for sprite door")
+			log.Fatal("No position data for sprite", elem)
 		}
+
 		x := spritePositions[string(elem)].X
 		y := spritePositions[string(elem)].Y
 
@@ -79,10 +81,6 @@ func LoadUISprites(spritesToLoad []iObj.Label, environment *system.Environment, 
 			pillowSprite.Subscribe(hub)
 			sprites = append(sprites, &pillowSprite)
 			continue
-		case iObj.Magazine:
-			mag := iObj.MagazineUI{UiSprite: uSprite}
-			sprites = append(sprites, &mag)
-			continue
 		}
 
 		//lightingShader := shaders.LoadOnePointLightingNeutral()
@@ -96,7 +94,7 @@ func LoadUISprites(spritesToLoad []iObj.Label, environment *system.Environment, 
 
 }
 
-func loadSpritePositionData() (map[string]*drawables.SavePositionData, error) {
+func LoadSpritePositionData() (map[string]*drawables.SavePositionData, error) {
 	var positions = make(map[string]*drawables.SavePositionData)
 	spritePosition, err := assets.DataDir.ReadFile("data/spritePosition.json")
 	if err != nil {

@@ -248,6 +248,7 @@ func (s *MowingScene) OnEnter() {
 func (s *MowingScene) OnExit() {
 	log.Printf("Leaving Mowing Scene")
 	s.gameLog.SongPlayer.Pause()
+	s.gameLog.GlobalEventHub.Publish(events.MoneyAvailable{Amount: s.allowance})
 }
 
 func (s *MowingScene) IsLoaded() bool {

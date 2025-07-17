@@ -9,15 +9,17 @@ import (
 )
 
 type GameLog struct {
-	PlayerLoginId  string
-	PreviousScene  SceneId
-	Save           *entities.SaveGameState
-	GlobalEventHub *tasks.EventHub
-	SongPlayer     *soundFX.SoundPlayer
-	SoundPlayer    *soundFX.SoundPlayer
-	Day            int
-	Tasks          []*tasks.Task
-	DayType        DayType
+	PlayerLoginId        string
+	PreviousScene        SceneId
+	Save                 *entities.SaveGameState
+	GlobalEventHub       *tasks.EventHub
+	StartSceneEventHuber *tasks.EventHub
+	MowerSceneEventHub   *tasks.EventHub
+	SongPlayer           *soundFX.SoundPlayer
+	SoundPlayer          *soundFX.SoundPlayer
+	Day                  int
+	Tasks                []*tasks.Task
+	DayType              DayType
 }
 type DayType uint8
 
@@ -58,6 +60,7 @@ const (
 	StartScene
 	TransitionScene
 	MowingMiniGameScene
+	CampScene
 )
 
 type GameMode uint

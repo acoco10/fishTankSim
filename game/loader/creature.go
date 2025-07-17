@@ -23,6 +23,8 @@ func LoadFishImg(fType entities.FishList, level int) (*ebiten.Image, error) {
 		fishImgName = fmt.Sprintf("mollyFish%dSpriteSheet", level)
 	case entities.Guppy:
 		fishImgName = fmt.Sprintf("guppy%dSpriteSheet", level)
+	case entities.Kirbensis:
+		fishImgName = fmt.Sprintf("kirbensis%dSpriteSheet", level)
 	}
 	img, err := LoadImageAssetAsEbitenImage("fishSpriteSheets/" + fishImgName)
 	if err != nil {

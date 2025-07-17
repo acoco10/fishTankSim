@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="ALL" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="6522dac8-93b0-4a49-a462-b460450c3082" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/../loader/animatedEffects.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../scenes/fishSceneCreatureFunctions.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../shaders/lighting/dayLight.kage" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../shaders/lighting/matteWallDayLight.kage" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../shaders/lighting/turnOffTheLights.kage" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../shaders/uiEffects/phEffect.kage" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../shaders/water/water.kage" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../assets/data/collisionPosition.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../assets/data/collisionPosition.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../assets/data/saveWithTasks.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../assets/data/saveWithTasks.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../assets/data/spritePosition.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../assets/data/spritePosition.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../assets/images/asepriteFiles/thermometerAlt.aseprite" beforeDir="false" afterPath="$PROJECT_DIR$/../../assets/images/asepriteFiles/thermometerAlt.aseprite" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../assets/images/fishSpriteSheets/assets/images/fishSpriteSheets/fish3SpriteSheet_n.png" beforeDir="false" afterPath="$PROJECT_DIR$/../../assets/images/fishSpriteSheets/assets/images/fishSpriteSheets/fish3SpriteSheet_n.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../assets/images/fishSpriteSheets/assets/images/fishSpriteSheets/kirbensis2SpriteSheet_n.png" beforeDir="false" afterPath="$PROJECT_DIR$/../../assets/images/fishSpriteSheets/assets/images/fishSpriteSheets/kirbensis2SpriteSheet_n.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../assets/images/fishSpriteSheets/assets/images/fishSpriteSheets/mollyFish2SpriteSheet_n.png" beforeDir="false" afterPath="$PROJECT_DIR$/../../assets/images/fishSpriteSheets/assets/images/fishSpriteSheets/mollyFish2SpriteSheet_n.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../assets/images/fishSpriteSheets/kirbensis2SpriteSheet.png" beforeDir="false" afterPath="$PROJECT_DIR$/../../assets/images/fishSpriteSheets/kirbensis2SpriteSheet.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../assets/images/miniGames/mowingGame/treeSprite.png" beforeDir="false" afterPath="$PROJECT_DIR$/../../assets/images/miniGames/mowingGame/treeSprite.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../assets/images/roomImages/fishTankFrontLayer.png" beforeDir="false" afterPath="$PROJECT_DIR$/../../assets/images/roomImages/fishTankFrontLayer.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../assets/images/roomImages/roomBackground.png" beforeDir="false" afterPath="$PROJECT_DIR$/../../assets/images/roomImages/roomBackground.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../assets/images/tankProps/castleProp.png" beforeDir="false" afterPath="$PROJECT_DIR$/../../assets/images/tankProps/castleProp.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../assets/images/uiSprites/doorMain.png" beforeDir="false" afterPath="$PROJECT_DIR$/../../assets/images/uiSprites/doorMain.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../codeInsertScripts/addUISprite.go" beforeDir="false" afterPath="$PROJECT_DIR$/../../codeInsertScripts/addUISprite.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../codeInsertScripts/imageStructPopulator.go" beforeDir="false" afterPath="$PROJECT_DIR$/../../codeInsertScripts/imageStructPopulator.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../daySystem/tasksByDay.go" beforeDir="false" afterPath="$PROJECT_DIR$/../daySystem/tasksByDay.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../debug/visualDebugger.go" beforeDir="false" afterPath="$PROJECT_DIR$/../debug/visualDebugger.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../entities/fish.go" beforeDir="false" afterPath="$PROJECT_DIR$/../entities/fish.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../entities/fishFunctions.go" beforeDir="false" afterPath="$PROJECT_DIR$/../entities/fishFunctions.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../entities/player.go" beforeDir="false" afterPath="$PROJECT_DIR$/../entities/player.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../events/sceneEvents.go" beforeDir="false" afterPath="$PROJECT_DIR$/../events/sceneEvents.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../geometry/debugRect.go" beforeDir="false" afterPath="$PROJECT_DIR$/../geometry/debugRect.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../graphicManagerSubscriptions/graphicManagerSubs.go" beforeDir="false" afterPath="$PROJECT_DIR$/../graphicManagerSubscriptions/graphicManagerSubs.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../graphics/graphicID.go" beforeDir="false" afterPath="$PROJECT_DIR$/../graphics/graphicID.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../input/events.go" beforeDir="false" afterPath="$PROJECT_DIR$/../input/events.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../input/input.go" beforeDir="false" afterPath="$PROJECT_DIR$/../input/input.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../interactableUIObjects/constIndex.go" beforeDir="false" afterPath="$PROJECT_DIR$/../interactableUIObjects/constIndex.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../interactableUIObjects/interactableUiObject.go" beforeDir="false" afterPath="$PROJECT_DIR$/../interactableUIObjects/interactableUiObject.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../interactableUIObjects/magazine.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../loader/animationLoader.go" beforeDir="false" afterPath="$PROJECT_DIR$/../loader/animationData.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../loader/creature.go" beforeDir="false" afterPath="$PROJECT_DIR$/../loader/creature.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../loader/props.go" beforeDir="false" afterPath="$PROJECT_DIR$/../loader/props.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../loader/roomImageLoaderGenerated.go" beforeDir="false" afterPath="$PROJECT_DIR$/../loader/GENroomImageLoader.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../loader/shader.go" beforeDir="false" afterPath="$PROJECT_DIR$/../loader/shader.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../loader/uiSprite.go" beforeDir="false" afterPath="$PROJECT_DIR$/../loader/uiSprite.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../props/moveableProps.go" beforeDir="false" afterPath="$PROJECT_DIR$/../props/moveableProps.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../sceneManagement/sceneManager.go" beforeDir="false" afterPath="$PROJECT_DIR$/../sceneManagement/sceneManager.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../scenes/fishScene.go" beforeDir="false" afterPath="$PROJECT_DIR$/../scenes/fishScene.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../scenes/nextDayTransition.go" beforeDir="false" afterPath="$PROJECT_DIR$/../scenes/nextDayTransition.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sprite.go" beforeDir="false" afterPath="$PROJECT_DIR$/sprite.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../system/environment.go" beforeDir="false" afterPath="$PROJECT_DIR$/../system/environment.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../tasks/uiEventHub.go" beforeDir="false" afterPath="$PROJECT_DIR$/../tasks/uiEventHub.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../textEffects/textWithShader.go" beforeDir="false" afterPath="$PROJECT_DIR$/../textEffects/textWithShader.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../tutorial/tutorialManager.go" beforeDir="false" afterPath="$PROJECT_DIR$/../tutorial/tutorialManager.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../ui/MagazineUi.go" beforeDir="false" afterPath="$PROJECT_DIR$/../ui/MagazineUi.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../ui/NextDayMenu.go" beforeDir="false" afterPath="$PROJECT_DIR$/../ui/NextDayMenu.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../ui/StartMenu.go" beforeDir="false" afterPath="$PROJECT_DIR$/../ui/StartMenu.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../ui/fishTankSceneUI.go" beforeDir="false" afterPath="$PROJECT_DIR$/../ui/fishTankSceneUI.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../ui/mowingUI.go" beforeDir="false" afterPath="$PROJECT_DIR$/../ui/mowingUI.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../ui/textInputUI.go" beforeDir="false" afterPath="$PROJECT_DIR$/../ui/textInputUI.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../uiDev/nextDayMenu/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/../uiDev/nextDayMenu/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../util/measure.go" beforeDir="false" afterPath="$PROJECT_DIR$/../util/measure.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../util/utilUpdaters.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../generateNormals.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../generateNormals.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../runFromLocal/newUser.go" beforeDir="false" afterPath="$PROJECT_DIR$/../../runFromLocal/newUser.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../shaders/embed.go" beforeDir="false" afterPath="$PROJECT_DIR$/../../shaders/embed.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../shaders/lighting/onePointLightingBlue.kage" beforeDir="false" afterPath="$PROJECT_DIR$/../../shaders/lighting/onePointLightingBlue.kage" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../shaders/loaders.go" beforeDir="false" afterPath="$PROJECT_DIR$/../../shaders/loaders.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../shaders/updateFunctions.go" beforeDir="false" afterPath="$PROJECT_DIR$/../../shaders/updateFunctions.go" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="GOROOT" url="file:///usr/local/go" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 5
+}]]></component>
+  <component name="ProjectId" id="2zvTQHMzSIyb7u0JNXIKXAP7eV6" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.go.formatter.settings.were.checked": "true",
+    "RunOnceActivity.go.migrated.go.modules.settings": "true",
+    "RunOnceActivity.go.modules.go.list.on.any.changes.was.set": "true",
+    "git-widget-placeholder": "main",
+    "go.import.settings.migrated": "true",
+    "go.sdk.automatically.set": "true",
+    "last_opened_file_path": "/Users/aidancoco",
+    "nodejs_package_manager_path": "npm"
+  }
+}]]></component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-gosdk-d297c17c1fbd-57c114c3cede-org.jetbrains.plugins.go.sharedIndexes.bundled-GO-243.26574.98" />
+        <option value="bundled-js-predefined-d6986cc7102b-1632447f56bf-JavaScript-GO-243.26574.98" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VgoProject">
+    <settings-migrated>true</settings-migrated>
+  </component>
+</project>

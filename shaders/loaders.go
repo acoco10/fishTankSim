@@ -95,3 +95,50 @@ func LoadNormalMapShader() *ebiten.Shader {
 
 	return s
 }
+
+func LoadTurnOffTheLights() *ebiten.Shader {
+	es := []byte(TurnOffLight)
+	s, err := ebiten.NewShader(es)
+	if err != nil {
+		log.Printf("Couldnt load turn off the lights shader %q", err)
+	}
+
+	return s
+}
+
+func LoadDayLight() *ebiten.Shader {
+	es := []byte(DayLight)
+	s, err := ebiten.NewShader(es)
+	if err != nil {
+		log.Printf("Couldnt load daylight%q", err)
+	}
+
+	return s
+}
+
+func LoadWaterShader() *ebiten.Shader {
+	es := []byte(Water)
+	s, err := ebiten.NewShader(es)
+	if err != nil {
+		log.Fatal("couldnt load new shader ", err)
+	}
+	return s
+}
+
+func LoadWallShader() *ebiten.Shader {
+	es := []byte(Wall)
+	s, err := ebiten.NewShader(es)
+	if err != nil {
+		log.Fatal("couldnt load wall shader ", err)
+	}
+	return s
+}
+
+func LoadPHShader() *ebiten.Shader {
+	es := []byte(PHEffect)
+	s, err := ebiten.NewShader(es)
+	if err != nil {
+		log.Fatal("couldnt load ph shader ", err)
+	}
+	return s
+}

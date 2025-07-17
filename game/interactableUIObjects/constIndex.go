@@ -13,4 +13,5 @@ const (
 	Pillow      Label = "pillow"
 	Thermometer Label = "thermometer"
 	Door        Label = "door"
+	Phreader    Label = "phreader"
 )

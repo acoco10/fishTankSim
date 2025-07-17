@@ -6,15 +6,17 @@ import (
 )
 
 type Player struct {
-	Money    float32
-	EventHub *tasks.EventHub
+	Money            float64
+	EventHub         *tasks.EventHub
+	ActionsTaken     int
+	ActionsAvailable int
 }
 
-func (p *Player) AddMoney(money float32) {
+func (p *Player) AddMoney(money float64) {
 	p.Money += money
 }
 
-func (p *Player) SpendMoney(money float32) {
+func (p *Player) SpendMoney(money float64) {
 	p.Money -= money
 }
 

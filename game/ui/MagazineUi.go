@@ -243,10 +243,10 @@ func LoadMagazineIndexPage(eHub *tasks.EventHub, b image.Rectangle) (*widget.Con
 		),
 	)
 
-	button := LoadSubmitButton("Info", eHub, 16)
-	button2 := LoadSubmitButton("Fish", eHub, 16)
-	button3 := LoadSubmitButton("Tank Upgrades", eHub, 16)
-	button4 := LoadSubmitButton("Accessories", eHub, 16)
+	button := LoadSubmitButton("Info", eHub, 16, "")
+	button2 := LoadSubmitButton("Fish", eHub, 16, "")
+	button3 := LoadSubmitButton("Tank Upgrades", eHub, 16, "")
+	button4 := LoadSubmitButton("Accessories", eHub, 16, "")
 
 	buttonContainer.AddChild(button)
 	buttonContainer.AddChild(button2)
@@ -436,9 +436,9 @@ func LoadFishPages(eHub *tasks.EventHub, fishImages [12]*ebiten.Image) (*widget.
 
 	for i, fish := range fishImages[0:4] {
 
-		button, err := LoadStackSpriteSelectButton(names[i], fish, 16, eHub)
-		if err != nil {
-			return nil, err
+		button, err2 := LoadStackSpriteSelectButton(names[i], fish, 16, eHub, []string{})
+		if err2 != nil {
+			return nil, err2
 		}
 
 		container := LoadStackedButtonWithText(button, fishDescriptions[i], eHub, "Buy: "+names[i])

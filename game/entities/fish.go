@@ -24,6 +24,7 @@ const (
 	Fish      FishList = "fish"
 	MollyFish FishList = "mollyFish"
 	Guppy     FishList = "guppy"
+	Kirbensis FishList = "kirbensis"
 )
 
 type Direction uint8
@@ -105,6 +106,7 @@ func (c *Creature) restingUpdate() {
 
 	if c.Timers[Resting].on == false {
 		c.Timers[Resting].TurnOn()
+		c.ChangeAnimationSpeed(3)
 	}
 
 	tState := c.Timers[Resting].Update()

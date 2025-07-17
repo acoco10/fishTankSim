@@ -3,7 +3,6 @@ package scenes
 import (
 	"github.com/acoco10/fishTankWebGame/game/daySystem"
 	"github.com/acoco10/fishTankWebGame/game/entities"
-	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -78,11 +77,6 @@ func (s *TransitionScene) OnEnter() {
 }
 
 func (s *TransitionScene) OnExit() {
-	nTasks := len(s.gameLog.Tasks)
-	ev := events.NewDay{
-		NTasks: nTasks,
-	}
-	s.gameLog.GlobalEventHub.Publish(ev)
 }
 
 func (s *TransitionScene) IsLoaded() bool {

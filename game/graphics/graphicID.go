@@ -1,19 +1,18 @@
 package graphics
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/entities"
+	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
 )
 
-var GraphicId int
+var GraphicId = 1
 
 var GraphMap = make(map[int]Graphic)
 
 type Graphic interface {
 	Draw(screen *ebiten.Image)
 	Update()
-	Coords() (float64, float64)
 }
 
 func AssignAndIncrement(graphic Graphic) int {
@@ -31,19 +30,6 @@ func DeInitGraphicId(id int) {
 
 func DeInitAllGraphics() {
 	GraphMap = make(map[int]Graphic)
-}
-
-func DeInitGraphicBasedOnCoords(x, y float64) {
-	//may need to tighten later (make sure input is the end coordinates if its animated graphic
-	//typing could be added
-	//can be faster with location-based partitions
-	for id, graph := range GraphMap {
-		x1, y1 := graph.Coords()
-		dis := entities.DistanceFunc(float32(x1), float32(x), float32(y), float32(y1))
-		if dis < 100 {
-			DeInitGraphicId(int(id))
-		}
-	}
 }
 
 func DrawGraphics(screen *ebiten.Image) {
@@ -75,5 +61,38 @@ func NewUpdateAbleTextGraphic(msg *string, x, y float64) int {
 	cs.SetG(0.9)
 	cs.SetA(1.0)
 	id := NewGraphicText(msg, 24, x, y, false, cs, 0, false)
+	return id
+}
+
+func NewTravelingEffect(sprite *sprite.AnimatedSprite, x, y *float32) int {
+	eff := &TaggedTravelingGraphic{sprite: sprite, x: x, y: y}
+	GraphicId++
+	GraphMap[GraphicId] = eff
+	return GraphicId
+}
+
+type TaggedTravelingGraphic struct {
+	sprite *sprite.AnimatedSprite
+	x      *float32
+	y      *float32
+	id     int
+}
+
+func (t *TaggedTravelingGraphic) Update() {
+	if t.x == nil {
+		DeInitGraphicId(t.id)
+	}
+	t.sprite.X = *t.x
+	t.sprite.Y = *t.y - float32(t.sprite.SpriteHeight)
+
+	t.sprite.Update()
+}
+
+func (t *TaggedTravelingGraphic) Draw(screen *ebiten.Image) {
+	t.sprite.Draw(screen)
+}
+
+func AddSpriteGraphic(graphic *SpriteGraphic) int {
+	id := AssignAndIncrement(graphic)
 	return id
 }

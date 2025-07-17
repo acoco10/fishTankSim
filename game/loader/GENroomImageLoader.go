@@ -12,11 +12,15 @@ import (
 
 type BackGroundImages struct {
 	OffScreen *ebiten.Image
+	OffScreen2 *ebiten.Image
 	RoomBackground *ebiten.Image
 	FishTank *ebiten.Image
 	FrontLayer *ebiten.Image
 	FishTank_n *ebiten.Image
 	FishTankFrontLayer *ebiten.Image
+	FishTankFrontLayerNoLight *ebiten.Image
+	FishTankFrontLayerDayLight *ebiten.Image
+	FishTankFrontLayerNoLightSmaller *ebiten.Image
 }
 
 
@@ -60,6 +64,21 @@ func LoadAllRoomBackGroundImages(basePath string) (*BackGroundImages, error) {
 	m.FishTankFrontLayer, err = LoadImage(filepath.Join(basePath, "fishTankFrontLayer.png"))
 	if err != nil {
 		return nil, fmt.Errorf("loading fishTankFrontLayer: %w", err)
+	}
+
+	m.FishTankFrontLayerNoLight, err = LoadImage(filepath.Join(basePath, "fishTankFrontLayerNoLight.png"))
+	if err != nil {
+		return nil, fmt.Errorf("loading fishTankFrontLayerNoLight: %w", err)
+	}
+
+	m.FishTankFrontLayerDayLight, err = LoadImage(filepath.Join(basePath, "fishTankFrontLayerDayLight.png"))
+	if err != nil {
+		return nil, fmt.Errorf("loading fishTankFrontLayerDayLight: %w", err)
+	}
+
+	m.FishTankFrontLayerNoLightSmaller, err = LoadImage(filepath.Join(basePath, "fishTankFrontLayerNoLightSmaller.png"))
+	if err != nil {
+		return nil, fmt.Errorf("loading fishTankFrontLayerNoLightSmaller: %w", err)
 	}
 
 	return &m, nil

@@ -5,8 +5,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/graphics"
 	"github.com/acoco10/fishTankWebGame/game/loader"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
-	"github.com/hajimehoshi/ebiten/v2"
-	"image/color"
+	"golang.org/x/image/colornames"
 	"log"
 )
 
@@ -29,7 +28,7 @@ func WhiteBoardGMSubs(hub *tasks.EventHub, manager *graphics.GraphicManager) {
 		y0 := wbY + 55 + float32(index*20)
 		MaxX := x0 + 200.0
 		y1 := y0 + 2.0
-		crossoutGraphic := graphics.NewVlS(x0, y0, x0, y1, MaxX, color.Black)
+		crossoutGraphic := graphics.NewVlS(x0, y0, x0, y1, MaxX, colornames.Orangered)
 		manager.QueueGraphic(crossoutGraphic)
 	})
 
@@ -53,28 +52,5 @@ func WhiteBoardGMSubs(hub *tasks.EventHub, manager *graphics.GraphicManager) {
 			manager.ResetVls()
 			manager.QueueGraphic(cg)
 		}
-	})
-}
-
-func ScreenGMSubs(hub *tasks.EventHub, manager *graphics.GraphicManager) {
-
-	hub.Subscribe(events.ClickMeGraphicEvent{}, func(e tasks.Event) {
-		ev := e.(events.ClickMeGraphicEvent)
-		cs := ebiten.ColorScale{}
-		cs.SetR(0.1)
-		cs.SetB(0.2)
-		cs.SetG(1.0)
-		cs.SetA(1.0)
-		msg := "Click Me"
-		graphics.NewGraphicText(&msg, 24, ev.X, ev.Y, true, cs, ev.SpriteWidth, true)
-
-	})
-
-	hub.Subscribe(events.TurnOffGraphic{}, func(e tasks.Event) {
-		ev := e.(events.TurnOffGraphic)
-		graphics.DeInitGraphicBasedOnCoords(ev.X, ev.Y)
-	})
-
-	hub.Subscribe(events.FadeInTextEvent{}, func(e tasks.Event) {
 	})
 }

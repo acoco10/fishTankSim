@@ -4,11 +4,22 @@ import (
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/geometry"
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/hajimehoshi/ebiten/v2"
+	"log"
 	"math"
 	"math/rand"
 	"sort"
+)
+
+type HealthState uint8
+
+const (
+	Healthy HealthState = iota
+	Stressed
+	Sick
+	Dead
 )
 
 func CreatureEventSubscriptions(c *Creature) {
@@ -35,15 +46,52 @@ func CreatureEventSubscriptions(c *Creature) {
 	c.EventHub.Subscribe(events.DayOver{}, func(e tasks.Event) {
 		c.Hunger = c.maxHunger
 		c.energy = c.maxEnergy
+
+		c.Shader = nil
 		c.CheckAndLevelUp()
 	})
 
 	c.EventHub.Subscribe(events.NewDay{}, func(e tasks.Event) {
-		if math.Abs(float64(c.Environment.Temperature-c.idealTemperature)) > 10 {
-			c.Happiness -= 1
-			c.Stress += 2
-		}
+		// add normal-map back when it's a new day since it was turned off for night-scene
+		c.Shader = registry.ShaderMap["NormalMap"]
+		println("new day received for fish:", c)
+		c.CalcDailyFishHealthState()
 	})
+}
+
+func (c *Creature) CalcDailyFishHealthState() {
+	if math.Abs(float64(c.Environment.Temperature-c.idealTemperature)) > 10 {
+		c.Happiness -= 1
+		c.Stress += 2
+	}
+	//compare environment ph to ideal
+	if math.Abs(float64(c.Environment.NaturalPHLevel-c.idealPH)) > 1.5 {
+		c.Stress += 2
+	}
+	// reduce hunger if chronically stressed
+	if c.Stress > 3 {
+		c.maxHunger = 3
+		c.DaysStressed++
+	}
+	//check if fish gets sick if chronically stressed
+	if c.DaysStressed > 3 && c.HealthState != Sick {
+		sickChance := rand.Intn(10) + c.DaysStressed
+		if sickChance > 6 {
+			c.HealthState = Sick
+		}
+	}
+
+	if c.HealthState == Sick {
+		c.DaysSick++
+	}
+	//roll for death modified by total stress of environment
+	if c.DaysSick > 3 {
+		deathChance := rand.Float32()*10 + c.Stress
+		if deathChance > 7 {
+			c.HealthState = Dead
+		}
+	}
+
 }
 
 func (c *Creature) Highlighted() bool {
@@ -51,13 +99,14 @@ func (c *Creature) Highlighted() bool {
 }
 
 func (c *Creature) ownPointReached(ev CreatureReachedPoint) {
-
+	//more points?deque this one safely
 	if len(c.PointQueue) > 0 {
 		c.PointQueue = c.PointQueue[1:]
 
 	}
 
 	switch ev.Point.PType {
+	//reached food: eat
 	case geometry.Food:
 		println("reached own point, eating food and going for next piece")
 		c.progress += 1
@@ -67,6 +116,7 @@ func (c *Creature) ownPointReached(ev CreatureReachedPoint) {
 		}
 		c.State = Eating
 		if len(c.PointQueue) > 0 {
+			//more points? still hungry? go eat
 			if c.Hunger > 0 {
 				c.goToFood()
 			}
@@ -234,11 +284,9 @@ func (c *Creature) UpdateToNextPoint() {
 func (c *Creature) CheckAndLevelUp() {
 	if c.progress >= c.nextLevel && c.Size < 3 {
 		c.Size += 1
-		x, y := c.X, c.Y
-		c.X = x
-		c.Y = y
 		c.nextLevel *= 1.2
 		c.progress = 0
+		c.defaultMaxHunger *= 1.1
 
 		ev := FishLevelUp{Fish: c}
 		c.EventHub.Publish(ev)
@@ -406,16 +454,25 @@ func (c *Creature) publishStats(sendTo string) {
 	ev.DataFor = sendTo
 
 	var targetPoint string
-
 	var state string
-	if c.State == Resting {
+	var healthState string
+
+	switch c.State {
+	case Resting:
 		state = "resting"
-	}
-	if c.State == Swimming {
+	case Swimming:
 		state = "swimming"
+	case Eating:
+		state = "eating "
 	}
-	if c.State == Eating {
-		state = "eating"
+
+	switch c.HealthState {
+	case Healthy:
+		healthState = "healthy"
+	case Stressed:
+		healthState = "stressed"
+	case Sick:
+		healthState = "sick"
 	}
 
 	if len(c.PointQueue) > 0 {
@@ -428,10 +485,12 @@ func (c *Creature) publishStats(sendTo string) {
 	SizeString := fmt.Sprintf("Size : %d\n", c.Size)
 	experienceString := fmt.Sprintf("Growth : %d/%d\n", int(c.progress), int(c.nextLevel))
 	stateString := fmt.Sprintf("State: %s\n", state)
+	healthStateString := fmt.Sprintf("Health State: %s\n", healthState)
 	speedString := fmt.Sprintf("Speed: %d/%d\n", int(c.speed), int(c.maxSpeed))
 	stressString := fmt.Sprintf("Stress: %d\n", int(c.Stress))
 
-	ev.Data = nameString + stateString + SizeString + hungerString + energyString + experienceString + speedString + stressString
+	ev.Data = nameString + stateString + SizeString + hungerString +
+		energyString + experienceString + speedString + stressString + healthStateString
 
 	if targetPoint != "" {
 		ev.Data += targetPoint
@@ -459,6 +518,7 @@ type FishStats struct {
 	Happiness        float32
 	Hunger           float32
 	maxHunger        float32
+	defaultMaxHunger float32
 	maxEnergy        float32
 	energy           float32
 	maxSpeed         float32
@@ -469,8 +529,12 @@ type FishStats struct {
 	progress         float32
 	nextLevel        float32
 	idealTemperature int
-	Personality      FishPersonality
-	FishType         FishList
+	idealPH          float64
+	DaysStressed     int
+	DaysSick         int
+	HealthState
+	Personality FishPersonality
+	FishType    FishList
 }
 
 func GenFishStats(fType FishList, name string) (*FishStats, error) {
@@ -498,14 +562,30 @@ func GenFishStats(fType FishList, name string) (*FishStats, error) {
 			return fs, err
 		}
 		return fs, nil
+	case Kirbensis:
+		fs, err := GenKirbensisFishStats()
+		fs.FishType = Kirbensis
+		fs.name = name
+		if err != nil {
+			return fs, err
+		}
+		return fs, nil
+	default:
+		//no fish stat generator for this species yet
+		log.Println("Warning: No fish stat generator for:", string(fType))
+		fs, err := GenKirbensisFishStats()
+		fs.FishType = Kirbensis
+		fs.name = name
+		if err != nil {
+			return fs, err
+		}
+		return fs, nil
 	}
-	return nil, nil
 }
 
 func GenMollyFishStats() (*FishStats, error) {
 	fs := &FishStats{}
 
-	fs.Size = 1
 	fs.Size = 1
 	fs.maxSpeed = rand.Float32() + 0.7
 	fs.avgSpeed = 1.0
@@ -515,6 +595,7 @@ func GenMollyFishStats() (*FishStats, error) {
 	fs.energy = fs.maxEnergy / 2
 	fs.Hunger = 5
 	fs.maxHunger = 8*rand.Float32() + 4
+	fs.defaultMaxHunger = fs.maxHunger
 	fs.avgDepth = 100
 	fs.progress = 0
 	fs.nextLevel = 10
@@ -535,8 +616,9 @@ func GenGoldFishStats() (*FishStats, error) {
 	fs := &FishStats{}
 	fs.Size = 1
 	fs.idealTemperature = 70
+	fs.idealPH = 6.5
 	fs.avgDepth = 40.0
-	fs.avgSpeed = 2.0
+	fs.avgSpeed = 1.2
 	fs.maxSpeed = rand.Float32() + 0.5
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
 	fs.FishType = Fish
@@ -545,7 +627,9 @@ func GenGoldFishStats() (*FishStats, error) {
 	fs.Hunger = 4
 	fs.progress = 0
 	fs.nextLevel = 10
+	fs.idealPH = 6.5
 	fs.maxHunger = 10*rand.Float32() + 4
+	fs.defaultMaxHunger = fs.maxHunger
 	persRoll := rand.Intn(10)
 
 	if persRoll < 8 {
@@ -571,7 +655,37 @@ func GenGuppyFishStats() (*FishStats, error) {
 	fs.progress = 0
 	fs.nextLevel = 10
 	fs.idealTemperature = 80
+	fs.idealPH = 7.5
 	fs.maxHunger = 10*rand.Float32() + 4
+	fs.defaultMaxHunger = fs.maxHunger
+	persRoll := rand.Intn(10)
+
+	if persRoll < 8 {
+		fs.Personality = social
+	} else {
+		fs.Personality = shy
+	}
+
+	return fs, nil
+}
+
+func GenKirbensisFishStats() (*FishStats, error) {
+	fs := &FishStats{}
+	fs.Size = 1
+	fs.avgDepth = 100
+	fs.avgSpeed = 1.5
+	fs.maxSpeed = rand.Float32() + 0.5
+	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
+	fs.FishType = Guppy
+	fs.maxEnergy = 25
+	fs.energy = fs.maxEnergy / 2
+	fs.Hunger = 4
+	fs.progress = 0
+	fs.nextLevel = 10
+	fs.idealTemperature = 77
+	fs.idealPH = 7.0
+	fs.maxHunger = 10*rand.Float32() + 4
+	fs.defaultMaxHunger = fs.maxHunger
 	persRoll := rand.Intn(10)
 
 	if persRoll < 8 {

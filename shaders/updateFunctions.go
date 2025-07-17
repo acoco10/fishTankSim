@@ -38,7 +38,7 @@ func UpdateCounter(params map[string]any) map[string]any {
 		return nil
 	}
 
-	maxCounter := 1000
+	maxCounter := 10000000000
 
 	if params["MaxCounter"] != nil {
 		if params["MaxCounter"].(int) > 0 {
@@ -50,7 +50,7 @@ func UpdateCounter(params map[string]any) map[string]any {
 
 	counter++
 	if counter > maxCounter {
-		//arbitrary shut off at 1000 or at defined point passed through max counter param
+		//arbitrary shut off at 1000000000 or at defined point passed through max counter param
 		counter = 0
 	}
 
@@ -129,4 +129,17 @@ func CpuUpdateRotatingOutlineHighlight(params map[string]any, cpuParams map[stri
 	params["HighLightRect"] = [2]float64{highLightRect[0] + X0, highLightRect[1] + Y0}
 	cpuParams["hlRectPoint"] = highLightRect
 	return params, cpuParams
+}
+
+func FadeLightIntensityForTurnOff(params map[string]any) map[string]any {
+	intensity := params["LightIntensity"].(float64)
+	counter := params["Counter"].(float64)
+	counter++
+	if intensity > 0.0 {
+		intensity -= 0.1
+	}
+	params["Counter"] = counter
+	params["LightIntensity"] = intensity
+	return params
+
 }

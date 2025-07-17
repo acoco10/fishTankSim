@@ -1,0 +1,51 @@
+//kage:unit pixels
+package main
+
+var ImgRect vec4
+
+func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
+    color := imageSrc0UnsafeAt(texCoord)
+
+    // Fixed light source in top-left corner
+    lightSource := vec2(100.0, 100.0)
+
+    // Get screen dimensions for proper positioning
+    screenWidth := ImgRect.z
+    screenHeight := ImgRect.w
+
+    if color.a > 0 {
+        // Distance from pixel to light source (top-left)
+        dis := distance(lightSource, dstCoord.xy)
+
+        // Tighter falloff for sharper gradient - use a smaller fraction of screen diagonal
+        maxDistance := sqrt(screenWidth*screenWidth + screenHeight*screenHeight) * 0.6
+
+        // More aggressive brightness calculation for sharper contrast
+        brightness := clamp(1.0 - (dis / maxDistance), 0.0, 1.0)
+
+        // Use power function for sharper falloff instead of smoothstep
+        brightness = pow(brightness, 2.5)
+
+        // Clamp to prevent complete darkness but allow more contrast
+        brightness = clamp(brightness, 0.1, 1.0)
+
+        // Warmer early morning color temperature (more golden)
+        morningTint := vec3(1.2, 1.0, 0.7)
+
+        // More dramatic lighting effect
+        lightMultiplier := 1.5 + brightness * 2.0
+
+        // Apply morning tint with enhanced brightness
+        color.rgb *= morningTint * lightMultiplier
+
+        // Add bright highlight near light source
+        highlight := pow(brightness, 4.0) * 0.8
+        color.rgb += vec3(1.0, 0.9, 0.6) * highlight
+
+        // Maintain alpha but make it less transparent in lit areas
+        color.a *= (0.8 + 0.2 * brightness)
+        color.rgb *= color.a
+    }
+
+    return color
+}

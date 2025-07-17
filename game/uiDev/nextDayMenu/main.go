@@ -22,7 +22,7 @@ func newGame() *Game {
 	g := Game{}
 	hub := tasks.NewEventHub()
 	g.hub = hub
-	ndui, err := ui.LoadNextDayMenuUI(hub)
+	ndui, err := ui.LoadNextOptionsMenuUI(hub)
 	if err != nil {
 		log.Fatal(err)
 	}

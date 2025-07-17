@@ -7,6 +7,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"image"
 	"log"
+	"math"
 )
 
 type Sprite struct {
@@ -14,6 +15,7 @@ type Sprite struct {
 	NormalMap          *ebiten.Image
 	Scale              float64
 	X, Y               float32
+	Z                  int
 	Dy, Dx             float32
 	Shader             *ebiten.Shader
 	ShaderParams       map[string]any
@@ -21,10 +23,22 @@ type Sprite struct {
 	UpdateShaderParams func(map[string]any) map[string]any
 	UpdateBothParams   func(map[string]any, map[string]any) (map[string]any, map[string]any)
 	remove             bool
+	UpdateFunc         func(s *Sprite)
+	effect             *AnimatedSprite
 	highlight          bool
+	DoptsUpdaterTag    string
+	DoptsUpdaterParams map[string]float64
 }
 
 func (s *Sprite) Update() {
+	if s.DoptsUpdaterParams == nil {
+		s.DoptsUpdaterParams = make(map[string]float64)
+	}
+
+	if s.UpdateFunc != nil {
+		s.UpdateFunc(s)
+	}
+
 	s.UpdateShader()
 }
 
@@ -32,28 +46,52 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 
 	if s.Shader != nil {
 		shaderOpts := &ebiten.DrawRectShaderOptions{}
+
+		degrees, exists := s.DoptsUpdaterParams["degree"]
+		if exists {
+			shaderOpts.GeoM.Rotate(degrees)
+		}
 		shaderOpts.GeoM.Translate(float64(s.X), float64(s.Y))
 		shaderOpts.Images[0] = s.Img
 		shaderOpts.Uniforms = s.ShaderParams
 		b := s.Img.Bounds()
 		screen.DrawRectShader(b.Dx(), b.Dy(), s.Shader, shaderOpts)
+
 		return
 	}
 
 	dOpts := &ebiten.DrawImageOptions{}
+	if s.DoptsUpdaterTag == "spin" {
+		spinAnimation(s, dOpts)
+	}
+
+	degrees, exists := s.DoptsUpdaterParams["degree"]
+	if exists {
+		dOpts.GeoM.Rotate(degrees)
+	}
 
 	if s.Scale != 0.0 {
 		dOpts.GeoM.Scale(s.Scale, s.Scale)
 	}
 
 	dOpts.GeoM.Translate(float64(s.X), float64(s.Y))
-	
+
 	screen.DrawImage(s.Img, dOpts)
 
 }
 
 func (s *Sprite) ShouldRemove() bool {
 	return s.remove
+}
+
+func spinAnimation(s *Sprite, dOpts *ebiten.DrawImageOptions) {
+	theta := s.DoptsUpdaterParams["degree"]
+	dOpts.GeoM.Rotate(theta)
+	dOpts.GeoM.Translate(float64(s.Img.Bounds().Dx()/2), float64(s.Img.Bounds().Dy()/2))
+	s.DoptsUpdaterParams["degree"] += 0.1
+	if s.DoptsUpdaterParams["degree"] >= math.Pi {
+		s.DoptsUpdaterTag = ""
+	}
 }
 
 func (s *Sprite) UpdateShader() {
@@ -100,9 +138,12 @@ type AnimatedSprite struct {
 	*animations.Animation
 	*spritesheet.SpriteSheet
 	frameImg   *ebiten.Image
-	effect     *ebiten.Image
 	drawOpts   *ebiten.DrawImageOptions
 	shaderOpts *ebiten.DrawRectShaderOptions
+}
+
+func (s *Sprite) AddEffect() {
+
 }
 
 func (s *Sprite) Coord() (float32, float32) {
@@ -244,7 +285,6 @@ func NewAnimatedSprite() *AnimatedSprite {
 		Animation:   &animations.Animation{},
 		SpriteSheet: &spritesheet.SpriteSheet{},
 		frameImg:    &ebiten.Image{},
-		effect:      &ebiten.Image{},
 	}
 
 	return &as
@@ -252,10 +292,6 @@ func NewAnimatedSprite() *AnimatedSprite {
 
 func (as *AnimatedSprite) ChangeAnimationSpeed(newSpeed float32) {
 	as.Animation.SpeedInTPS = newSpeed
-}
-
-func (as *AnimatedSprite) TriggerEffect(image *ebiten.Image) {
-	as.effect = image
 }
 
 func LoadPulseOutlineShader(us *Sprite) {

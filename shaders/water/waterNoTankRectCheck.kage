@@ -1,0 +1,43 @@
+//kage:unit pixels
+package main
+
+var Counter int
+
+func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
+    color := imageSrc0At(texCoord)
+    floatCounter := float(Counter)
+
+
+    if color.a > 0 {
+       // Create caustics pattern using pixel coordinates (dstCoord)
+       causticX := sin(dstCoord.x * 0.025 + floatCounter * 0.02) * 0.5 + 0.5
+       causticY := sin(dstCoord.y * 0.02 + floatCounter * 0.015) * 0.5 + 0.5
+       causticZ := cos(dstCoord.x * 0.018 + dstCoord.y * 0.015 + floatCounter * 0.018) * 0.5 + 0.5
+
+       // Combine caustics for complex pattern
+       caustics := (causticX * causticY + causticZ) * 0.5
+       caustics = pow(caustics, 3.0) * 0.15  // Make sharper, more realistic
+
+       // Apply water tint with subtle animation
+       tintStrength := 0.6 + 0.2 * sin(floatCounter * 0.003)
+       waterTint := vec3(0.75, 0.85, 1.0) * tintStrength
+
+       // Blend original color with water effects
+       color.rgb = mix(color.rgb, color.rgb * waterTint, 0.25)
+
+       // Add caustics as additive light
+       color.rgb += vec3(0.8, 0.9, 1.0) * caustics
+        return color
+       // Subtle depth darkening (use texCoord.y for normalized depth)
+       //depthDarkening := 1.0 - (texCoord.y * 0.1)
+       //color.rgb *= depthDarkening
+
+       // Add some shimmer on surfaces (use dstCoord for pixel-based patterns)
+       shimmer := sin(dstCoord.x * 0.04 + floatCounter * 0.03) *
+        cos(dstCoord.y * 0.035 + floatCounter * 0.025) * 0.02
+       color.rgb += vec3(0.9, 0.95, 1.0) * max(shimmer, 0.0)
+       return color
+    }
+
+    return color
+}

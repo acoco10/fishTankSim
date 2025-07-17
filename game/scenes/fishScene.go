@@ -23,6 +23,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/tutorial"
 	"github.com/acoco10/fishTankWebGame/game/ui"
 	"github.com/acoco10/fishTankWebGame/game/util"
+	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/ebitenui/ebitenui"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -30,13 +31,20 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"image"
 	"log"
-	"math/rand"
 	"os"
+)
+
+type lightingState uint8
+
+const (
+	NightLight lightingState = iota
+	Night
+	Day
 )
 
 type FishScene struct {
 	backGroundParams  map[string]any
-	propQueue         *props.PropQueue
+	propQueue         props.PropQueue
 	loaded            bool
 	tankSize          image.Rectangle
 	sprites           [4][]drawables.Drawable
@@ -44,7 +52,6 @@ type FishScene struct {
 	gameLog           *sceneManagement.GameLog
 	timers            map[string]*entities.Timer
 	graphicManagerMap map[string]*graphics.GraphicManager
-	shaderParams      map[string]any
 	returnScene       sceneManagement.SceneId
 	tutorialManager   *tutorial.Manager
 	collisionMap      map[string]geometry.Rect
@@ -56,6 +63,18 @@ type FishScene struct {
 	debug             *debug.DebugData
 	state             *FishSceneState
 	currentTask       int
+	lightingShader    *ebiten.Shader
+	offScreenShader   *ebiten.Shader
+	tankShader        *ebiten.Shader
+	tankShaderUpdater func(map[string]any) map[string]any
+	shaderParams      map[string]any
+	tankShaderParams  map[string]any
+	lightingState     lightingState
+	shaderUpdater     func(map[string]any) map[string]any
+	testProp          *props.StructureProp //isolating for debug to be removed
+	wallShader        *props.StructureProp
+	smallerResolution *ebiten.Image
+	resolutionScaling int
 }
 
 var backGroundImgShelfHeight = 248
@@ -67,22 +86,28 @@ func NewFishScene(gameLog *sceneManagement.GameLog) *FishScene {
 		log.Fatal("error while loading fish tank room assests:", err)
 	}
 
-	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
-	//hardcoded ass parameter cus i aint about to read sum dark brown particles dawg
-
 	println("initiating game in ebiten NewFishScene()")
 
+	//render layers
 	g := &FishScene{}
 	g.images = roomImages
 	g.images.OffScreen = ebiten.NewImage(ScreenWidth, ScreenHeight)
+	g.images.OffScreen2 = ebiten.NewImage(ScreenWidth, ScreenHeight)
+	g.smallerResolution = ebiten.NewImage(ScreenWidth, ScreenHeight)
+
 	//stuff that needs to exist before game publishes shit
 
 	//g.gameMode = Position
 	g.gameLog = gameLog
 	g.LoadGraphicManagerMap()
 
+	g.tankShaderParams = make(map[string]any)
 	g.shaderParams = make(map[string]any)
 	g.backGroundParams = make(map[string]any)
+
+	g.lightingShader = registry.ShaderMap["OnePointLighting"]
+	g.offScreenShader = registry.ShaderMap["NormalMap"]
+	g.tankShader = registry.ShaderMap["Water"]
 
 	g.LoadTimers()
 
@@ -98,14 +123,10 @@ func NewFishScene(gameLog *sceneManagement.GameLog) *FishScene {
 	g.debug = &debug.DebugData{DebugRect: &geometry.Rect{}, DebugParameter: make(map[debug.DebugOption]bool)}
 	//g.debugRect.RectState = geometry.Off
 
-	fishTankSizeX1 := float64(g.images.FishTank.Bounds().Max.X)
-	fishTankSizeY1 := float64(g.images.FishTank.Bounds().Max.Y)
-
-	g.shaderParams["ImgRect"] = [4]float64{0, 0, fishTankSizeX1, fishTankSizeY1}
 	g.shaderParams["LightPoint"] = [2]float64{440, 250}
 
-	tankX := g.images.FishTank.Bounds().Max.X
-	tankY := g.images.FishTank.Bounds().Max.Y
+	tankX := g.images.FishTank.Bounds().Dx()
+	tankY := g.images.FishTank.Bounds().Dy()
 
 	startingX := int(ScreenWidth * 0.2)
 	startingY := ScreenHeight - backGroundImgShelfHeight - g.images.FishTank.Bounds().Dy()
@@ -115,7 +136,12 @@ func NewFishScene(gameLog *sceneManagement.GameLog) *FishScene {
 	store := system.NewStore(g.gameLog.GlobalEventHub)
 	g.store = &store
 
+	g.tankShaderParams["TankRect"] = [4]float64{float64(collisionMap["WaterEffect"].X1), float64(collisionMap["WaterEffect"].Y1), float64(collisionMap["WaterEffect"].X2), float64(collisionMap["WaterEffect"].Y2)}
+	g.tankShaderParams["Counter"] = 0
+
+	g.tankShaderUpdater = shaders.UpdateCounter
 	g.environment = &system.Environment{}
+	system.InitEnvironment(g.environment)
 	g.environment.Subscribe(g.gameLog.GlobalEventHub)
 
 	mainUI, _, err := ui.LoadMainFishMenu(ScreenWidth, ScreenHeight, gameLog.GlobalEventHub)
@@ -125,7 +151,6 @@ func NewFishScene(gameLog *sceneManagement.GameLog) *FishScene {
 
 	g.ui = mainUI
 
-	ebiten.SetWindowSize(ScreenWidth, ScreenHeight)
 	fishSceneUISprites := []interactableUIObjects.Label{
 		interactableUIObjects.FishBook,
 		interactableUIObjects.Records,
@@ -136,6 +161,7 @@ func NewFishScene(gameLog *sceneManagement.GameLog) *FishScene {
 		interactableUIObjects.Thermometer,
 		interactableUIObjects.Magazine,
 		interactableUIObjects.Door,
+		interactableUIObjects.Phreader,
 	}
 
 	g.sprites = [4][]drawables.Drawable{}
@@ -192,6 +218,7 @@ func (g *FishScene) FirstLoad() {
 }
 
 func (g *FishScene) OnEnter() {
+	g.resolutionScaling = ScaleScreenToResolution(g.smallerResolution)
 	log.Println("----FishScene OnEnter() called----")
 
 	g.mouseFlags = &input.MouseFlags{HandledClick: false, CursorOccupied: false}
@@ -200,7 +227,6 @@ func (g *FishScene) OnEnter() {
 	//No music on the base level as of now
 	//g.timers["songTimer"].TurnOn()
 	///JUST FOR TESTING, NO CHORE=> ALLOWANCE FRAMEWORK YET
-	g.gameLog.GlobalEventHub.Publish(events.MoneyAvailable{Amount: 1})
 	g.returnScene = sceneManagement.FishTank
 
 	tutMngr := tutorial.Manager{}
@@ -214,12 +240,27 @@ func (g *FishScene) OnEnter() {
 			ev.Type = "Chores"
 		case sceneManagement.Free:
 			ev.Type = "Free"
+		case sceneManagement.Camp:
+			ev.Type = "Camp"
 		}
 		g.gameLog.GlobalEventHub.Publish(ev)
 		g.state.lastDayEntered = g.gameLog.Day
 		g.gameLog.Tasks[0].Activate(g.gameLog.GlobalEventHub)
+		g.lightingShader = registry.ShaderMap["DayLight"]
+		g.backGroundParams["Cursor"] = [2]float64{0, 0}
+		g.shaderUpdater = nil
+		g.lightingState = Day
+		return
 	}
+	g.SetNightLight()
+	g.gameLog.SongPlayer.Play(soundFX.TropicalHouse)
 	log.Println("----FishScene OnEnter() finished----")
+}
+
+func (g *FishScene) SetNightLight() {
+	g.lightingState = NightLight
+	g.lightingShader = registry.ShaderMap["OnePointLighting"]
+	g.shaderParams["LightPoint"] = [2]float64{440, 250}
 }
 
 func (g *FishScene) OnExit() {
@@ -227,14 +268,14 @@ func (g *FishScene) OnExit() {
 }
 
 func (g *FishScene) LoadTimers() {
-
 	g.timers = make(map[string]*entities.Timer)
 	g.timers["pointGeneratedTimer"] = entities.NewTimer(0.2)
 	g.timers["pointGeneratedTimer"].TurnOn()
 	g.timers["songTimer"] = entities.NewTimer(15)
-	g.timers["sceneTransition"] = entities.NewTimer(2.5)
+	g.timers["sceneTransition"] = entities.NewTimer(5.0)
 	g.timers["publishNewTask"] = entities.NewTimer(0.2)
-
+	g.timers["leaveScene"] = entities.NewTimer(10.0)
+	g.timers["leaveScene"].TurnOn()
 }
 
 func (g *FishScene) IsLoaded() bool {
@@ -242,6 +283,12 @@ func (g *FishScene) IsLoaded() bool {
 }
 
 func (g *FishScene) Update() (sceneManagement.SceneId, error) {
+	if g.shaderUpdater != nil {
+		g.shaderParams = g.shaderUpdater(g.shaderParams)
+	}
+	if g.tankShaderUpdater != nil {
+		g.tankShaderParams = g.tankShaderUpdater(g.tankShaderParams)
+	}
 
 	g.mouseFlags.HandledClick = false
 
@@ -255,28 +302,8 @@ func (g *FishScene) Update() (sceneManagement.SceneId, error) {
 		sprite.Update()
 	}
 
-	for i := len(g.sprites[0]) - 1; i >= 0; i-- {
-		if g.sprites[0][i].ShouldRemove() {
-			g.sprites[0] = append(g.sprites[0][:i], g.sprites[0][i+1:]...)
-		}
-	}
-
-	// Fix: iterate backwards when moving from sprites[0] to sprites[1]
-	for i := len(g.sprites[0]) - 1; i >= 0; i-- {
-		if g.sprites[0][i].Highlighted() {
-			g.sprites[1] = append(g.sprites[1], g.sprites[0][i])
-			g.sprites[0] = append(g.sprites[0][:i], g.sprites[0][i+1:]...)
-		}
-	}
-
-	// Fix: iterate backwards when moving from sprites[1] to sprites[0]
-	for i := len(g.sprites[1]) - 1; i >= 0; i-- {
-		if !g.sprites[1][i].Highlighted() {
-			g.sprites[0] = append(g.sprites[0], g.sprites[1][i])
-			g.sprites[1] = append(g.sprites[1][:i], g.sprites[1][i+1:]...)
-		}
-	}
-
+	g.ManageLayers()
+	//update second layer after managing layers?
 	for _, s := range g.sprites[1] {
 		s.Update()
 	}
@@ -301,36 +328,82 @@ func (g *FishScene) Update() (sceneManagement.SceneId, error) {
 	if g.debug.GameMode == debug.Debug {
 		if g.debug.DebugParameter[debug.Position] {
 			g.positionModeUpdate()
+			ev := events.ButtonClickedEvent{ButtonText: "Mode"}
+			g.gameLog.GlobalEventHub.Publish(ev)
 		}
 		err := g.debug.DebugRect.Update()
 		if err != nil {
 			//debug rect could error when saving collision location
 			return g.returnScene, err
 		}
+
+		if g.debug.DebugParameter[debug.ShaderTest] {
+			ShaderSwapper(g)
+		}
+	}
+	if g.testProp != nil {
+		g.testProp.Update()
+	}
+	return g.returnScene, nil
+}
+
+func (g *FishScene) ManageLayers() {
+	for i := len(g.sprites[0]) - 1; i >= 0; i-- {
+		if g.sprites[0][i].ShouldRemove() {
+			g.sprites[0] = append(g.sprites[0][:i], g.sprites[0][i+1:]...)
+		}
 	}
 
-	return g.returnScene, nil
+	// iterate backwards when moving from sprites[0] to sprites[1]
+	for i := len(g.sprites[0]) - 1; i >= 0; i-- {
+		if g.sprites[0][i].Highlighted() {
+			g.sprites[1] = append(g.sprites[1], g.sprites[0][i])
+			g.sprites[0] = append(g.sprites[0][:i], g.sprites[0][i+1:]...)
+		}
+	}
+
+	// iterate backwards when moving from sprites[1] to sprites[0]
+	for i := len(g.sprites[1]) - 1; i >= 0; i-- {
+		if !g.sprites[1][i].Highlighted() {
+			g.sprites[0] = append(g.sprites[0], g.sprites[1][i])
+			g.sprites[1] = append(g.sprites[1][:i], g.sprites[1][i+1:]...)
+		}
+	}
 }
 
 func (g *FishScene) DrawOffScreen() {
 
-	opts := ebiten.DrawImageOptions{}
+	opts := &ebiten.DrawImageOptions{}
 	shaderOpts := &ebiten.DrawRectShaderOptions{}
+
+	shaderOpts.Uniforms = g.backGroundParams
+	shaderOpts.Images[0] = g.images.RoomBackground
+
+	if g.wallShader != nil {
+		g.images.OffScreen.DrawRectShader(ScreenWidth, ScreenHeight, registry.ShaderMap["Wall"], shaderOpts)
+	}
+
+	g.images.OffScreen.DrawImage(g.images.RoomBackground, opts)
+
+	b := g.images.FishTank.Bounds()
+	opts.GeoM.Reset()
 
 	shaderOpts.Uniforms = g.backGroundParams
 	shaderOpts.Images[0] = g.images.FishTank
 	shaderOpts.Images[1] = g.images.FishTank_n
 
-	g.images.OffScreen.DrawImage(g.images.RoomBackground, &opts)
-	b := g.images.FishTank.Bounds()
+	if g.offScreenShader != nil {
+		shaderOpts.GeoM.Translate(float64(g.tankSize.Min.X), float64(g.tankSize.Min.Y))
+		g.images.OffScreen.DrawRectShader(b.Dx(), b.Dy(), g.offScreenShader, shaderOpts)
+	} else {
+		opts.GeoM.Translate(float64(g.tankSize.Min.X), float64(g.tankSize.Min.Y))
+		g.images.OffScreen.DrawImage(g.images.FishTank, opts)
+	}
 
-	opts.GeoM.Reset()
-
-	shaderOpts.GeoM.Translate(float64(g.tankSize.Min.X), float64(g.tankSize.Min.Y))
-
-	g.images.OffScreen.DrawRectShader(b.Dx(), b.Dy(), registry.ShaderMap["NormalMap"], shaderOpts)
-
-	props.DrawProps(g.propQueue, g.images.OffScreen)
+	if g.testProp != nil {
+		g.testProp.Draw(g.images.OffScreen)
+	}
+	//props.DrawProps(g.propQueue, g.images.OffScreen)
 
 	for _, s := range g.sprites[0] {
 		s.Draw(g.images.OffScreen)
@@ -344,12 +417,28 @@ func (g *FishScene) DrawOffScreen() {
 	y = g.tankSize.Min.Y - y
 
 	opts.GeoM.Translate(float64(g.tankSize.Min.X), float64(y))
-
-	g.images.OffScreen.DrawImage(g.images.FishTankFrontLayer, &opts)
+	switch g.lightingState {
+	case NightLight:
+		g.images.OffScreen.DrawImage(g.images.FishTankFrontLayerNoLight, opts)
+	case Night:
+		g.images.OffScreen.DrawImage(g.images.FishTankFrontLayerNoLight, opts)
+	case Day:
+		g.images.OffScreen.DrawImage(g.images.FishTankFrontLayerDayLight, opts)
+	}
 
 	opts.GeoM.Reset()
 
-	g.images.OffScreen.DrawImage(g.images.FrontLayer, &opts)
+	if g.tankShader != nil {
+		shaderOpts.GeoM.Reset()
+		shaderOpts.Uniforms = g.tankShaderParams
+		shaderOpts.Images[0] = g.images.OffScreen
+		shaderOpts.Images[1] = nil
+		g.images.OffScreen2.DrawRectShader(ScreenWidth, ScreenHeight, g.tankShader, shaderOpts)
+	} else {
+		g.images.OffScreen2.DrawImage(g.images.OffScreen, opts)
+	}
+
+	g.images.OffScreen2.DrawImage(g.images.FrontLayer, opts)
 
 }
 
@@ -360,10 +449,15 @@ func (g *FishScene) Draw(screen *ebiten.Image) {
 
 	//apply shader to offscreen
 	ShaderOpts := &ebiten.DrawRectShaderOptions{}
-	ShaderOpts.Images[0] = g.images.OffScreen
+	ShaderOpts.Images[0] = g.images.OffScreen2
 	ShaderOpts.Uniforms = g.shaderParams
 
-	screen.DrawRectShader(ScreenWidth, ScreenHeight, registry.ShaderMap["OnePointLighting"], ShaderOpts)
+	g.smallerResolution.DrawRectShader(ScreenWidth, ScreenHeight, g.lightingShader, ShaderOpts)
+
+	dopts := &ebiten.DrawImageOptions{}
+	dopts.GeoM.Scale(float64(g.resolutionScaling), float64(g.resolutionScaling))
+
+	screen.DrawImage(g.smallerResolution, dopts)
 
 	g.debug.DebugRect.Draw(screen)
 
@@ -390,7 +484,7 @@ func (g *FishScene) Draw(screen *ebiten.Image) {
 
 func (g *FishScene) positionModeUpdate() {
 	if ebiten.IsKeyPressed(ebiten.KeyM) {
-		g.debug.DebugRect.Init("tank")
+		g.debug.DebugRect.Init("")
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyS) {
@@ -411,11 +505,13 @@ func (g *FishScene) updateTimers() {
 
 		if key == "songTimer" && state == entities.Done {
 			timer.TurnOff()
+
 		}
 
 		if key == "sceneTransition" && state == entities.Done {
 			timer.TurnOff()
 			g.returnScene = sceneManagement.TransitionScene
+			g.lightingState = Night
 			g.gameLog.GlobalEventHub.Publish(events.DayOverTransitionComplete{})
 		}
 
@@ -428,6 +524,15 @@ func (g *FishScene) updateTimers() {
 				g.currentTask = 0
 			}
 		}
+		if key == "leaveScene" && state == entities.Done {
+			timer.TurnOff()
+			if g.gameLog.DayType == sceneManagement.Camp {
+				eff := loader.LoadStaticEffect("timeForCamp", 100, 85)
+				g.sprites[1] = append(g.sprites[1], eff)
+			}
+
+		}
+
 	}
 }
 
@@ -443,37 +548,11 @@ func (g *FishScene) updateInput() {
 	}
 }
 
-func (g *FishScene) checkForFishSelected() {
-	if g.currentTask > 0 || g.gameLog.Day > 1 {
-		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-			x, y := ebiten.CursorPosition()
-			xCheck := x > g.tankSize.Min.X && x < g.tankSize.Max.X
-			yCheck := y > g.tankSize.Min.Y && y < g.tankSize.Max.Y
-
-			if xCheck && yCheck {
-				filterFunc := func(distance any) bool {
-					return distance.(float64) < 50
-				}
-				cursorX, cursorY := ebiten.CursorPosition()
-				closestCreature := util.ClosestDrawableToCursor(cursorX, cursorY, g.sprites[0], filterFunc, "*entities.Creature")
-
-				if closestCreature != nil {
-					cre, ok := closestCreature.(*entities.Creature)
-					if ok {
-						SelectCreature(cre)
-					}
-				}
-			}
-		}
-	}
-}
-
 func (g *FishScene) debugInputCheck() {
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyF) {
 		switch g.debug.GameMode {
 		case debug.Debug:
-
 			g.debug.GameMode = debug.User
 			g.debug.DebugText = ""
 			g.debug.DebugParameter[debug.Print] = false
@@ -485,11 +564,20 @@ func (g *FishScene) debugInputCheck() {
 		}
 	}
 
-	if ebiten.IsKeyPressed(ebiten.KeyP) {
+	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
 		g.debug.DebugParameter[debug.Print] = true
 	}
 
-	if ebiten.IsKeyPressed(ebiten.Key1) {
+	if inpututil.IsKeyJustPressed(ebiten.Key2) {
+		switch g.debug.DebugParameter[debug.ShaderTest] {
+		case true:
+			g.debug.DebugParameter[debug.ShaderTest] = false
+		case false:
+			g.debug.DebugParameter[debug.ShaderTest] = true
+		}
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.Key1) {
 		g.debug.DebugParameter[debug.Position] = true
 		g.debugModeParameterPrinterUpdater()
 	}
@@ -505,12 +593,6 @@ func (g *FishScene) debugInputCheck() {
 
 }
 
-func SelectCreature(creature *entities.Creature) {
-	creature.Selected = true
-	creature.Shader = registry.ShaderMap["Outline"]
-	loader.LoadRotatingHighlightOutlineAnimated(creature.AnimatedSprite)
-}
-
 func (g *FishScene) debugModeParameterPrinterUpdater() {
 	g.debug.DebugText = "Debug Mode Activated| Parameters:"
 	for key, dbp := range g.debug.DebugParameter {
@@ -518,6 +600,8 @@ func (g *FishScene) debugModeParameterPrinterUpdater() {
 			switch key {
 			case debug.Position:
 				g.debug.DebugText += "Position"
+			case debug.ShaderTest:
+				g.debug.DebugText += "Lighting"
 			}
 		}
 	}
@@ -527,10 +611,8 @@ func (g *FishScene) LoadGraphicManagerMap() {
 
 	g.graphicManagerMap = make(map[string]*graphics.GraphicManager)
 	WhiteBoardGraphicManager := graphics.NewGraphicManager(g.gameLog.GlobalEventHub, graphicManagerSubscriptions.WhiteBoardGMSubs)
-	ScreenGraphicManager := graphics.NewGraphicManager(g.gameLog.GlobalEventHub, graphicManagerSubscriptions.ScreenGMSubs)
 
 	g.graphicManagerMap["whiteBoard"] = WhiteBoardGraphicManager
-	g.graphicManagerMap["screen"] = ScreenGraphicManager
 
 }
 
@@ -550,15 +632,15 @@ func (g *FishScene) subs(colMap map[string]geometry.Rect) {
 }
 
 func (g *FishScene) uiSubs() {
+
+	var propPicked string
+
 	g.gameLog.GlobalEventHub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
 		ev := e.(events.ButtonClickedEvent)
 		println(ev.ButtonText, "button event received")
 		switch ev.ButtonText {
 		case "Save":
 			g.SaveGame()
-		case "Mode":
-		case "Chores":
-			g.returnScene = sceneManagement.MowingMiniGameScene
 		}
 	})
 
@@ -570,11 +652,41 @@ func (g *FishScene) uiSubs() {
 
 	g.gameLog.GlobalEventHub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
 		ev := e.(events.ButtonClickedEvent)
-		if ev.ButtonText == "Go To Bed" {
+		if ev.ButtonText == "Go to Bed?: Yes" {
+			g.lightingShader = registry.ShaderMap["TurnOff"]
+			g.shaderUpdater = shaders.FadeLightIntensityForTurnOff
+			g.shaderParams["LightIntensity"] = 1.0
+			g.shaderParams["Counter"] = 0.0
 			g.timers["sceneTransition"].TurnOn()
 			ev2 := events.DayOver{}
+			//change state to let the game know to draw unlit art
+			g.lightingState = Night
+			//turn of normal maps:
+			g.offScreenShader = nil
 			g.gameLog.GlobalEventHub.Publish(ev2)
 			g.gameLog.Day++
+			return
+		}
+		if ev.ButtonText == "Go do your Chores?: Yes" {
+			g.returnScene = sceneManagement.MowingMiniGameScene
+			return
+		}
+		if ev.ButtonText == "Go to Camp?: Yes" {
+			g.returnScene = sceneManagement.CampScene
+			return
+		}
+		if ev.ButtonText == "Castle" || ev.ButtonText == "Log" {
+			propPicked = ev.ButtonText
+			return
+		}
+		if ev.ButtonText == "Confirm for prop select" {
+			if propPicked != "" {
+				ev2 := events.CloseWindow{OverRide: true}
+				g.gameLog.GlobalEventHub.Publish(ev2)
+				g.environment.AddTankModifier(propPicked)
+				p := loader.LoadProp(propPicked, g.tankSize, g.gameLog.GlobalEventHub)
+				g.testProp = p
+			}
 		}
 	})
 }
@@ -591,9 +703,11 @@ func (g *FishScene) soundSubs() {
 		ev := e.(events.UISpriteAction)
 		if ev.UiSprite == "fishFood" && ev.UiSpriteAction == "put back" {
 			g.gameLog.SoundPlayer.AddToQueue(soundFX.PickUpOne, 1)
+			return
 		}
 		if ev.UiSprite == "fishFood" && ev.UiSpriteAction == "picked up" {
 			g.gameLog.SoundPlayer.AddToQueue(soundFX.SelectSound2, 1)
+			return
 		}
 	})
 
@@ -610,41 +724,6 @@ func (g *FishScene) soundSubs() {
 	g.gameLog.GlobalEventHub.Subscribe(tasks.TaskCreated{}, func(e tasks.Event) {
 		g.gameLog.SoundPlayer.AddToQueue(soundFX.WhiteBoardMarker2, 2)
 	})
-
-}
-
-func (g *FishScene) creatureSubs(colMap map[string]geometry.Rect) {
-	g.gameLog.GlobalEventHub.Subscribe(input.MouseButtonPressedUISpriteActivity{}, func(e tasks.Event) {
-		ev := e.(input.MouseButtonPressedUISpriteActivity)
-		if g.timers["pointGeneratedTimer"].TimerState == entities.Done && !g.mouseFlags.HandledClick {
-			g.mouseFlags.HandledClick = true
-			pt := ev.Point.Clone()
-			pt.X = pt.X - 50 + rand.Float32()*10
-			pt.Y += 50
-			p := entities.NewParticle(pt, colMap["tank"], g.gameLog.GlobalEventHub)
-			g.sprites[0] = append(g.sprites[0], p)
-		}
-	})
-
-	g.gameLog.GlobalEventHub.Subscribe(events.NewPurchase{}, func(e tasks.Event) {
-		ev := e.(events.NewPurchase)
-		log.Printf("New Purchase:%s ", ev.Purchase)
-		creature := LoadPurchasedSprite(g.environment, ev.Purchase, g.gameLog.GlobalEventHub, g.collisionMap["tank"])
-		g.sprites[0] = append(g.sprites[0], creature)
-	})
-
-}
-
-func (g *FishScene) CheckIfAllFishFed() bool {
-	fed := true
-
-	for _, draw := range g.sprites[0] {
-		creature, ok := draw.(*entities.Creature)
-		if ok && creature.Hunger != 0 {
-			fed = false
-		}
-	}
-	return fed
 
 }
 
@@ -712,13 +791,31 @@ func DebugText(debugText string, screen *ebiten.Image) {
 func (g *FishScene) saveUISpritePositions() {
 
 	spMap := make(map[string]drawables.SavePositionData)
+	//THIS IS AWFUL BECAUSE I MADE TOO MANY UI SPRITE TYPES DEAL WITH SOME DAY
+	//check for ui sprites
+	for _, layer := range g.sprites {
+		for _, sprite := range layer {
+			uiSprite, ok := sprite.(*interactableUIObjects.UiSprite)
+			if !ok {
+				continue
+			}
+			println("saving uiSprite", uiSprite.Label)
+			spData := uiSprite.SavePosition()
+			spMap[spData.Name] = spData
+		}
 
-	/*	for _, sprite := range g.sprites {
+	}
+	//unforunately we made like 8 different types of these things so we re read to maintain their current positiona atleast
+	currentPos, err := loader.LoadSpritePositionData()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-		//spData := sprite.SavePosition()
-		spMap[spData.Name] = spData
-
-	}*/
+	for _, sprite := range currentPos {
+		if _, ok := spMap[sprite.Name]; !ok {
+			spMap[sprite.Name] = *sprite
+		}
+	}
 
 	outputSave, err := json.Marshal(spMap)
 	if err != nil {

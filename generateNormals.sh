@@ -32,11 +32,11 @@ for f in "$INPUT_DIR"/*.png; do
     if [[ -f "$generated_normal" ]]; then
         # Move to output dir
         mv "$generated_normal" "./my-sprites/normals/${filename}_n.png"
-        echo "✅ Moved normal map for $name"
+        echo "Moved normal map for $name"
         # Optionally delete the generated assets directory
         rm -rf "assets/images/fishSpriteSheets/assets"
     else
-        echo "⚠️ Normal map not found for $name"
+        echo " Normal map not found for $name"
     fi
 done
 

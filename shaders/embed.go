@@ -37,3 +37,18 @@ var HandWritingEffect string
 
 //go:embed uiEffects/erase.kage
 var EraseEffect string
+
+//go:embed lighting/turnOffTheLights.kage
+var TurnOffLight string
+
+//go:embed lighting/dayLight.kage
+var DayLight string
+
+//go:embed water/waterNoTankRectCheck.kage
+var Water string
+
+//go:embed lighting/matteWallDayLight.kage
+var Wall string
+
+//go:embed uiEffects/phEffect.kage
+var PHEffect string

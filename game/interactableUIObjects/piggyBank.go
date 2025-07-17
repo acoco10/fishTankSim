@@ -11,7 +11,7 @@ import (
 
 type PiggyBankSprite struct {
 	*UiSprite
-	amountAvailable    float32
+	amountAvailable    float64
 	AnimationMap       map[string]drawables.Drawable
 	triggeredAnimation string
 }

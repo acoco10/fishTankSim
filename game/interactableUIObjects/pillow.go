@@ -9,7 +9,8 @@ import (
 
 type EventUI struct {
 	*UiSprite
-	Triggered bool
+	Triggered           bool
+	ClickedTextModifier string
 }
 
 func (p *EventUI) Update() {
@@ -25,7 +26,7 @@ func (p *EventUI) Update() {
 	}
 
 	if p.Triggered && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && p.SpriteHovered() {
-		p.EventHub.Publish(events.UISpriteAction{UiSprite: p.Label, UiSpriteAction: "clicked"})
+		p.EventHub.Publish(events.UISpriteAction{UiSprite: p.Label, UiSpriteAction: "clicked" + p.ClickedTextModifier})
 		turnOffClickMeEffect(p.UiSprite)
 	}
 
@@ -50,7 +51,8 @@ func (p *EventUI) Subscribe(hub *tasks.EventHub) {
 	if p.Label == "door" {
 		hub.Subscribe(events.NewDay{}, func(e tasks.Event) {
 			ev := e.(events.NewDay)
-			if ev.Type == "Chores" {
+			if ev.Type == "Chores" || ev.Type == "Camp" {
+				p.ClickedTextModifier = ev.Type
 				initClickMeEffect(p.UiSprite)
 				p.Triggered = true
 			}

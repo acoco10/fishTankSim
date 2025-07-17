@@ -48,8 +48,6 @@ func (w *WhiteBoardSprite) ResetImg() {
 func (w *WhiteBoardSprite) Update() {
 	w.clicked = false
 
-	w.updateState()
-
 	if w.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && len(w.completedTaskQueue) > 0 {
 
 		ev2 := tasks.TaskCompleted{}

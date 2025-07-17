@@ -10,6 +10,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"image"
 	"image/color"
+	"log"
 )
 
 type State uint8
@@ -45,7 +46,7 @@ func (p *StructureProp) State() State {
 	return p.state
 }
 
-func NewStructureProp(x float32, y float32, img *ebiten.Image, normal *ebiten.Image, hub *tasks.EventHub) *StructureProp {
+func NewStructureProp(x float32, y float32, img *ebiten.Image, normal *ebiten.Image, hub *tasks.EventHub, bounds image.Rectangle) *StructureProp {
 
 	p := StructureProp{}
 
@@ -63,6 +64,7 @@ func NewStructureProp(x float32, y float32, img *ebiten.Image, normal *ebiten.Im
 	p.state = Moveable
 	sprite.LoadPulseOutlineShader(p.Sprite)
 	p.shadowPoint = image.Point{X: int(x), Y: int(y)}
+	p.boundaries = bounds
 
 	return &p
 }
@@ -108,7 +110,7 @@ func (p *StructureProp) Draw(screen *ebiten.Image) {
 }
 
 func (p *StructureProp) Update() {
-	p.Sprite.Update()
+
 	if p.state == Moveable {
 		p.Y = float32(p.boundaries.Max.Y-p.Img.Bounds().Dy()) - 50
 		//y1 = max of fishtank y - height of the image - 50
@@ -134,13 +136,13 @@ func (p *StructureProp) Update() {
 		p.state = SetInPlace
 	}
 
+	p.Sprite.Update()
 	p.stateWas = p.state
 
 }
 
 func subscribe(P *StructureProp, hub *tasks.EventHub) {
 	hub.Subscribe(events.FishTankLayout{}, func(e tasks.Event) {
-
 		ev := e.(events.FishTankLayout)
 		println("recebed fish tank BOUNDARIES =", ev.Rectangle.Min.X, ev.Rectangle.Max.X)
 		P.boundaries = ev.Rectangle
@@ -155,8 +157,8 @@ func GamePropToSaveProp(prop *StructureProp, name string) entities.TankObject {
 	return save
 }
 
-func UpdateProps(queue *PropQueue) {
-
+func UpdateProps(queue PropQueue) {
+	//everything in  draw queue will be drawn
 	if queue.ActiveProp == nil {
 		return
 	}
@@ -164,6 +166,8 @@ func UpdateProps(queue *PropQueue) {
 	queue.ActiveProp.Update()
 
 	if len(queue.DrawProps) == 0 {
+		//add first active prop to be draw
+		log.Println("appending first active prop to draw prop slice")
 		queue.DrawProps = append(queue.DrawProps, queue.ActiveProp)
 	}
 
@@ -171,12 +175,13 @@ func UpdateProps(queue *PropQueue) {
 		if len(queue.QueuedProps) > 0 {
 			queue.ActiveProp = queue.QueuedProps[0]
 			queue.QueuedProps = queue.QueuedProps[1:]
+			//add secondary props when they reach the front of the queue
 			queue.DrawProps = append(queue.DrawProps, queue.ActiveProp)
 		}
 	}
 }
 
-func DrawProps(queue *PropQueue, screen *ebiten.Image) {
+func DrawProps(queue PropQueue, screen *ebiten.Image) {
 	for _, prop := range queue.DrawProps {
 		prop.Draw(screen)
 	}

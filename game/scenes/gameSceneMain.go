@@ -29,8 +29,8 @@ type Game struct {
 }
 
 const (
-	ScreenWidth  = 960
-	ScreenHeight = 720
+	ScreenWidth  = 640
+	ScreenHeight = 360
 )
 
 func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
@@ -41,13 +41,14 @@ func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
 
 		activeSceneId := sceneManagement.StartScene
 
-		ebiten.SetWindowSize(ScreenWidth, ScreenHeight)
+		ebiten.SetWindowSize(1920, 1080)
 
 		sceneMap := map[sceneManagement.SceneId]sceneManagement.Scene{
 			sceneManagement.StartScene:          NewStartScene(log),
 			sceneManagement.FishTank:            NewFishScene(log),
 			sceneManagement.TransitionScene:     LoadTransitionScene(log),
 			sceneManagement.MowingMiniGameScene: NewMowingScene(log),
+			sceneManagement.CampScene:           LoadCampScene(log),
 		}
 
 		game := &Game{
@@ -88,6 +89,13 @@ func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
 	return nil
 }
 
+func ScaleScreenToResolution(smallResolution *ebiten.Image) int {
+	x, _ := ebiten.WindowSize()
+	smallSizeX := smallResolution.Bounds().Dx()
+	res := (x + smallSizeX - 1) / smallSizeX
+	return res
+}
+
 func (g *Game) Update() error {
 
 	nextSceneId, err := g.sceneMap[g.activeSceneId].Update()
@@ -126,7 +134,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return ScreenWidth, ScreenHeight
+	return outsideWidth, outsideHeight
 }
 
 func NewMiniGameTest(miniGameName string, log *sceneManagement.GameLog) *Game {

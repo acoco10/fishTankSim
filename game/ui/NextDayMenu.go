@@ -20,9 +20,7 @@ type NextDayMenu struct {
 	Triggered bool
 }
 
-func LoadNextDayMenuUI(hub *tasks.EventHub) (*widget.Window, error) {
-
-	headerText := "Go To Bed?"
+func LoadNextOptionsMenuUI(headerText string, buttonText []string, hub *tasks.EventHub) (*widget.Window, error) {
 
 	face, err := util.LoadFont(24, "nk57")
 
@@ -79,13 +77,12 @@ func LoadNextDayMenuUI(hub *tasks.EventHub) (*widget.Window, error) {
 	)
 
 	//headerContainer.AddChild(headerLbl)
-
-	b1 := LoadSubmitButton("Go To Bed", hub, 12)
-	b2 := LoadSubmitButton("Vibe awhile Longer", hub, 12)
-
-	ButtonContainer.AddChild(
-		b1, b2,
-	)
+	for _, button := range buttonText {
+		b := LoadSubmitButton(button, hub, 12, headerText+": "+button)
+		ButtonContainer.AddChild(
+			b,
+		)
+	}
 
 	childContainer.AddChild(headerLbl)
 	childContainer.AddChild(ButtonContainer)
