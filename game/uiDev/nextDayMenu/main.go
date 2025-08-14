@@ -1,10 +1,13 @@
 package main
 
 import (
+	"github.com/acoco10/fishTankWebGame/game/loader"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/ui"
+	"github.com/ebitenui/ebitenui"
 	"github.com/hajimehoshi/ebiten/v2"
-	"image/color"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"golang.org/x/image/colornames"
 	"log"
 )
 
@@ -14,31 +17,39 @@ const (
 )
 
 type Game struct {
-	ui  *ui.NextDayMenu
+	ui  *ebitenui.UI
 	hub *tasks.EventHub
 }
 
 func newGame() *Game {
+
+	loader.LoadFontRegistry()
+
 	g := Game{}
 	hub := tasks.NewEventHub()
 	g.hub = hub
-	ndui, err := ui.LoadNextOptionsMenuUI(hub)
+	ndui, _, err := ui.LoadMainFishMenu(1000, 1000, hub)
 	if err != nil {
 		log.Fatal(err)
 	}
 	g.ui = ndui
-	ndui.Triggered = true
 	return &g
-
 }
 
 func (g *Game) Update() error {
 	g.ui.Update()
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
+		ui.TriggerTextWindow(g.hub, g.ui, "How To Play",
+			"1. Press Space and U to start your mower \n"+
+				" 2. Hold Space to keep it running\n "+
+				" 3. Mow as much grass as possible")
+	}
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	screen.Fill(color.Black)
+	screen.Fill(colornames.Lightpink)
 	g.ui.Draw(screen)
 
 }

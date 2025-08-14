@@ -12,10 +12,9 @@ import (
 
 type ImageMap struct {
 	Background *ebiten.Image
-	Player *ebiten.Image
-	Enemy *ebiten.Image
+	Player     *ebiten.Image
+	Enemy      *ebiten.Image
 }
-
 
 func LoadImage(path string) (*ebiten.Image, error) {
 	f, err := os.Open(path)
@@ -33,7 +32,7 @@ func LoadImage(path string) (*ebiten.Image, error) {
 func LoadAllImages(basePath string) (*ImageMap, error) {
 	var m ImageMap
 	var err error
- 
+
 	m.Background, err = LoadImage(filepath.Join(basePath, "background.png"))
 	if err != nil {
 		return nil, fmt.Errorf("loading background: %w", err)

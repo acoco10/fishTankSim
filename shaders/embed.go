@@ -44,7 +44,7 @@ var TurnOffLight string
 //go:embed lighting/dayLight.kage
 var DayLight string
 
-//go:embed water/waterNoTankRectCheck.kage
+//go:embed water/water.kage
 var Water string
 
 //go:embed lighting/matteWallDayLight.kage
@@ -52,3 +52,18 @@ var Wall string
 
 //go:embed uiEffects/phEffect.kage
 var PHEffect string
+
+//go:embed outlineEffects/pixelPerfectText.kage
+var textOutline string
+
+//go:embed lighting/figureOutCoordinateSystem.kage
+var FigureOutCoords string
+
+//go:embed uiEffects/highLight.kage
+var Highlight string
+
+//go:embed uiEffects/stomachFill.kage
+var StomachFill string
+
+//go:embed outlineEffects/normalMap+Outline.kage
+var NormalMapOutlined string

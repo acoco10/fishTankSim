@@ -2,13 +2,13 @@ package main
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/entities"
-	"github.com/acoco10/fishTankWebGame/game/interactableUIObjects"
+	"github.com/acoco10/fishTankWebGame/game/input"
 	"github.com/acoco10/fishTankWebGame/game/loader"
-	"github.com/acoco10/fishTankWebGame/game/sprite"
+	"github.com/acoco10/fishTankWebGame/game/registry"
+	"github.com/acoco10/fishTankWebGame/game/system"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"golang.org/x/image/colornames"
+	"image"
 	"log"
 )
 
@@ -18,10 +18,10 @@ const (
 )
 
 type Game struct {
-	eventHub     *tasks.EventHub
-	whiteBoard   *interactableUIObjects.WhiteBoardSprite2
-	testTaskLisr []*tasks.Task
-	taskn        int
+	eventHub    *tasks.EventHub
+	gameState   *entities.GameState
+	environment *system.Environment
+	fishEnt     *entities.Entity
 }
 
 func newGame() *Game {
@@ -29,63 +29,39 @@ func newGame() *Game {
 	g := Game{}
 	hub := tasks.NewEventHub()
 	g.eventHub = hub
+	mouseFlags := &input.MouseFlags{HandledClick: false, CursorOccupied: false}
+	g.gameState = &entities.GameState{MouseFlags: mouseFlags}
+	g.environment = &system.Environment{}
+	system.InitEnvironment(g.environment)
+	registry.Config.Zoom = false
+	registry.Config.ZoomFactor = 2
+	registry.Config.ResolutionHeight = 800
+	registry.Config.ResolutionWidth = 480 * 2
 
-	taskCondition2 := func(e tasks.Event) bool {
-		ev, ok := e.(entities.SendData)
-		return ok && ev.DataFor == "statsMenu"
-	}
+	fish := entities.SavedFish{FishType: string(entities.Fish), Size: 1}
 
-	gameTask1 := tasks.NewTask(entities.SendData{}, "1. Click your fish", taskCondition2)
+	colMap := make(map[string]image.Rectangle)
+	colMap["tank"] = image.Rect(100, 100, 400, 400)
 
-	gameTask1.Subscribe(g.eventHub)
-
-	gameTask2 := tasks.NewTask(entities.SendData{}, "2. Click your fish", taskCondition2)
-
-	gameTask2.Subscribe(g.eventHub)
-
-	gameTask3 := tasks.NewTask(entities.SendData{}, "3. Click your fish", taskCondition2)
-
-	gameTask3.Subscribe(g.eventHub)
-
-	g.testTaskLisr = append(g.testTaskLisr, gameTask1, gameTask2, gameTask3)
-
-	//shader := shaders
-	//s.shader = outlineShader
-
-	wb := interactableUIObjects.WhiteBoardSprite2{}
-	wbImg, err := loader.LoadImageAssetAsEbitenImage("uiSprites/whiteBoardMain")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	wbuiSprte := &interactableUIObjects.UiSprite{}
-	wb.UiSprite = wbuiSprte
-
-	wbSprite := &sprite.Sprite{Img: wbImg, X: 300, Y: 300}
-	wb.Sprite = wbSprite
-	wb.EventHub = g.eventHub
-	wb.Init()
-	g.whiteBoard = &wb
+	fEnt := loader.InitFish(fish, g.environment, g.eventHub, colMap)
+	g.fishEnt = fEnt
 
 	return &g
 }
 
 func (g *Game) Update() error {
-	g.whiteBoard.Update()
-
-	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
-		g.testTaskLisr[g.taskn].Activate()
-		g.testTaskLisr[g.taskn].Publish(g.eventHub)
-		g.taskn++
+	if g.fishEnt.Sprite.Focused == false {
+		entities.Focus(g.fishEnt.Id)
 	}
-
+	entities.UpdateEntities(g.gameState)
 	return nil
+
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
 
-	screen.Fill(colornames.Darkgreen)
-	g.whiteBoard.Draw(screen)
+	entities.DrawEntities(screen)
+	entities.DrawNonZoomedEntities(screen)
 
 }
 

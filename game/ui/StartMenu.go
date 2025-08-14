@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/drawables"
+	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/loader"
 	"github.com/acoco10/fishTankWebGame/game/registry"
@@ -9,11 +10,22 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/ebitenui/ebitenui"
+	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
+	"golang.org/x/image/colornames"
 	"image"
-	"image/color"
 	"log"
+)
+
+const (
+	ScreenWidth  = 960
+	ScreenHeight = 540
+)
+
+const (
+	WindowSizeWidth  = 1080
+	WindowSizeHeight = 1920
 )
 
 type startMenuState uint8
@@ -32,62 +44,47 @@ type StartMenu struct {
 	root                *widget.Container
 	TextInputContainer  *widget.Container
 	TextInput           *widget.TextInput
-	TextInputButton     *widget.Button
 	DrawOptions         map[string]drawables.Drawable
 	SelectSpritesToDraw []drawables.Drawable
 	eventHub            *tasks.EventHub
-	fishButtons         map[string]*widget.Button
+	fishButtons         map[string]*widget.Container
 	fishButtonContainer *widget.Container
 	selectContainer     *widget.Container
 }
 
-func LoadStartMenu(hub *tasks.EventHub, screenWidth int, screenHeight int) (*StartMenu, error) {
+func LoadStartMenu(hub *tasks.EventHub, resolutionScaling float64) (*StartMenu, error) {
 	headerFontSize := 64.0
 
 	s := StartMenu{}
 	s.eventHub = hub
-	s.screenHeight = screenHeight
-	s.screenWidth = screenWidth
+	s.screenHeight = ScreenWidth
+	s.screenWidth = ScreenHeight
 
-	err := LoadStartMenuUI(&s, headerFontSize)
+	err := LoadStartMenuUI(&s, headerFontSize, resolutionScaling)
 	if err != nil {
 		return &s, err
 	}
-
-	selectSprites, err := loader.LoadAnimatedSelectSprites(screenWidth, screenHeight)
-
-	if err != nil {
-		return nil, err
-	}
-
-	s.DrawOptions = selectSprites
-
-	for _, sp := range selectSprites {
-		s.SelectSpritesToDraw = append(s.SelectSpritesToDraw, sp)
-	}
-
-	img, err := loader.LoadImageAssetAsEbitenImage("menuAssets/backButton")
-	if err != nil {
-		return nil, err
-	}
-
-	backSprite := &sprite.Sprite{Img: img, X: float32(screenWidth/2 - 100 - img.Bounds().Dx()), Y: float32(screenHeight/2 - (img.Bounds().Dy())/2)}
-	s.DrawOptions["Back"] = backSprite
 
 	s.subs()
 	loader.StartScreenCoordinatePositioner(s.screenHeight, s.screenWidth, s.DrawOptions, 12.0, 54)
 	return &s, nil
 }
 
-func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64) error {
+func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64, resolutionScalar float64) error {
 
 	headerText := "Pick Your Starter Fish!"
 
-	face, err := util.LoadFont(headerFontSize, "nk57")
+	face, err := util.LoadFont(headerFontSize, "reglisseOutline") //white center text
+
+	face2, err := util.LoadFont(headerFontSize, "reglisseOutlined") //black outline
 
 	if err != nil {
+		println("error loading new font")
 		return err
 	}
+
+	borders := eimage.NewBorder(4, 4, 4, 4, colornames.Lightgoldenrodyellow)
+	nineSliceImage := eimage.NewAdvancedNineSliceColor(colornames.Lightcoral, borders)
 
 	rootContainer := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
@@ -100,11 +97,19 @@ func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64) error {
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,
 				StretchHorizontal:  false,
 				StretchVertical:    true,
-				Padding:            widget.Insets{Top: startMenu.screenHeight / 5},
+				Padding: widget.Insets{
+					Top:    int(float64(registry.Config.ResolutionHeight) * resolutionScalar / 10),
+					Bottom: int(float64(registry.Config.ResolutionHeight) * resolutionScalar / 10),
+					Left:   int(float64(registry.Config.ResolutionWidth) * resolutionScalar / 10),
+					Right:  int(float64(registry.Config.ResolutionWidth) * resolutionScalar / 10)}, // base container distance from the top of the screen
+
 			}),
 		),
+		widget.ContainerOpts.BackgroundImage(nineSliceImage),
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Spacing(20),
+			//MAIN VARIABLE FOR CHANGING ROW SPACING
+			widget.RowLayoutOpts.Spacing(int(30*resolutionScalar)),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(20)),
 			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
 		)))
 
@@ -119,10 +124,8 @@ func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64) error {
 		widget.ContainerOpts.Layout(widget.NewGridLayout(
 			//Define number of columns in the grid
 			widget.GridLayoutOpts.Columns(2),
-			//Define how much padding to inset the child content
-			widget.GridLayoutOpts.Padding(widget.NewInsetsSimple(10)),
-			//Define how far apart the rows and columns should be
-			widget.GridLayoutOpts.Spacing(20, 10),
+			//onlt one row so row spacing second input doesnt really matter
+			widget.GridLayoutOpts.Spacing(int(20*resolutionScalar), int(10*resolutionScalar)),
 			// DefaultStretch values will be used when extra columns/rows are used
 			// out of the ones defined on the normal Stretch
 			widget.GridLayoutOpts.DefaultStretch(false, true),
@@ -134,42 +137,58 @@ func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64) error {
 
 	headerContainer := widget.NewContainer(
 		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-			}),
-		),
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-	)
+			widget.WidgetOpts.LayoutData(widget.RowLayoutOpts)),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()))
 
 	headerLbl := widget.NewText(
-		widget.TextOpts.Text(headerText, face, color.RGBA{R: 250, G: 160, B: 0, A: 255}),
+		widget.TextOpts.Text(headerText, face, colornames.Aliceblue),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
-		widget.TextOpts.Insets(widget.Insets{
-			Left:  30,
-			Right: 10,
-		}),
+		widget.TextOpts.Insets(widget.Insets{50, 50, 50, 50}),
+	)
+
+	headerLblOutline := widget.NewText(
+		widget.TextOpts.Text(headerText, face2, colornames.Black),
+		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
+		widget.TextOpts.Insets(widget.Insets{50, 50, 50, 50}),
 	)
 
 	headerContainer.AddChild(headerLbl)
+	headerContainer.AddChild(headerLblOutline)
 
-	b1 := LoadSpriteSelectButton("Goldfish", startMenu.eventHub, 24)
-	b2 := LoadSpriteSelectButton("Common Molly", startMenu.eventHub, 24)
-	b3 := LoadSpriteSelectButton("Select", startMenu.eventHub, 24)
+	goldFish, err := entities.LoadFishSprite(entities.Fish, 2)
+	if err != nil {
+		return err
+	}
 
-	fishButtonMap := make(map[string]*widget.Button)
+	mollyFish, err := entities.LoadFishSprite(entities.MollyFish, 2)
+	if err != nil {
+		return err
+	}
+
+	goldFishImg := goldFish.GetFirstFrameAsStaticImage()
+	mFishImg := mollyFish.GetFirstFrameAsStaticImage()
+
+	b1, err := LoadStackSpriteSelectButton("Goldfish", goldFishImg, float64(12*resolutionScalar), startMenu.eventHub, 4.0)
+	if err != nil {
+		return err
+	}
+
+	b2, err := LoadStackSpriteSelectButton("Common Molly", mFishImg, float64(12*resolutionScalar), startMenu.eventHub, 4.0)
+	if err != nil {
+		return err
+	}
+
+	fishButtonMap := make(map[string]*widget.Container)
 
 	pickFishContainer.AddChild(
 		b1, b2,
 	)
 
-	propButs := addPickSpriteContainer(2)
-
 	fishButtonMap["Goldfish"] = b1
 	fishButtonMap["Common Molly"] = b2
-	fishButtonMap["Selected Button"] = b3
+
 	childContainer.AddChild(headerContainer)
 	childContainer.AddChild(pickFishContainer)
-	childContainer.AddChild(propButs)
 
 	rootContainer.AddChild(
 		childContainer)
@@ -206,11 +225,7 @@ func (s *StartMenu) subs() {
 
 	s.eventHub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
 		ev := e.(events.ButtonClickedEvent)
-		switch ev.ButtonText {
-		case "Submit":
-		case "Back":
-			s.Back()
-		default:
+		if ev.ButtonText == "Common Molly" || ev.ButtonText == "Goldfish" {
 			s.SpriteSelected(ev.ButtonText)
 		}
 	})
@@ -232,36 +247,17 @@ func (s *StartMenu) SpriteSelected(tx string) {
 
 	s.state = fishSelected
 	s.fishButtonContainer.RemoveChildren()
-	s.fishButtonContainer.AddChild(s.fishButtons["Selected Button"])
 
-	/*s.fishButtons["Selected Button"].GetWidget().Visibility = widget.Visibility_Show*/
-	s.fishButtons["Selected Button"].Text().Label = tx
-	s.fishButtons["Selected Button"].GetWidget().Disabled = true
-	//s.fishButtons["Selected Button"].Press()
+	s.fishButtonContainer.AddChild(s.fishButtons[tx])
 
-	s.SelectSpritesToDraw = []drawables.Drawable{}
+	//moveBack(s.DrawOptions["Back"], s.state)
 
-	selectedFish, ok := s.DrawOptions[tx].(*sprite.AnimatedSprite)
-	if !ok {
-		println("pollution from another scene")
-		return
-	}
-
-	offset := 120 - selectedFish.SpriteWidth*4
-	selectedFish.X = float32(s.screenWidth/2 - (selectedFish.SpriteWidth)*2 - offset/2)
-
-	selectedFish.Shader = registry.ShaderMap["Outline"]
-
-	s.SelectSpritesToDraw = append(s.SelectSpritesToDraw, selectedFish, s.DrawOptions["Back"])
-
-	moveBack(s.DrawOptions["Back"], s.state)
-
-	textinputContainer, textInput, textInputButton, err := NewTextInput(s.eventHub)
+	textinputContainer, textInput, _, err := NewTextInput(s.eventHub, "Give her a name!")
 	if err != nil {
 		log.Fatal("text input dun fucked up", err)
 	}
+
 	s.TextInputContainer = textinputContainer
-	s.TextInputButton = textInputButton
 	s.root.AddChild(textinputContainer)
 	textInput.Focus(true)
 }
@@ -319,13 +315,13 @@ func propSelectChild(eventHub *tasks.EventHub) ([]*widget.Container, error) {
 		return nil, err
 	}*/
 
-	b1, err := LoadStackSpriteSelectButton("Castle", ebiten.NewImage(10, 10), 16, eventHub, []string{})
+	b1, err := LoadStackSpriteSelectButtonWithToolTip("Castle", ebiten.NewImage(10, 10), 16, eventHub, []string{})
 
 	if err != nil {
 		return nil, err
 	}
 
-	b2, err := LoadStackSpriteSelectButton("Log", ebiten.NewImage(10, 10), 16, eventHub, []string{})
+	b2, err := LoadStackSpriteSelectButtonWithToolTip("Log", ebiten.NewImage(10, 10), 16, eventHub, []string{})
 
 	if err != nil {
 		return nil, err

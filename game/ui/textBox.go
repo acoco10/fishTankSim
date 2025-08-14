@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/acoco10/fishTankWebGame/game/entities"
+	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	eimage "github.com/ebitenui/ebitenui/image"
@@ -99,7 +100,7 @@ func LoadPadding(tp TextBoxType) (widget.Insets, widget.Insets) {
 	var w2 widget.Insets
 	switch tp {
 	case StatsMenu:
-		w = widget.Insets{Right: 0, Left: 50, Top: 0, Bottom: 0}
+		w = widget.Insets{Right: 0, Left: 50, Top: 100, Bottom: 100}
 		w2 = widget.Insets{Right: 10, Left: 10, Top: 10, Bottom: 100}
 	case StoreMenu:
 		w = widget.Insets{Right: 10, Left: 0, Top: 0, Bottom: 0}
@@ -114,7 +115,7 @@ func LoadMinSize(tp TextBoxType) (int, int) {
 	switch tp {
 	case StatsMenu:
 		w = 160
-		h = 200
+		h = 350
 	case StoreMenu:
 		w = 180
 		h = 135
@@ -128,10 +129,10 @@ func LoadFontByType(tp TextBoxType) (text2.Face, color.Color, error) {
 	var face text2.Face
 	switch tp {
 	case StatsMenu:
-		face = registry.FontMap["nk57_12"]
+		face = registry.FontMap["nk57_24"]
 		clr = color.White
 	case StoreMenu:
-		face = registry.FontMap["nk57_12"]
+		face = registry.FontMap["nk57_24"]
 		clr = color.Black
 	}
 
@@ -145,10 +146,10 @@ func NewTextBlockContainer(hub *tasks.EventHub, backGroundImg *widget.ScrollCont
 	t.eventhub = hub
 
 	face, textClr, err := LoadFontByType(tp)
-
 	if err != nil {
 		return nil, nil, err
 	}
+
 	w, h := LoadMinSize(tp)
 	layoutData := LoadLayoutData(tp)
 	padding, textPadding := LoadPadding(tp)
@@ -189,6 +190,8 @@ func NewTextBlockContainer(hub *tasks.EventHub, backGroundImg *widget.ScrollCont
 		//This sets the background images for the scroll container
 		widget.TextAreaOpts.ScrollContainerOpts(
 			widget.ScrollContainerOpts.Image(backGroundImg),
+			widget.ScrollContainerOpts.Padding(
+				widget.Insets{Top: 10, Bottom: 10}),
 		),
 		//This sets the images to use for the sliders
 		widget.TextAreaOpts.SliderOpts(
@@ -222,13 +225,19 @@ func (t *TextBoxUi) subs(tp TextBoxType) {
 			ev := e.(entities.SendData)
 			if ev.DataFor == "statsMenu" {
 				switch ev.Data {
-				case "fish deselect":
-					t.text.GetWidget().Visibility = widget.Visibility_Hide
 				default:
 					t.ReplaceTextArea(ev.Data)
 					t.text.GetWidget().Visibility = widget.Visibility_Show
 				}
 			}
+		})
+		t.eventhub.Subscribe(events.UnFocus{}, func(e tasks.Event) {
+			ev := e.(events.UnFocus)
+			ent, exists := entities.GetEntity(ev.EntID)
+			if exists && ent.CreatureData != nil {
+				t.text.GetWidget().Visibility = widget.Visibility_Hide
+			}
+
 		})
 	}
 }

@@ -2,7 +2,6 @@ package scenes
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/daySystem"
-	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -13,8 +12,8 @@ import (
 
 type TransitionScene struct {
 	isLoaded         bool
-	nextSceneTrigger *entities.Timer
-	dotTimer         *entities.Timer
+	nextSceneTrigger *util.Timer
+	dotTimer         *util.Timer
 	gameLog          *sceneManagement.GameLog
 	dots             int
 	loadingMsg       string
@@ -30,7 +29,7 @@ func LoadTransitionScene(gameLog *sceneManagement.GameLog) *TransitionScene {
 
 func (s *TransitionScene) Update() (sceneManagement.SceneId, error) {
 
-	if s.nextSceneTrigger.TimerState == entities.Done {
+	if s.nextSceneTrigger.TimerState == util.Done {
 		return sceneManagement.FishTank, nil
 	}
 	s.nextSceneTrigger.Update()
@@ -45,7 +44,6 @@ func (s *TransitionScene) Draw(screen *ebiten.Image) {
 		log.Fatal(err, "Cant load font in transition scene")
 	}
 	screen.Fill(color.RGBA{R: 120, G: 170, B: 210, A: 255})
-
 	dopts := &text.DrawOptions{}
 
 	dopts.ColorScale.Scale(1, 1, 1, 1)
@@ -63,8 +61,8 @@ func (s *TransitionScene) Draw(screen *ebiten.Image) {
 
 func (s *TransitionScene) FirstLoad() {
 	s.isLoaded = true
-	s.dotTimer = entities.NewTimer(0.5)
-	s.nextSceneTrigger = entities.NewTimer(2)
+	s.dotTimer = util.NewTimer(0.5)
+	s.nextSceneTrigger = util.NewTimer(2)
 }
 
 func (s *TransitionScene) OnEnter() {
@@ -73,10 +71,12 @@ func (s *TransitionScene) OnEnter() {
 	s.dotTimer.TurnOn()
 
 	daySystem.LoadDaysTasks(s.gameLog)
-
 }
 
 func (s *TransitionScene) OnExit() {
+
+	s.nextSceneTrigger.TurnOff()
+	s.dotTimer.TurnOff()
 }
 
 func (s *TransitionScene) IsLoaded() bool {

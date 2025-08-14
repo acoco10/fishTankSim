@@ -7,18 +7,50 @@ import (
 type DayOver struct {
 }
 
+func (d DayOver) Type() string {
+	return "DayOver"
+}
+
 type DayOverTransitionComplete struct {
 }
 
+func (d DayOverTransitionComplete) Type() string {
+	return "DayOverTransitionComplete"
+}
+
 type NewDay struct {
-	NTasks int
-	Type   string
+	Day     int
+	NTasks  int
+	DayType string
+}
+
+func (n NewDay) Type() string {
+	return "NewDay"
 }
 
 type FishTankLayout struct {
 	image.Rectangle
 }
 
-type IntroFlow struct {
-	Event string
+func (f FishTankLayout) Type() string {
+	return "FishTankLayout"
+}
+
+type LeavingFishScene struct {
+}
+
+func (l LeavingFishScene) Type() string {
+	return "LeavingFishScene"
+}
+
+type Zoom struct{}
+
+func (z Zoom) Type() string {
+	return "Zoom"
+}
+
+type UnZoom struct{}
+
+func (z UnZoom) Type() string {
+	return "UnZoom"
 }

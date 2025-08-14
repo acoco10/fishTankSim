@@ -3,15 +3,15 @@ package ui
 import (
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/game/events"
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/ebitenui/ebitenui"
-	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
-	"golang.org/x/image/colornames"
 	"image"
 	"image/color"
+	"log"
 )
 
 type NextDayMenu struct {
@@ -28,13 +28,17 @@ func LoadNextOptionsMenuUI(headerText string, buttonText []string, hub *tasks.Ev
 		return nil, err
 	}
 
+	menuImg, err := loadOptionsMenuInputImage()
+	if err != nil {
+		log.Fatal(err)
+	}
 	rootContainer := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout(
 		//widget.AnchorLayoutOpts.Padding(widget.NewInsetsSimple(200)))))
 		)))
 
 	childContainer := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(eimage.NewNineSliceColor(colornames.Darkmagenta)),
+		widget.ContainerOpts.BackgroundImage(menuImg),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				VerticalPosition:   widget.AnchorLayoutPositionCenter,
@@ -91,6 +95,12 @@ func LoadNextOptionsMenuUI(headerText string, buttonText []string, hub *tasks.Ev
 
 	// construct the UI
 
+	windowWidth := 400
+	windowHeight := 100
+
+	x0 := registry.Config.ResolutionWidth/2 - windowWidth/2
+	y0 := registry.Config.ResolutionHeight/3 - windowHeight/2
+
 	window := widget.NewWindow(
 		//Set the main contents of the window
 		widget.WindowOpts.Contents(rootContainer),
@@ -103,9 +113,9 @@ func LoadNextOptionsMenuUI(headerText string, buttonText []string, hub *tasks.Ev
 		//Indicates that the window is draggable. It must have a TitleBar for this to work
 		//Set the window resizeable
 		//Set the minimum size the window can be
-		widget.WindowOpts.MinSize(200, 100),
+		widget.WindowOpts.MinSize(windowWidth, windowHeight),
 		//Set the maximum size a window can be
-		widget.WindowOpts.MaxSize(300, 300),
+		widget.WindowOpts.MaxSize(windowWidth, windowHeight),
 		//Set the callback that triggers when a move is complete
 		widget.WindowOpts.MoveHandler(func(args *widget.WindowChangedEventArgs) {
 			fmt.Println("Window Moved")
@@ -114,8 +124,10 @@ func LoadNextOptionsMenuUI(headerText string, buttonText []string, hub *tasks.Ev
 		widget.WindowOpts.ResizeHandler(func(args *widget.WindowChangedEventArgs) {
 			fmt.Println("Window Resized")
 		}),
-		widget.WindowOpts.Location(image.Rect(100, 100, 500, 500)),
+
+		widget.WindowOpts.Location(image.Rect(x0, y0, x0+windowWidth, y0+windowHeight)),
 	)
+
 	return window, nil
 }
 

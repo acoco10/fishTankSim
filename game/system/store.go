@@ -3,6 +3,7 @@ package system
 import (
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
+	"log"
 )
 
 type Store struct {
@@ -10,16 +11,17 @@ type Store struct {
 	tryingToBuy  string
 }
 
-func NewStore(eHub *tasks.EventHub) Store {
-	s := Store{}
+func NewStore(eHub *tasks.EventHub) *Store {
+	s := &Store{}
 
-	fishPriceMap := make(map[string]int)
+	s.fishPriceMap = make(map[string]int)
 
-	fishPriceMap["kirbensis"] = 2
-	fishPriceMap["guppy"] = 1
+	s.fishPriceMap["kirbensis"] = 2
+	s.fishPriceMap["guppy"] = 1
 
-	s.fishPriceMap = fishPriceMap
-
+	if eHub == nil {
+		log.Fatal("is actually not init")
+	}
 	s.Subscribe(eHub)
 	return s
 }
@@ -34,7 +36,7 @@ func (s *Store) Subscribe(eHub *tasks.EventHub) {
 	})
 
 	eHub.Subscribe(events.PurchaseSuccessful{}, func(e tasks.Event) {
-		ev := events.NewPurchase{Purchase: s.tryingToBuy, Type: "Fish"}
+		ev := events.NewPurchase{Purchase: s.tryingToBuy, PurchaseType: "Fish"}
 		eHub.Publish(ev)
 	})
 

@@ -4,7 +4,6 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/graphics"
-	"github.com/acoco10/fishTankWebGame/game/loader"
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
@@ -35,12 +34,12 @@ func (m *Magazine) Trigger() {
 }
 
 func LoadMagazineUiMenu(eHub *tasks.EventHub, screenWidth int, screenHeight int) (*Magazine, error) {
-	bground, err := loader.LoadImageAssetAsEbitenImage("uiSprites/magazineAlt")
+	bground, err := util.LoadImageAssetAsEbitenImage("uiSprites/magazineAlt")
 	if err != nil {
 		return nil, err
 	}
 
-	buttonGraphicImg, err := loader.LoadImageAssetAsEbitenImage("menuAssets/arrowButton")
+	buttonGraphicImg, err := util.LoadImageAssetAsEbitenImage("menuAssets/arrowButton")
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +75,12 @@ func LoadMagazineUiMenu(eHub *tasks.EventHub, screenWidth int, screenHeight int)
 
 	infoPage1, err := LoadInfoPages(eHub)
 
-	magUI.pages = append(magUI.pages, indexPage, fishPage, infoPage1)
+	stuffPage, err := LoadTankStuff(eHub)
+	if err != nil {
+		return nil, err
+	}
+
+	magUI.pages = append(magUI.pages, indexPage, fishPage, infoPage1, stuffPage)
 
 	MagSubscriptions(&magUI, eHub)
 
@@ -87,22 +91,22 @@ func LoadFishSprites() ([12]*ebiten.Image, error) {
 
 	fish := [12]*ebiten.Image{}
 
-	kirbensis, err := loader.LoadImageAssetAsEbitenImage("staticFish/kirbensis2")
+	kirbensis, err := util.LoadImageAssetAsEbitenImage("staticFish/kirbensis2")
 	if err != nil {
 		return [12]*ebiten.Image{}, err
 	}
 
-	guppy, err := loader.LoadImageAssetAsEbitenImage("staticFish/guppy2")
+	guppy, err := util.LoadImageAssetAsEbitenImage("staticFish/guppy2")
 	if err != nil {
 		return [12]*ebiten.Image{}, err
 	}
 
-	goldFish, err := loader.LoadFishSprite(entities.Fish, 2)
+	goldFish, err := entities.LoadFishSprite(entities.Fish, 2)
 	if err != nil {
 		return [12]*ebiten.Image{}, err
 	}
 
-	mollyFish, err := loader.LoadFishSprite(entities.MollyFish, 2)
+	mollyFish, err := entities.LoadFishSprite(entities.MollyFish, 2)
 	if err != nil {
 		return [12]*ebiten.Image{}, err
 	}
@@ -113,6 +117,90 @@ func LoadFishSprites() ([12]*ebiten.Image, error) {
 	fish[3] = mollyFish.GetFirstFrameAsStaticImage()
 
 	return fish, nil
+}
+
+func LoadTankStuff(hub *tasks.EventHub) (*widget.Container, error) {
+	magNineSlice, flippedMagNineSlice, err := LoadMagNineSlice()
+	if err != nil {
+		return nil, err
+	}
+
+	rootContainer := widget.NewContainer(
+		widget.ContainerOpts.Layout(
+			widget.NewGridLayout(
+				widget.GridLayoutOpts.Columns(2),
+				widget.GridLayoutOpts.Spacing(0, 0),
+				widget.GridLayoutOpts.Padding(widget.Insets{
+					Top:   20,
+					Right: 50,
+					Left:  50,
+				},
+				),
+			)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(
+				widget.GridLayoutData{
+					HorizontalPosition: widget.GridLayoutPositionCenter,
+					VerticalPosition:   widget.GridLayoutPositionCenter,
+				}),
+		),
+	)
+
+	leftPage := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(400, 500),
+		),
+		widget.ContainerOpts.BackgroundImage(magNineSlice),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(
+				widget.GridLayoutData{
+					HorizontalPosition: widget.GridLayoutPositionCenter,
+					VerticalPosition:   widget.GridLayoutPositionCenter,
+				}),
+		),
+		widget.ContainerOpts.Layout(
+			widget.NewRowLayout(
+				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+				widget.RowLayoutOpts.Spacing(10),
+				widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(30)),
+			),
+		),
+	)
+
+	rightPage := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(400, 500),
+		),
+		widget.ContainerOpts.BackgroundImage(flippedMagNineSlice),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(
+				widget.GridLayoutData{
+					HorizontalPosition: widget.GridLayoutPositionCenter,
+					VerticalPosition:   widget.GridLayoutPositionCenter,
+				}),
+		),
+
+		widget.ContainerOpts.Layout(
+			widget.NewRowLayout(
+				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+				widget.RowLayoutOpts.Spacing(10),
+				widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(30)),
+			),
+		),
+	)
+
+	b1 := LoadSpriteSelectButton("ph+", hub, 32)
+	b2 := LoadSpriteSelectButton("ph-", hub, 32)
+
+	leftPage.AddChild(b1, b2)
+
+	rootContainer.AddChild(leftPage)
+	rootContainer.AddChild(rightPage)
+
+	// construct the UI
+
+	return rootContainer, nil
+
 }
 
 func LoadFishDescriptions() ([4]string, [4]string) {
@@ -134,12 +222,12 @@ func (m *Magazine) Update() {
 }
 
 func LoadMagNineSlice() (*eimage.NineSlice, *eimage.NineSlice, error) {
-	bground, err := loader.LoadImageAssetAsEbitenImage("uiSprites/magazineLeft")
+	bground, err := util.LoadImageAssetAsEbitenImage("uiSprites/magazineLeft")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	flipImg, err := loader.LoadImageAssetAsEbitenImage("uiSprites/magazineRight")
+	flipImg, err := util.LoadImageAssetAsEbitenImage("uiSprites/magazineRight")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -247,11 +335,13 @@ func LoadMagazineIndexPage(eHub *tasks.EventHub, b image.Rectangle) (*widget.Con
 	button2 := LoadSubmitButton("Fish", eHub, 16, "")
 	button3 := LoadSubmitButton("Tank Upgrades", eHub, 16, "")
 	button4 := LoadSubmitButton("Accessories", eHub, 16, "")
+	button5 := LoadSubmitButton("Helpers", eHub, 16, "")
 
 	buttonContainer.AddChild(button)
 	buttonContainer.AddChild(button2)
 	buttonContainer.AddChild(button3)
 	buttonContainer.AddChild(button4)
+	buttonContainer.AddChild(button5)
 
 	leftContainer.AddChild(headerLbl)
 	leftContainer.AddChild(buttonContainer)
@@ -436,7 +526,7 @@ func LoadFishPages(eHub *tasks.EventHub, fishImages [12]*ebiten.Image) (*widget.
 
 	for i, fish := range fishImages[0:4] {
 
-		button, err2 := LoadStackSpriteSelectButton(names[i], fish, 16, eHub, []string{})
+		button, err2 := LoadStackSpriteSelectButton(names[i], fish, 16, eHub, 2.0)
 		if err2 != nil {
 			return nil, err2
 		}
@@ -468,6 +558,8 @@ func MagSubscriptions(magUi *Magazine, eHub *tasks.EventHub) {
 			magUi.activeIndex = 1
 		case "Info":
 			magUi.activeIndex = 2
+		case "Helpers":
+			magUi.activeIndex = 3
 		}
 		// text processing for buy events
 		if strings.HasPrefix(ev.ButtonText, "Buy:") {
@@ -483,7 +575,6 @@ func MagSubscriptions(magUi *Magazine, eHub *tasks.EventHub) {
 			}
 			eHub.Publish(pev)
 		}
-
 	})
 
 }

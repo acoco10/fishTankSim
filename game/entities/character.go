@@ -40,8 +40,8 @@ type TankCharacter struct {
 	Direction      Direction
 	Corners        *TankCorners
 	MovementState  movement.State
-	Sprite         *sprite.AnimatedSprite
-	AnimationMap   map[string]*sprite.AnimatedSprite
+	Sprite         *sprite.Sprite
+	AnimationMap   map[string]*sprite.Sprite
 	Width, Height  int
 	MovementSystem *movement.System
 	Collision      bool
@@ -55,7 +55,7 @@ type Collision struct {
 	Object   image.Rectangle
 }
 
-func NewCharacter(x, y float64, sprite *sprite.AnimatedSprite) *TankCharacter {
+func NewCharacter(x, y float64, sprite *sprite.Sprite) *TankCharacter {
 	char := TankCharacter{
 		MovementState: movement.State{}, // Zero values
 		Sprite:        sprite,

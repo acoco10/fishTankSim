@@ -1,98 +1,116 @@
 package soundFX
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/entities"
+	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	resource "github.com/quasilyte/ebitengine-resource"
 	"log"
+	"time"
 )
 
-var l *resource.Loader
+var sfxMap = make(map[string]*audio.Player)
 
 type SoundPlayer struct {
-	*resource.Loader
-	*audio.Player
-	queue  []*audio.Player
-	queue2 []*audio.Player
-	timers map[resource.AudioID]*entities.Timer
+	sounds      map[resource.AudioID]*audio.Player
+	timers      map[resource.AudioID]*util.Timer
+	updateFuncs map[resource.AudioID]func(id *audio.Player, targetVol float64, currentVol float64, time float64)
+	counter     float64
 }
 
-func NewSoundPlayer() (*SoundPlayer, error) {
-	if l == nil {
-		loader, err := LoadSounds()
-		if err != nil {
-			return &SoundPlayer{}, err
-		}
-		l = loader
+func (s *SoundPlayer) LoadPlayer(playerType string) {
+	s.sounds = make(map[resource.AudioID]*audio.Player)
+	soundList := []resource.AudioID{
+		CardBoard,
+		Coins1,
+		PickUpOne,
+		PlopSound,
+		PouringFood,
+		SelectSound,
+		SuccessMusic,
+		WaterBubbles,
+		SelectSound2,
+		WhiteBoardMarker1,
+		WhiteBoardMarker2,
 	}
 
-	s := SoundPlayer{Loader: l, Player: &audio.Player{}}
-	s.timers = make(map[resource.AudioID]*entities.Timer)
-	s.timers[WhiteBoardMarker2] = entities.NewTimer(1.4)
+	musicList := []resource.AudioID{
+		BestAdventureEver,
+		DayTimeJazz,
+		TropicalHouse,
+		IndieCafe,
+	}
 
-	return &s, nil
-}
-func (s *SoundPlayer) Update() {
-	s.queue = UpdateQueue(s.queue)
-	s.queue2 = UpdateQueue(s.queue2)
-}
-func UpdateQueue(queue []*audio.Player) []*audio.Player {
-	if len(queue) > 0 {
-		if queue[0].IsPlaying() {
-			return queue
-		}
-	}
-	if len(queue) > 0 {
-		queue = queue[1:]
-	}
-	if len(queue) > 0 {
-		queue[0].Play()
-	}
-	return queue
-}
+	if playerType == "sound" {
+		for _, sound := range soundList {
 
-func (s *SoundPlayer) AddToQueue(id resource.AudioID, queue int) {
+			s.sounds[sound] = loadedSounds.LoadWAV(sound).Player
+			s.sounds[sound].SetVolume(loadedSounds.LoadAudio(sound).Volume)
+			bufferDuration := 64 * time.Millisecond
+			s.sounds[sound].SetBufferSize(bufferDuration)
+			s.updateFuncs = make(map[resource.AudioID]func(id *audio.Player, targetVol float64, currentVol float64, time float64))
+			err := s.sounds[sound].Rewind()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+	if playerType == "music" {
+		for _, sound := range musicList {
+			s.sounds[sound] = loadedSounds.LoadWAV(sound).Player
+			s.sounds[sound].SetVolume(loadedSounds.LoadAudio(sound).Volume)
+			s.updateFuncs = make(map[resource.AudioID]func(id *audio.Player, targetVol float64, currentVol float64, time float64))
+			err := s.sounds[sound].Rewind()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
 
-	if queue == 1 {
-		sfx := s.Loader.LoadWAV(id).Player
-		sfx.SetVolume(s.Loader.LoadAudio(id).Volume)
-		err := sfx.Rewind()
-		if err != nil {
-			log.Printf("%q Rewind: %s", id, err)
-		}
-		s.queue = append(s.queue, sfx)
-		if len(s.queue) == 1 {
-			sfx.Play()
-		}
-	}
-	if queue == 2 {
-		sfx := s.Loader.LoadWAV(id).Player
-		sfx.SetVolume(s.Loader.LoadAudio(id).Volume)
-		err := sfx.Rewind()
-		if err != nil {
-			log.Printf("%q Rewind: %s", id, err)
-		}
-		s.queue2 = append(s.queue2, sfx)
-		if len(s.queue2) == 1 {
-			sfx.Play()
-		}
-	}
 }
 
 func (s *SoundPlayer) Play(id resource.AudioID) {
-
-	sfx := s.Loader.LoadWAV(id).Player
-	err := sfx.Rewind()
-	if err != nil {
-		log.Printf("%q Rewind: %s", id, err)
-	}
-	s.Player = sfx
-	println("volume for", id, s.Loader.LoadAudio(id).Volume)
-	s.Player.SetVolume(s.Loader.LoadAudio(id).Volume)
-
-	sfx.Play()
+	s.sounds[id].Play()
 }
 
 func (s *SoundPlayer) Pause() {
-	s.Player.Pause()
+	for _, sound := range s.sounds {
+		sound.Pause()
+	}
+}
+
+func (s *SoundPlayer) FadeIn(id resource.AudioID) {
+	err := s.sounds[id].Rewind()
+	if err != nil {
+		log.Fatal(err)
+	}
+	s.sounds[id].SetVolume(0.0)
+	s.updateFuncs[id] = fade
+	s.sounds[id].Play()
+}
+
+func (s *SoundPlayer) Update() {
+	for key, playing := range s.sounds {
+		if s.updateFuncs[key] != nil {
+			targetVol := loadedSounds.LoadAudio(key).Volume
+			if playing.Volume() >= targetVol-0.01 {
+				s.counter = 0
+				continue
+			}
+			s.updateFuncs[key](playing, targetVol, playing.Volume(), s.counter)
+			s.counter += 0.016
+
+		}
+		if !playing.IsPlaying() && playing.Position() > 0 {
+			err := playing.Rewind()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		
+	}
+}
+
+func fade(player *audio.Player, targetVol float64, currenVol float64, time float64) {
+	newVol := util.Lerp64(currenVol, targetVol, time*0.001)
+	player.SetVolume(newVol)
 }

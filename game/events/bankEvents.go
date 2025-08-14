@@ -4,14 +4,30 @@ type MoneyAdded struct {
 	Amount float64
 }
 
+func (m MoneyAdded) Type() string {
+	return "MoneyAdded"
+}
+
 type MoneySpent struct {
 	Amount float64
+}
+
+func (m MoneySpent) Type() string {
+	return "MoneySpent"
 }
 
 type InsufficientFunds struct {
 }
 
+func (i InsufficientFunds) Type() string {
+	return "InsufficientFunds"
+}
+
 type PurchaseSuccessful struct {
+}
+
+func (p PurchaseSuccessful) Type() string {
+	return "PurchaseSuccessful"
 }
 
 type BuyAttempt struct {
@@ -20,7 +36,15 @@ type BuyAttempt struct {
 	Name string
 }
 
+func (b BuyAttempt) Type() string {
+	return "BuyAttempt"
+}
+
 type NewPurchase struct {
-	Purchase string
-	Type     string
+	Purchase     string
+	PurchaseType string
+}
+
+func (n NewPurchase) Type() string {
+	return "NewPurchase"
 }

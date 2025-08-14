@@ -1,7 +1,7 @@
 package shaders
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/geometry"
+	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
 )
@@ -90,7 +90,7 @@ func UpdateCounterOneShot(params map[string]any) map[string]any {
 
 func CpuUpdateRotatingOutlineHighlight(params map[string]any, cpuParams map[string]any) (map[string]any, map[string]any) {
 	//variables used in game loop to be mutated by update func
-	cpuDirection := cpuParams["direction"].(geometry.Direction)
+	cpuDirection := cpuParams["direction"].(util.Direction)
 	imageRect := cpuParams["imageRect"].([2]float64)
 	origin := cpuParams["origin"].([2]float64)
 	highLightRect := cpuParams["hlRectPoint"].([2]float64)
@@ -104,25 +104,25 @@ func CpuUpdateRotatingOutlineHighlight(params map[string]any, cpuParams map[stri
 	Y0 := origin[1]
 
 	switch cpuDirection {
-	case geometry.Right:
+	case util.Right:
 		highLightRect[0] += updateSpeed
 		if highLightRect[0]+rectangleSize >= imageRect[0] {
-			cpuParams["direction"] = geometry.Down
+			cpuParams["direction"] = util.Down
 		}
-	case geometry.Left:
+	case util.Left:
 		highLightRect[0] -= updateSpeed
 		if highLightRect[0] <= 0 {
-			cpuParams["direction"] = geometry.Up
+			cpuParams["direction"] = util.Up
 		}
-	case geometry.Down:
+	case util.Down:
 		highLightRect[1] += updateSpeed
 		if highLightRect[1]+rectangleSize >= imageRect[1] {
-			cpuParams["direction"] = geometry.Left
+			cpuParams["direction"] = util.Left
 		}
-	case geometry.Up:
+	case util.Up:
 		highLightRect[1] -= updateSpeed
 		if highLightRect[1] <= 0 {
-			cpuParams["direction"] = geometry.Right
+			cpuParams["direction"] = util.Right
 		}
 	}
 

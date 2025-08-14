@@ -1,10 +1,9 @@
 package events
 
-type UISpriteLayedOut struct {
-	Label string
-	X, Y  float32
-}
-
 type MoneyAvailable struct {
 	Amount float64
+}
+
+func (m MoneyAvailable) Type() string {
+	return "MoneyAvailable"
 }

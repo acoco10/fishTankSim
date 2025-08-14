@@ -1,11 +1,12 @@
 package entities
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/geometry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
+	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
+	"image"
 	"image/color"
 	"math"
 	"math/rand"
@@ -14,11 +15,11 @@ import (
 var n int = 0
 
 type Particle struct {
-	*geometry.Point
+	*util.Point
 	counter           int
 	underWater        bool
-	waterLevel        float32
-	floorLevel        float32
+	waterLevel        int
+	floorLevel        int
 	underWaterCounter int
 	remove            bool
 	eventHub          *tasks.EventHub
@@ -53,7 +54,7 @@ func (p *Particle) float() {
 func (p *Particle) Update() {
 	p.counter++
 
-	if !p.underWater && p.Point.Y > p.waterLevel+10 {
+	if !p.underWater && int(p.Point.Y) > p.waterLevel+10 {
 		ev := SendData{Data: "particle entered water",
 			DataFor: "soundFx"}
 		p.eventHub.Publish(ev)
@@ -62,7 +63,7 @@ func (p *Particle) Update() {
 		p.Point.X += float32(initialNoise)
 		p.underWater = true
 	}
-	if p.Point.Y < p.floorLevel {
+	if int(p.Point.Y) < p.floorLevel {
 		p.float()
 	}
 
@@ -73,32 +74,39 @@ func (p *Particle) Draw(screen *ebiten.Image) {
 	vector.DrawFilledCircle(screen, p.Point.X, p.Point.Y, 2, clr, false)
 }
 
-func NewParticle(point *geometry.Point, rect geometry.Rect, hub *tasks.EventHub) *Particle {
+func NewParticle(point *util.Point, rect image.Rectangle, hub *tasks.EventHub) *Entity {
 	println("calling new particle function", n)
 	n++
-	p := Particle{
+	p := &Particle{
 		Point:             point,
 		counter:           0,
 		underWater:        false,
-		waterLevel:        rect.Y1,
-		floorLevel:        rect.Y2,
+		waterLevel:        rect.Min.Y,
+		floorLevel:        rect.Max.Y,
 		underWaterCounter: 0,
 		eventHub:          hub,
 		remove:            false,
 		Sprite:            &sprite.Sprite{},
 	}
 
-	pointEvent := PointGenerated{Point: point, Source: "new particle function"}
+	//empty image so we can z sort, we should give entities position data for this
+	sp := &sprite.Sprite{Z: 0, Img: ebiten.NewImage(10, 10)}
+	foodEntity := &Entity{ParticleData: p, Sprite: sp}
+	foodEntity.EventHub = hub
+	RegisterEntity(foodEntity)
+
+	pointEvent := PointGenerated{PointId: foodEntity.Id, Source: "new particle function"}
 	p.eventHub.Publish(pointEvent)
-	p.subscribe()
-	return &p
+
+	foodEntity.subscribe()
+	return foodEntity
 }
 
-func (p *Particle) subscribe() {
-	p.eventHub.Subscribe(CreatureReachedPoint{}, func(e tasks.Event) {
+func (p *Entity) subscribe() {
+	p.EventHub.Subscribe(CreatureReachedPoint{}, func(e tasks.Event) {
 		ev := e.(CreatureReachedPoint)
-		if ev.Point != nil && p.Point == ev.Point {
-			p.remove = true
+		if ev.PointID == p.Id {
+			p.Draw = false
 		}
 	})
 }

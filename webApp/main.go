@@ -249,7 +249,7 @@ func main() {
 	handler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"https://collisionposition.netlify.app"}, // no trailing slash!
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type"},
+		AllowedHeaders:   []string{"Authorization", "Content-PurchaseType"},
 		AllowCredentials: true,
 	}).Handler(mux)
 

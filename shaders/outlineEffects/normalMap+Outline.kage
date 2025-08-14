@@ -1,0 +1,52 @@
+
+//kage:unit pixels
+
+package main
+
+// Uniform variables.
+var Time float
+var Cursor vec2
+var OutlineColor vec4
+
+func Fragment(dstPos vec4, texCoord vec2, _ vec4) vec4 {
+
+	pos := dstPos.xy - imageDstOrigin()
+	lightpos := vec3(Cursor, 50)
+	lightdir := normalize(lightpos - vec3(pos, 0))
+
+
+	srcNormal := imageSrc1UnsafeAt(texCoord)
+    normal := normalize(vec3(srcNormal.r, 1.0 - srcNormal.g, srcNormal.b) - 0.5)
+	const ambient = 0.9
+	diffuse := 0.75 * max(0.0, dot(normal.xyz, lightdir))
+
+	// You can treat multiple source images by
+	// imageSrc[N]At or imageSrc[N]UnsafeAt.
+
+    baseColor := imageSrc0UnsafeAt(texCoord)
+    litRGB := baseColor.rgb * (ambient + diffuse)
+
+	color := vec4(litRGB, baseColor.a)
+    outline := false
+
+	if color.a == 0.0 {
+            for x := -1; x <= 1; x++ {
+                for y := -1; y <= 1; y++ {
+                    if x == 0 && y == 0 {
+                        continue
+                    }
+                    sampleCoord := texCoord + vec2(float(x), float(y))
+                    sample := imageSrc0UnsafeAt(sampleCoord)
+                    if sample.a != 0 {
+                        outline = true
+                    }
+                }
+           }
+    }
+
+    if outline{
+        return OutlineColor
+    }
+
+    return color
+}

@@ -2,46 +2,101 @@
 package main
 
 var LightPoint vec2
+var LightWidth float
+var TankRect vec4
 
 func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
-      color := imageSrc0UnsafeAt(texCoord)
-      targetR := 0.1412
-      targetG := 0.1137
-      targetB := 0.3020
-      tolerance := 0.001
+    color := imageSrc0UnsafeAt(texCoord)
+    
+    org := imageDstOrigin()
 
-      src := imageSrc0At(texCoord)
+    tankRect := TankRect
+    tankRect.xy += org
+    tankRect.zw += org
 
-      matchR := abs(src.r - targetR) < tolerance
-      matchG := abs(src.g - targetG) < tolerance
-      matchB := abs(src.b - targetB) < tolerance
+    lightPoint := LightPoint
+    lightPoint += org
+    wallColor := vec4(0.1412, 0.1137, 0.3020, 1.0)
+  
 
-        if matchR && matchG && matchB {
-           dis := distance(LightPoint, dstCoord.xy)
-           brightness := clamp(1.0 - dis / 400, 0.0, 1.0)
-           color.rgb += vec3(0.4, 0.5, 0.5) * brightness   // Add blue tint
-           color.rgb *= 1.0 + 0.5 * brightness             // Boost total brightness
-           color.a *= 0.3
-           color.rgb *= color.a
-           return color
-        }
-        if color.a > 0 {
-            // Distance from pixel to light (in screen space)
-            dis := distance(LightPoint, dstCoord.xy)
+  
 
-            // Brightness modifier: closer to light = brighter
-            brightness := clamp(1.0 - dis / 500.0, 0.0, 1.0)
+    // Calculate lighting from the light source
+    lineHalfWidth := LightWidth * 0.5
+    clampedX := clamp(dstCoord.x, lightPoint.x - lineHalfWidth, lightPoint.x + lineHalfWidth)
+    closestPointOnLine := vec2(clampedX, lightPoint.y)
 
-            // Sample the texture
+    dis := distance(closestPointOnLine, dstCoord.xy)
+    lightDir := normalize(dstCoord.xy - closestPointOnLine)
+    downwardBias := max(0.0, lightDir.y) * 0.9
 
-            // Increase blue tones and brightness
-            color.rgb += vec3(0.5, 0.6, 0.7) * brightness   // Add blue tint
-            color.rgb *= 1.0 + 0.6 * brightness             // Boost total brightness
-            color.a *= 0.5
-            color.rgb *= color.a
-        }
+    backGround := CheckAgainstTarget(color, wallColor)
 
+    if backGround{
+        lightRadius := clamp(1.0 - dis / 500, 0.0, 1.0) 
+        lightRadius = pow(lightRadius, 0.3)
+        color.rgb *= 0.2
+        color.rgb += vec3(0.3, 0.1, 0.2) * lightRadius
+        return color
+    }
 
-      return color
+    // Light intensity calculation
+    lightRadius := clamp(1.0 - dis / 250, 0.0, 1.0) * (1.0 + downwardBias)
+    lightRadius = pow(lightRadius, 0.5)
+
+    insideTank := CheckRect(dstCoord, tankRect)
+
+    //fishtank
+    if insideTank && color.a > 0 {
+        // Inside tank - apply full lighting
+
+        color.rgb *= 0.4
+        color.rgb += vec3(0.45, 0.5, 0.55) * lightRadius
+        return color
+    }
+
+    //background
+    lightRadius = clamp(1.0 - dis / 500, 0.0, 1.0) * (1.0 + downwardBias)
+    lightRadius = pow(lightRadius, 0.3)
+    color.rgb *= 0.3
+    color.rgb += vec3(0.3, 0.3, 0.4) * lightRadius
+    return color
+
 }
 
+// Calculate distance to the nearest edge of a rectangle
+func DistanceToRectEdge(pos vec2, rect vec4) float {
+    // rect.xy = top-left, rect.zw = bottom-right
+
+    // If inside the rectangle, distance is 0
+    if pos.x >= rect.x && pos.x <= rect.z && pos.y >= rect.y && pos.y <= rect.w {
+        return 0.0
+    }
+
+    // Calculate distance to each edge
+    dx := max(0.0, max(rect.x - pos.x, pos.x - rect.z))
+    dy := max(0.0, max(rect.y - pos.y, pos.y - rect.w))
+
+    return sqrt(dx * dx + dy * dy)
+}
+
+func CheckRect(dstCoord vec4, tankRect vec4) bool {
+    xCheck := dstCoord.x >= tankRect.x && dstCoord.x <= tankRect.z
+    yCheck := dstCoord.y >= tankRect.y && dstCoord.y <= tankRect.w
+    return xCheck && yCheck
+}
+
+func CheckAgainstTarget(color vec4, targetColor vec4)bool{
+    tolerance := 0.01
+    
+    rDif := abs(color.x -targetColor.x)
+    gDif := abs(color.y - targetColor.y)
+    bDif := abs(color.w - targetColor.w)
+
+    if rDif < tolerance && gDif < tolerance && bDif < tolerance{
+        return true 
+    }
+
+    return false
+
+}

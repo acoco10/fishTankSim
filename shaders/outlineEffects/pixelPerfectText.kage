@@ -1,0 +1,49 @@
+//kage:unit pixels
+package main
+
+var OutlineColor vec4
+var OutlineThickness float
+var OutlineStyle int // 0 = pixel-perfect, 1 = rounded
+var TextureSize vec2
+
+func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
+    // Get the original pixel
+    originalColor := imageSrc0At(texCoord)
+
+    // If we already have a pixel, return it (no outline over text)
+    if originalColor.a > 0.5 {
+        return originalColor
+    }
+
+    // Get texture pixel size
+    texelSize := 1.0 / TextureSize
+    thickness := OutlineThickness
+
+    // Always check cardinal directions (up, down, left, right)
+    hasOutline := false
+
+    // Check 4 main directions
+    if imageSrc0At(texCoord + vec2(0.0, -texelSize.y * thickness)).a > 0.5 ||
+       imageSrc0At(texCoord + vec2(0.0, texelSize.y * thickness)).a > 0.5 ||
+       imageSrc0At(texCoord + vec2(-texelSize.x * thickness, 0.0)).a > 0.5 ||
+       imageSrc0At(texCoord + vec2(texelSize.x * thickness, 0.0)).a > 0.5 {
+        hasOutline = true
+    }
+
+    // If rounded style, also check diagonals
+    if OutlineStyle == 1 && !hasOutline {
+        if imageSrc0At(texCoord + vec2(-texelSize.x * thickness, -texelSize.y * thickness)).a > 0.5 ||
+           imageSrc0At(texCoord + vec2(texelSize.x * thickness, -texelSize.y * thickness)).a > 0.5 ||
+           imageSrc0At(texCoord + vec2(-texelSize.x * thickness, texelSize.y * thickness)).a > 0.5 ||
+           imageSrc0At(texCoord + vec2(texelSize.x * thickness, texelSize.y * thickness)).a > 0.5 {
+            hasOutline = true
+        }
+    }
+
+    if hasOutline {
+        return OutlineColor
+    }
+
+    // No outline needed
+    return vec4(0.0, 0.0, 0.0, 0.0)
+}

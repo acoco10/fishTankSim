@@ -5,22 +5,22 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/soundFX"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/hajimehoshi/ebiten/v2"
-	"log"
 )
 
 type GameLog struct {
-	PlayerLoginId        string
-	PreviousScene        SceneId
-	Save                 *entities.SaveGameState
-	GlobalEventHub       *tasks.EventHub
-	StartSceneEventHuber *tasks.EventHub
-	MowerSceneEventHub   *tasks.EventHub
-	SongPlayer           *soundFX.SoundPlayer
-	SoundPlayer          *soundFX.SoundPlayer
-	Day                  int
-	Tasks                []*tasks.Task
-	DayType              DayType
+	PlayerLoginId      string
+	PreviousScene      SceneId
+	Save               *entities.SaveGameState
+	GlobalEventHub     *tasks.EventHub
+	StartSceneEventHub *tasks.EventHub
+	MowerSceneEventHub *tasks.EventHub
+	SongPlayer         *soundFX.SoundPlayer
+	SoundPlayer        *soundFX.SoundPlayer
+	Day                int
+	Tasks              []*tasks.Task
+	DayType            DayType
 }
+
 type DayType uint8
 
 const (
@@ -34,15 +34,13 @@ func NewGameLog(state entities.SaveGameState) *GameLog {
 	g.Save = &state
 	eHub := tasks.NewEventHub()
 	g.GlobalEventHub = eHub
-	songP, err := soundFX.NewSoundPlayer()
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	soundP, err := soundFX.NewSoundPlayer()
-	if err != nil {
-		log.Fatal(err)
-	}
+	soundFX.LoadSounds()
+	songP := &soundFX.SoundPlayer{}
+	soundP := &soundFX.SoundPlayer{}
+
+	songP.LoadPlayer("music")
+	soundP.LoadPlayer("sound")
 
 	g.SongPlayer = songP
 	g.SoundPlayer = soundP
@@ -61,6 +59,8 @@ const (
 	TransitionScene
 	MowingMiniGameScene
 	CampScene
+	FishSceneDev
+	TitleScene
 )
 
 type GameMode uint

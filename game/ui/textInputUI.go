@@ -2,7 +2,6 @@ package ui
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/entities"
-	"github.com/acoco10/fishTankWebGame/game/loader"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	eimage "github.com/ebitenui/ebitenui/image"
@@ -10,7 +9,7 @@ import (
 	"image/color"
 )
 
-func NewTextInput(ehub *tasks.EventHub) (*widget.Container, *widget.TextInput, *widget.Button, error) {
+func NewTextInput(ehub *tasks.EventHub, placeholder string) (*widget.Container, *widget.TextInput, *widget.Container, error) {
 
 	img, err := loadTextInputImage()
 
@@ -29,12 +28,6 @@ func NewTextInput(ehub *tasks.EventHub) (*widget.Container, *widget.TextInput, *
 		widget.ContainerOpts.Layout(widget.NewGridLayout(
 			widget.GridLayoutOpts.Columns(2),
 			widget.GridLayoutOpts.Spacing(20, 20),
-			widget.GridLayoutOpts.Padding(widget.Insets{
-				Top:    0,
-				Left:   0,
-				Right:  0,
-				Bottom: 100,
-			}),
 		)))
 
 	face, err := util.LoadFont(20, "nk57")
@@ -53,7 +46,7 @@ func NewTextInput(ehub *tasks.EventHub) (*widget.Container, *widget.TextInput, *
 		),
 		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.MinSize(100, 50)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout(widget.AnchorLayoutOpts.Padding(
-			widget.Insets{Right: 0, Left: 0, Top: 12, Bottom: 0},
+			widget.Insets{Right: 0, Left: 0, Top: 8, Bottom: 0},
 		))),
 	)
 
@@ -106,7 +99,7 @@ func NewTextInput(ehub *tasks.EventHub) (*widget.Container, *widget.TextInput, *
 		),
 
 		//This text is displayed if the input is empty
-		widget.TextInputOpts.Placeholder("Give her a name!"),
+		widget.TextInputOpts.Placeholder(placeholder),
 
 		//This is called when the user hits the "Enter" key.
 		//There are other options that can configure this behavior
@@ -124,7 +117,7 @@ func NewTextInput(ehub *tasks.EventHub) (*widget.Container, *widget.TextInput, *
 		}),
 	)
 
-	b3 := LoadSubmitButton("Submit", ehub, 16, "")
+	b3 := LoadOutlineTextButtonSubmitBg("Submit", ehub, "")
 
 	textContainer.AddChild(textInput)
 	btnContainer.AddChild(b3)
@@ -136,7 +129,7 @@ func NewTextInput(ehub *tasks.EventHub) (*widget.Container, *widget.TextInput, *
 }
 
 func loadTextInputImage() (*widget.TextInputImage, error) {
-	img, err := loader.LoadImageAssetAsEbitenImage("menuAssets/textInputBox")
+	img, err := util.LoadImageAssetAsEbitenImage("menuAssets/textInputBox")
 
 	if err != nil {
 		return nil, err

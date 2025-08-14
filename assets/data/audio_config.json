@@ -1,0 +1,76 @@
+{
+  "audio": [
+    {
+      "name": "bestAdventureEver",
+      "path": "assets/audio/best-adventure-ever-122726.wav",
+      "volume": 0,
+      "category": "music"
+    },
+    {
+      "name": "indieCafe",
+      "path": "assets/audio/indie-cafe.wav",
+      "volume": 0,
+      "category": "music"
+    },
+    {
+      "name": "pickUpOne",
+      "path": "assets/audio/pickUpOne.wav",
+      "volume": 0,
+      "category": "sfx"
+    },
+    {
+      "name": "plopSound",
+      "path": "assets/audio/plopSound.wav",
+      "volume": 0,
+      "category": "sfx"
+    },
+    {
+      "name": "pouringFood",
+      "path": "assets/audio/pouringFood.wav",
+      "volume": 0,
+      "category": "sfx"
+    },
+    {
+      "name": "selectSound",
+      "path": "assets/audio/selectSound.wav",
+      "volume": 0,
+      "category": "sfx"
+    },
+    {
+      "name": "successMusic",
+      "path": "assets/audio/successMusic.wav",
+      "volume": -0.2,
+      "category": "music"
+    },
+    {
+      "name": "tropicalHouse",
+      "path": "assets/audio/tropicalHouse.wav",
+      "volume": 0,
+      "category": "music"
+    },
+    {
+      "name": "waterBubbles",
+      "path": "assets/audio/waterBubbles.wav",
+      "volume": 0,
+      "category": "sfx"
+    },
+    {
+      "name": "wetSelectSound",
+      "path": "assets/audio/wetSelectSound.wav",
+      "volume": 0,
+      "category": "sfx"
+    },
+    {
+      "name": "whiteBoardMarkerSoft",
+      "path": "assets/audio/whiteBoardMarkerSoft.wav",
+      "volume": 0,
+      "category": "sfx"
+    },
+    {
+      "name": "whiteBoardMarkerWriting",
+      "path": "assets/audio/whiteBoardMarkerWriting.wav",
+      "volume": 0,
+      "category": "sfx"
+    }
+  ]
+}

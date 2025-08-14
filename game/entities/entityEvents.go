@@ -1,20 +1,28 @@
 package entities
 
-import (
-	"github.com/acoco10/fishTankWebGame/game/geometry"
-)
-
 type CreatureReachedPoint struct {
-	Point    *geometry.Point
-	Creature *Creature
+	PointID    uint32
+	CreatureID uint32
+}
+
+func (c CreatureReachedPoint) Type() string {
+	return "CreatureReachedPoint"
 }
 
 type PointGenerated struct {
-	Point  *geometry.Point
-	Source string
+	PointId uint32
+	Source  string
+}
+
+func (p PointGenerated) Type() string {
+	return "PointGenerated"
 }
 
 type AllFishFed struct {
+}
+
+func (a AllFishFed) Type() string {
+	return "AllFishFed"
 }
 
 type SendData struct {
@@ -22,16 +30,24 @@ type SendData struct {
 	Data    string
 }
 
+func (s SendData) Type() string {
+	return "SendData"
+}
+
 type RequestData struct {
 	DataType   string
 	RequestFor any
 }
 
+func (r RequestData) Type() string {
+	return "RequestData"
+}
+
 type FishEvent struct {
-	fish  *Creature
+	fish  *CreatureData
 	event string
 }
 
-type FishLevelUp struct {
-	Fish *Creature
+func (f FishEvent) Type() string {
+	return "FishEvent"
 }

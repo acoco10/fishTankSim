@@ -6,23 +6,25 @@ import (
 	"github.com/acoco10/QuickDrawAdventure/spriteSheet"
 	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/acoco10/fishTankWebGame/game/drawables"
-	iObj "github.com/acoco10/fishTankWebGame/game/interactableUIObjects"
+	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/system"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
+	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
+	"image"
 	"log"
 )
 
-func loadUiSpritesImgs(label iObj.Label) ([]*ebiten.Image, error) {
+func loadUiSpritesImgs(label entities.Label) ([]*ebiten.Image, error) {
 	var imgs []*ebiten.Image
 	tags := []string{"Main", "Outline", "Alt"}
 
 	for _, tag := range tags {
 		assetName := string(label) + tag
-		img, err := LoadImageAssetAsEbitenImage("uiSprites/" + assetName)
+		img, err := util.LoadImageAssetAsEbitenImage("uiSprites/" + assetName)
 		if err != nil {
-			log.Printf("%s not found for loading UiSprite %s, proceeding with loading other files. error msg: %s", assetName, string(label), err)
+			log.Printf("%s not found for loading UiSpriteData %s, proceeding with loading other files. error msg: %s", assetName, string(label), err)
 		} else {
 			imgs = append(imgs, img)
 		}
@@ -30,15 +32,16 @@ func loadUiSpritesImgs(label iObj.Label) ([]*ebiten.Image, error) {
 	return imgs, nil
 }
 
-func LoadUISprites(spritesToLoad []iObj.Label, environment *system.Environment, hub *tasks.EventHub, screenWidth, screenHeight int) ([]drawables.Drawable, error) {
-	var sprites []drawables.Drawable
+func LoadUISprites(spritesToLoad []entities.Label, environment *system.Environment, tankBounds image.Rectangle, hub *tasks.EventHub) ([]*entities.Entity, *entities.WhiteBoardSprite, error) {
+	var uiEntities []*entities.Entity
+	var wbSprite *entities.WhiteBoardSprite
 
 	spritePositions, err := LoadSpritePositionData()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	for _, elem := range spritesToLoad {
+	for i, elem := range spritesToLoad {
 
 		if spritePositions[string(elem)] == nil {
 			log.Fatal("No position data for sprite", elem)
@@ -49,48 +52,48 @@ func LoadUISprites(spritesToLoad []iObj.Label, environment *system.Environment, 
 
 		imgs, err2 := loadUiSpritesImgs(elem)
 		if err2 != nil {
-			return sprites, err
+			return uiEntities, wbSprite, err
 		}
 
-		uSprite := iObj.NewUiSprite(environment, imgs, hub, x, y, string(elem), screenWidth, screenHeight)
+		uSprite := entities.NewUiSprite(environment, imgs, hub, x, y, string(elem))
 
-		iObj.Pubs(hub, *uSprite)
+		uSprite.ActivationRect = image.Rect(tankBounds.Min.X, tankBounds.Min.Y+50, tankBounds.Max.X, tankBounds.Min.Y-200)
+
+		entity := &entities.Entity{UiData: uSprite, Sprite: uSprite.Sprite}
+		uSprite.LayerIndex = i //well just order by the order we load these cus we lazy af
+		entity.EventHub = hub
+		entities.RegisterEntity(entity)
+		entities.UiSpriteSubs(hub, entity)
 		switch elem {
-		case iObj.FishFood:
-			uSprite.Draggable = true
-			ffSprite := iObj.FishFoodSprite{UiSprite: uSprite}
-			ffSprite.Subscribe()
-			sprites = append(sprites, &ffSprite)
-			continue
-		case iObj.WhiteBoard:
-			wbSprite := iObj.WhiteBoardSprite{UiSprite: uSprite}
-			wbSprite.Init()
+
+		case entities.WhiteBoard:
+			uSprite.Unfocusable = true
+			wbSprite = &entities.WhiteBoardSprite{UiSprite: entity}
 			wbSprite.Subscribe(hub)
-			sprites = append(sprites, &wbSprite)
-			continue
-		case iObj.PiggyBank:
-			pbSprite := iObj.PiggyBankSprite{UiSprite: uSprite}
-			//pbSprite.Init()
-			pbSprite.Subscribe(hub)
-			sprites = append(sprites, &pbSprite)
-			aniMap := LoadPiggyBankAnimationMap(x, y, float32(pbSprite.Img.Bounds().Dy()))
-			pbSprite.AnimationMap = aniMap
-			continue
-		case iObj.Pillow, iObj.Door:
-			pillowSprite := iObj.EventUI{UiSprite: uSprite, Triggered: false}
-			pillowSprite.Subscribe(hub)
-			sprites = append(sprites, &pillowSprite)
-			continue
+			wbSprite.Init(hub)
+
+		case entities.FishFood:
+			uSprite.ActivationRect = image.Rect(tankBounds.Min.X, tankBounds.Min.Y-50, tankBounds.Max.X, tankBounds.Min.Y-200)
+		case entities.Pillow, entities.Door:
+			entity.Draw = false
+		case entities.Phreader:
+			entity.Sprite.AbleToBeUnfocusedAutomatically = true
+		case entities.PiggyBank:
+			entity.Sprite.AbleToBeUnfocusedAutomatically = true
+			entity.AnimationMap = LoadPiggyBankAnimationMap(uSprite.X, uSprite.Y, float32(uSprite.Img.Bounds().Dy()))
+		case entities.Magazine:
+			entity.Draw = false
 		}
 
 		//lightingShader := shaders.LoadOnePointLightingNeutral()
 		//sprite.Shader = lightingShader
 		//LoadSpriteLightingParams(sprite.Sprite)
-		sprites = append(sprites, uSprite)
+
+		uiEntities = append(uiEntities, entity)
 
 	}
 
-	return sprites, nil
+	return uiEntities, wbSprite, nil
 
 }
 
@@ -104,26 +107,27 @@ func LoadSpritePositionData() (map[string]*drawables.SavePositionData, error) {
 	return positions, nil
 }
 
-func LoadPiggyBankAnimationMap(x, y, srcImageHeight float32) map[string]drawables.Drawable {
+func LoadPiggyBankAnimationMap(x, y, srcImageHeight float32) map[string]*sprite.Sprite {
 
-	aniMap := make(map[string]drawables.Drawable)
-	img, err := LoadImageAssetAsEbitenImage("uiSprites/allowanceCollectedAni")
+	aniMap := make(map[string]*sprite.Sprite)
+	img, err := util.LoadImageAssetAsEbitenImage("uiSprites/allowanceCollectedAni")
 	if err != nil {
 		log.Fatal(err, "cant load piggy bank animation thing")
 	}
 	animation := animations.NewAnimation(0, 7, 1, 5)
 	spriteSheet := spritesheet.NewSpritesheet(8, 1, 149, 202)
 
-	animatedSprite := sprite.NewAnimatedSprite()
+	animatedSprite := sprite.Sprite{}
 	animatedSprite.Img = img
 	animatedSprite.Animation = animation
 	animatedSprite.SpriteSheet = spriteSheet
+	animatedSprite.ShaderParams = make(map[string]any)
 
 	animatedSprite.X = x
 	yOffSet := float32(animatedSprite.Img.Bounds().Dy()) - srcImageHeight
 	animatedSprite.Y = y - yOffSet
 
-	aniMap["allowance"] = animatedSprite
+	aniMap["allowance"] = &animatedSprite
 	return aniMap
 }
 

@@ -1,10 +1,20 @@
 package input
 
-import "github.com/acoco10/fishTankWebGame/game/geometry"
+import (
+	"github.com/acoco10/fishTankWebGame/game/util"
+)
 
 type MouseButtonPressedUISpriteActivity struct {
-	Point *geometry.Point
+	Point *util.Point
 }
 
-type CursorPressed struct {
+func (m MouseButtonPressedUISpriteActivity) Type() string {
+	return "MouseButtonPressUISpriteActivity"
+}
+
+type CursorOccupied struct {
+}
+
+func (c CursorOccupied) Type() string {
+	return "CursorOccupied"
 }

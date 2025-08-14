@@ -11,15 +11,16 @@ type InputState uint8
 type MouseFlags struct {
 	HandledClick   bool
 	CursorOccupied bool
+	WindowOpen     bool
 }
 
 type InputManager struct {
 }
 
-func handleCursorClick(x, y int, flags MouseFlags, hub *tasks.EventHub) {
+func HandleCursorClick(x, y int, flags MouseFlags, hub *tasks.EventHub) {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		if !flags.CursorOccupied {
-			hub.Publish(CursorPressed{})
+			hub.Publish(CursorOccupied{})
 		}
 	}
 }

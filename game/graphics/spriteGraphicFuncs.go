@@ -6,20 +6,20 @@ import (
 )
 
 func UpdateWhiteBoardCloth(gs *SpriteGraphic) {
-	maxPoint := gs.parameters["max"].([2]float32)
-	origin := gs.parameters["origin"].([2]float32)
-	direction := gs.parameters["direction"].(string)
+	maxPoint := gs.Parameters["max"].([2]float32)
+	origin := gs.Parameters["origin"].([2]float32)
+	direction := gs.Parameters["direction"].(string)
 
 	if gs.Sprite.X >= maxPoint[0] && direction == "right" {
-		gs.parameters["direction"] = "left"
+		gs.Parameters["direction"] = "left"
 	}
 
 	if gs.Sprite.X <= origin[0] && direction == "left" {
-		gs.parameters["direction"] = "right"
+		gs.Parameters["direction"] = "right"
 	}
 
 	if gs.Sprite.Y >= maxPoint[1] {
-		gs.parameters["direction"] = "stop"
+		gs.Parameters["direction"] = "stop"
 		gs.complete = true
 	}
 
@@ -35,26 +35,29 @@ func UpdateWhiteBoardCloth(gs *SpriteGraphic) {
 }
 
 func UpdateFadeInGraphic(gs *SpriteGraphic) {
-	opacity := gs.parameters["opacity"].(float32)
+	opacity := gs.Parameters["opacity"].(float32)
 	pulse := false
-	if gs.parameters["pulse"] != nil {
+	if gs.Parameters["pulse"] != nil {
 		pulse = true
 	}
+
 	if opacity < 1.0 {
 		opacity += 0.02 // adjust fade-in speed here
 	}
+
 	if opacity > 1.0 && pulse {
 		opacity = 0.0
 	}
+
 	if opacity > 1.0 && pulse {
 		opacity = 1.0
 	}
-	gs.parameters["opacity"] = opacity
+	gs.Parameters["opacity"] = opacity
 }
 
 func DrawFadeInSprite(gs *SpriteGraphic, screen *ebiten.Image) {
 
-	alpha := gs.parameters["opacity"].(float32)
+	alpha := gs.Parameters["opacity"].(float32)
 
 	opts := &ebiten.DrawImageOptions{}
 	opts.ColorScale.ScaleAlpha(alpha)

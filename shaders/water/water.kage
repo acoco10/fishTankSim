@@ -8,18 +8,22 @@ var TankSize vec2 //width, height of the fish tank
 func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
     floatCounter := float(Counter) * 0.009
     // Get original color first
-    color := imageSrc0At(dstCoord)
+    color := imageSrc0At(texCoord)
 
     // Check if we're inside the fish tank bounds
 
+    org := imageDstOrigin()
 
+    tankRect := TankRect
+    tankRect.xy += org
+    tankRect.zw += org
 
-    xCheck := dstCoord.x >= TankRect.x+640 && dstCoord.x <= TankRect.z+640
-    yCheck := dstCoord.y >= TankRect.y && dstCoord.y <= TankRect.w
+    xCheck := dstCoord.x >= tankRect.x && dstCoord.x <= tankRect.z
+    yCheck := dstCoord.y >= tankRect.y && dstCoord.y <= tankRect.w
 
-        if !xCheck || !yCheck{
-            return color
-            }
+    if !xCheck || !yCheck{
+        return color
+    }
 
     // Convert to tank-relative coordinates (0-1 within tank)
     tankTexCoord := vec2(
@@ -64,7 +68,7 @@ func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
         depthDarkening := 1.0 - (tankTexCoord.y * 0.1)
         color.rgb *= depthDarkening
 
-        // Add some shimmer on surfaces
+        // Add some shimmer On surfaces
         shimmer := sin(tankTexCoord.x * 40.0 + floatCounter * 3.0) *
                   cos(tankTexCoord.y * 35.0 + floatCounter * 2.5) * 0.02
         color.rgb += vec3(0.9, 0.95, 1.0) * max(shimmer, 0.0)

@@ -3,9 +3,12 @@ package main
 import (
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/loader"
+	"github.com/acoco10/fishTankWebGame/game/scenes"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
+	"golang.org/x/image/colornames"
 	"image/color"
 	"log"
 )
@@ -27,8 +30,8 @@ var (
 )
 
 const (
-	screenWidth  = 800
-	screenHeight = 800
+	screenWidth  = 1920
+	screenHeight = 1080
 )
 
 type Game struct {
@@ -36,32 +39,40 @@ type Game struct {
 	animatedTestSprite *sprite.AnimatedSprite
 	offScreen          *ebiten.Image
 	offScreenParams    map[string]any
-	offScreenShader    *ebiten.Shader
+	shader             *ebiten.Shader
 	img                *ebiten.Image
 	imgNormal          *ebiten.Image
+	vertices           [4]ebiten.Vertex
+	smallerResolution  *ebiten.Image
+	resolutionScalar   float64
 }
 
 func newGame() *Game {
 	g := Game{}
 	//collisionMap, err := geometry.LoadCollisions()
+	g.offScreen = ebiten.NewImage(960, 540)
+	g.smallerResolution = ebiten.NewImage(960, 540)
 
-	shader := shaders.LoadOnePointLightingBlue()
 	shaderParams := make(map[string]any)
+	shaderParams["LightPoint"] = [2]float64{150, 150}
+	shaderParams["LightWidth"] = 10.0
+	shaderParams["TankRect"] = [4]float64{100, 100, 200, 200}
 
-	shaderParams["ImgRect"] = [2]float64{800, 800}
-	shaderParams["LightPoint"] = [2]float64{150, 0}
-	g.offScreenShader = shader
+	//g.offScreenShader = shader
 	g.offScreenParams = shaderParams
-	//s.shader = outlineShader
+	g.resolutionScalar = scenes.ScaleScreenToResolution()
 
-	fishSprite := loader.LoadFishSprite(entities.Fish, 2)
+	g.shader = shaders.LoadOnePointLightingBlue()
+
+	fishSprite, err := loader.LoadFishSprite(entities.Fish, 2)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fishSprite.Shader = nil
+
 	fishSprite.X = 150
 	fishSprite.Y = 100
-
 	g.animatedTestSprite = fishSprite
-	ls := shaders.LoadSpriteLighting()
-	g.animatedTestSprite.Shader = ls
-
 	return &g
 }
 
@@ -87,30 +98,58 @@ func (g *Game) Update() error {
 func (g *Game) Draw(screen *ebiten.Image) {
 	//g.testSprite.Draw(screen)
 
-	offScreen := ebiten.NewImage(800, 800)
-	offScreen.Fill(color.Black)
+	g.offScreen.Fill(colornames.Orange)
 	dopts := ebiten.DrawImageOptions{}
-	shaderOpts := ebiten.DrawRectShaderOptions{}
-	shaderOpts.GeoM.Translate(float64(g.animatedTestSprite.X), float64(g.animatedTestSprite.Y))
-	shaderOpts.GeoM.Scale(2, 2)
+
 	dopts.GeoM.Translate(float64(g.animatedTestSprite.X), float64(g.animatedTestSprite.Y))
 	dopts.GeoM.Scale(2, 2)
 
-	g.animatedTestSprite.Draw(offScreen, &dopts, &shaderOpts)
+	g.animatedTestSprite.UpdateOpts(dopts)
+	g.animatedTestSprite.Draw(g.offScreen)
 
-	shaderOpts.GeoM.Reset()
+	bounds := g.smallerResolution.Bounds()
+
+	g.vertices[0].DstX = float32(bounds.Min.X) // top-left
+	g.vertices[0].DstY = float32(bounds.Min.Y) // top-left
+	g.vertices[1].DstX = float32(bounds.Max.X) // top-right
+	g.vertices[1].DstY = float32(bounds.Min.Y) // top-right
+	g.vertices[2].DstX = float32(bounds.Min.X) // bottom-left
+	g.vertices[2].DstY = float32(bounds.Max.Y) // bottom-left
+	g.vertices[3].DstX = float32(bounds.Max.X) // bottom-right
+	g.vertices[3].DstY = float32(bounds.Max.Y) // bottom-right
+
+	srcBounds := g.offScreen.Bounds()
+
+	g.vertices[0].SrcX = float32(srcBounds.Min.X) // top-left
+	g.vertices[0].SrcY = float32(srcBounds.Min.Y) // top-left
+	g.vertices[1].SrcX = float32(srcBounds.Max.X) // top-right
+	g.vertices[1].SrcY = float32(srcBounds.Min.Y) // top-right
+	g.vertices[2].SrcX = float32(srcBounds.Min.X) // bottom-left
+	g.vertices[2].SrcY = float32(srcBounds.Max.Y) // bottom-left
+	g.vertices[3].SrcX = float32(srcBounds.Max.X) // bottom-right
+	g.vertices[3].SrcY = float32(srcBounds.Max.Y) // bottom-right
+
+	shadOpts := &ebiten.DrawTrianglesShaderOptions{}
+	shadOpts.Images[0] = g.offScreen
+	shadOpts.Uniforms = g.offScreenParams
+
+	shaderOpts := &ebiten.DrawRectShaderOptions{}
 	shaderOpts.Uniforms = g.offScreenParams
-	shaderOpts.Images[0] = offScreen
+	shaderOpts.Images[0] = g.offScreen
 
-	screen.DrawRectShader(800, 800, g.offScreenShader, &shaderOpts)
-	//vector.StrokeRect(screen, 80.0, 80.0, 10.0, 10.0, 1.0, outlineColor2, false)
-	//opts := &ebiten.DrawImageOptions{}
-	//screen.DrawImage(g.img, opts)
+	//indices := []uint16{0, 1, 2, 2, 1, 3} // map vertices to triangles
+	g.smallerResolution.DrawRectShader(srcBounds.Dx(), srcBounds.Dy(), g.shader, shaderOpts)
+
+	vector.StrokeCircle(g.smallerResolution, 150, 150, 10, 10, colornames.Burlywood, false)
+	dopts.GeoM.Reset()
+	dopts.GeoM.Scale(float64(g.resolutionScalar), float64(g.resolutionScalar))
+
+	screen.DrawImage(g.smallerResolution, &dopts)
 
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 500, 500
+	return 800, 800
 }
 
 func main() {

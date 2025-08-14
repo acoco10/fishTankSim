@@ -2,8 +2,13 @@ package scenes
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/graphics"
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
+	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"image"
+	"log"
 )
 
 type UserType int8
@@ -29,23 +34,23 @@ type Game struct {
 }
 
 const (
-	ScreenWidth  = 640
-	ScreenHeight = 360
+	ScreenWidth  = 960
+	ScreenHeight = 540
 )
 
 func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
 
 	switch userType {
 	case NewUser:
-		ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
 		activeSceneId := sceneManagement.StartScene
-
 		ebiten.SetWindowSize(1920, 1080)
-
+		ebiten.SetFullscreen(false)
+		ConfigResolution()
+		ConfigZoom(2.0, image.Point{X: -300, Y: -300})
 		sceneMap := map[sceneManagement.SceneId]sceneManagement.Scene{
 			sceneManagement.StartScene:          NewStartScene(log),
-			sceneManagement.FishTank:            NewFishScene(log),
+			sceneManagement.FishTank:            NewFishScene2(log),
 			sceneManagement.TransitionScene:     LoadTransitionScene(log),
 			sceneManagement.MowingMiniGameScene: NewMowingScene(log),
 			sceneManagement.CampScene:           LoadCampScene(log),
@@ -65,12 +70,11 @@ func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
 	case ExistingUser:
 
 		println("existing user save = ", log.Save.Fish[0].FishType)
-		ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
-		ebiten.SetFullscreen(true)
+
 		activeSceneId := sceneManagement.FishTank
 
 		sceneMap := map[sceneManagement.SceneId]sceneManagement.Scene{
-			sceneManagement.FishTank: NewFishScene(log),
+			sceneManagement.FishTank: NewFishScene2(log),
 		}
 
 		game := &Game{
@@ -85,15 +89,34 @@ func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
 
 		return game
 	}
-
 	return nil
 }
 
-func ScaleScreenToResolution(smallResolution *ebiten.Image) int {
-	x, _ := ebiten.WindowSize()
-	smallSizeX := smallResolution.Bounds().Dx()
-	res := (x + smallSizeX - 1) / smallSizeX
-	return res
+func ScaleScreenToResolution() float64 {
+
+	windowWidth, windowHeight := ebiten.WindowSize()
+	screenWidth := float64(ScreenWidth)
+	screenHeight := float64(ScreenHeight)
+
+	// Calculate scaling factors for both dimensions
+	scaleX := float64(windowWidth) / screenWidth
+	scaleY := float64(windowHeight) / screenHeight
+
+	// Use the smaller scale to ensure content fits within the window
+	scale := scaleX
+	if scaleY < scaleX {
+		scale = scaleY
+		println("scaling resolution to accommodate height")
+	}
+
+	// Safety check for division by zero
+	if scale <= 0 {
+		log.Fatalf("Invalid scaling: screenWidth=%f, screenHeight=%f, windowWidth=%d, windowHeight=%d",
+			screenWidth, screenHeight, windowWidth, windowHeight)
+	}
+
+	println("resolution scalar =", scale)
+	return scale
 }
 
 func (g *Game) Update() error {
@@ -137,21 +160,18 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 	return outsideWidth, outsideHeight
 }
 
-func NewMiniGameTest(miniGameName string, log *sceneManagement.GameLog) *Game {
-	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+func NewTestScene(TestSceneID sceneManagement.SceneId, log *sceneManagement.GameLog) *Game {
+	ConfigResolution()
 
-	activeSceneId := sceneManagement.MowingMiniGameScene
-
-	ebiten.SetWindowSize(ScreenWidth, ScreenHeight)
+	activeSceneId := TestSceneID
 
 	sceneMap := make(map[sceneManagement.SceneId]sceneManagement.Scene)
 
-	switch miniGameName {
-	case "MowingGame":
-		sceneMap[sceneManagement.MowingMiniGameScene] = NewMowingScene(log)
+	sceneMap[TestSceneID] = NewTitleScene(log)
 
-		sceneMap[sceneManagement.MowingMiniGameScene].OnEnter()
-	}
+	sceneMap[TestSceneID].FirstLoad()
+
+	sceneMap[TestSceneID].OnEnter()
 
 	game := &Game{
 		sceneMap:      sceneMap,
@@ -160,4 +180,35 @@ func NewMiniGameTest(miniGameName string, log *sceneManagement.GameLog) *Game {
 	}
 
 	return game
+}
+
+func ConfigResolution() {
+
+	width, height := ebiten.WindowSize()
+
+	registry.Config.Set(registry.ScreenWidth, ScreenWidth)
+	registry.Config.Set(registry.ScreenHeight, ScreenHeight)
+	registry.Config.Set(registry.ResolutionWidth, width)
+	registry.Config.Set(registry.ResolutionHeight, height)
+	scaling := ScaleScreenToResolution()
+
+	//this one needs to be set last to get the correct y/x offset
+	registry.Config.Set(registry.ResolutionScaling, scaling)
+}
+
+func ConfigZoom(zoomFactor float64, zoomOffset image.Point) {
+	registry.Config.Set(registry.ZoomFactor, zoomFactor)
+	registry.Config.Set(registry.ZoomOffset, zoomOffset)
+}
+
+func DebugText(debugText string, screen *ebiten.Image) {
+	face, err := util.LoadFont(24.0, "nk57")
+	if err != nil {
+		log.Fatal("Couldnt Load font for debug text", err)
+	}
+	dOpts := text.DrawOptions{}
+	dOpts.GeoM.Translate(ScreenWidth/2-float64(len(debugText)*6), ScreenHeight/10)
+	text.Draw(screen, debugText, face, &dOpts)
+	dOpts.GeoM.Reset()
+
 }

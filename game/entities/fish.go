@@ -1,12 +1,10 @@
 package entities
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/geometry"
-	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/system"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/acoco10/fishTankWebGame/game/util"
+	"image"
 	"math/rand"
 )
 
@@ -41,56 +39,50 @@ const (
 	social FishPersonality = "social"
 )
 
-type Creature struct {
-	PointQueue     []*geometry.Point
-	EventHub       *tasks.EventHub
-	TankBoundaries geometry.Rect
-	Timers         map[FishState]*Timer
-	State          FishState
-	Selected       bool
-	TickClicked    bool
-	Environment    *system.Environment
+type CreatureData struct {
+	TargetPoint        *util.Point
+	TargetParticleId   uint32
+	ParticlePointQueue map[uint32]*util.Point
+	EventHub           *tasks.EventHub
+	TankBoundaries     image.Rectangle
+	Timers             map[FishState]*util.Timer
+	State              FishState
+	TickClicked        bool
+	Environment        *system.Environment
+	stressContributors []string
 	*FishStats
-	*sprite.AnimatedSprite
 	Flip bool
 }
 
-func (c *Creature) Update() {
+func (e *Entity) FishUpdate() {
+	c := e.CreatureData
+
 	c.TickClicked = false
 	switch c.State {
 
 	case Swimming:
-		c.swimmingUpdate()
+		e.swimmingUpdate()
 	case Resting:
-		c.restingUpdate()
+		e.restingUpdate()
 	case Eating:
 		c.eatingUpdate()
 	}
 
-	c.AnimatedSprite.Update()
+	dopts := e.TranSlateFishOpts()
+	sopts := e.TranSlateFishShaderOpts()
+	e.Sprite.UpdateOpts(sopts)
+	e.Sprite.UpdateOpts(dopts)
 
-	dopts := c.TranSlateFishOpts()
-	sopts := c.TranSlateFishShaderOpts()
-	c.UpdateOpts(sopts)
-	c.UpdateOpts(dopts)
-
-	if c.Selected {
-		c.publishStats("statsMenu")
-		if ebiten.IsKeyPressed(ebiten.KeyEscape) || inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && !c.SpriteHovered() {
-			c.Selected = false
-			c.Shader = nil
-			ev := SendData{Data: "fish deselect", DataFor: "statsMenu"}
-			c.EventHub.Publish(ev)
-		}
-	}
+	e.publishStats("statsMenu")
 
 }
 
-func (c *Creature) swimmingUpdate() {
-	c.Move()
+func (e *Entity) swimmingUpdate() {
+	e.Move()
+	c := e.CreatureData
 	tState := c.Timers[Swimming].Update()
 
-	if tState == Done {
+	if tState == util.Done {
 		c.Timers[Swimming].Duration = rand.Intn(40)
 		if c.energy > 0 {
 			c.State = Swimming
@@ -100,30 +92,27 @@ func (c *Creature) swimmingUpdate() {
 	}
 }
 
-func (c *Creature) restingUpdate() {
+func (e *Entity) restingUpdate() {
+	c := e.CreatureData
 	c.speed = 0.4
-	c.Move()
+	e.Move()
 
-	if c.Timers[Resting].on == false {
+	if c.Timers[Resting].On == false {
 		c.Timers[Resting].TurnOn()
-		c.ChangeAnimationSpeed(3)
+		//c.ChangeAnimationSpeed(3)
 	}
 
 	tState := c.Timers[Resting].Update()
-	if tState == Done {
+	if tState == util.Done {
 		c.energy += 10
 	}
 }
 
-func (c *Creature) eatingUpdate() {
+func (c *CreatureData) eatingUpdate() {
 	c.Timers[Eating].TurnOn()
 	tState := c.Timers[Eating].Update()
-	if tState == Done {
+	if tState == util.Done {
 		c.State = Swimming
 		c.energy += 4
 	}
-}
-
-func (c *Creature) Draw(screen *ebiten.Image) {
-	c.AnimatedSprite.Draw(screen)
 }

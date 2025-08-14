@@ -4,17 +4,20 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/assets"
+	"github.com/acoco10/fishTankWebGame/game/entImportableLoaders"
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/graphics"
-	"github.com/acoco10/fishTankWebGame/game/loader"
 	"github.com/acoco10/fishTankWebGame/game/movement"
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/acoco10/fishTankWebGame/game/soundFX"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/ui"
+	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/ebitenui/ebitenui"
+	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
@@ -33,8 +36,17 @@ const (
 	treePositionY = 0
 )
 
+type mowState uint32
+
+const (
+	loaded mowState = iota
+	started
+	finished
+)
+
 type MowingScene struct {
 	images            map[string]*ebiten.Image
+	state             mowState
 	smallerResolution *ebiten.Image
 	gameLog           *sceneManagement.GameLog
 	isLoaded          bool
@@ -46,7 +58,7 @@ type MowingScene struct {
 	time              float64
 	timeString        string
 	scoreString       string
-	timers            map[string]*entities.Timer
+	timers            map[string]*util.Timer
 	allowanceTime     bool
 	allowanceString   string
 	allowance         float64
@@ -57,6 +69,7 @@ type MowingScene struct {
 	ui                *ebitenui.UI
 	sprites           []*sprite.Sprite
 	returnScene       sceneManagement.SceneId
+	removeWindowFunc  widget.RemoveWindowFunc
 }
 
 func NewMowingScene(gameLog *sceneManagement.GameLog) *MowingScene {
@@ -68,10 +81,10 @@ func NewMowingScene(gameLog *sceneManagement.GameLog) *MowingScene {
 	s.sprites = LoadMowSprites(s.images)
 	s.colliders = loadMapCollisions(s.gameMap)
 
-	s.timers = make(map[string]*entities.Timer)
-	s.timers["calcAllowance"] = entities.NewTimer(0.3)
+	s.timers = make(map[string]*util.Timer)
+	s.timers["calcAllowance"] = util.NewTimer(0.3)
 
-	s.smallerResolution = ebiten.NewImage(400, 400)
+	s.smallerResolution = ebiten.NewImage(ScreenWidth, ScreenHeight)
 
 	LoadChar(s)
 
@@ -83,6 +96,9 @@ func NewMowingScene(gameLog *sceneManagement.GameLog) *MowingScene {
 }
 
 func (s *MowingScene) Update() (sceneManagement.SceneId, error) {
+	if s.state == loaded || s.state == finished {
+		s.ui.Update()
+	}
 
 	updateMowingTimers(s, s.timers)
 
@@ -186,16 +202,20 @@ func (s *MowingScene) Draw(screen *ebiten.Image) {
 		sp.Draw(s.smallerResolution)
 	}
 
-	dopts := &ebiten.DrawImageOptions{}
-	dopts.GeoM.Scale(3.8, 3.8)
+	dOpts := &ebiten.DrawImageOptions{}
+	xOffset := float64(registry.Config.ResolutionWidth) - (mapWidth*16)*registry.Config.ResolutionScalingF*2
+	xOffset = xOffset / 8
+	dOpts.GeoM.Translate(float64(xOffset), registry.Config.YOffsetF)
+	dOpts.GeoM.Scale(registry.Config.ResolutionScalingF*2, registry.Config.ResolutionScalingF*2)
 
-	screen.DrawImage(s.smallerResolution, dopts)
-	graphics.DrawGraphics(screen)
+	screen.DrawImage(s.smallerResolution, dOpts)
+	graphics.DrawUnScaledGraphics(screen)
 
 	if s.debug {
 		s.DebugDraw(screen)
 	}
-	if s.ui != nil {
+
+	if s.state == loaded || s.state == finished {
 		s.ui.Draw(screen)
 	}
 
@@ -234,6 +254,7 @@ func debugPrintCollisions(s *MowingScene, screen *ebiten.Image) {
 }
 
 func (s *MowingScene) FirstLoad() {
+	s.ui = ui.LoadMowingUI(s.gameLog.GlobalEventHub)
 	s.isLoaded = true
 }
 
@@ -242,6 +263,14 @@ func (s *MowingScene) OnEnter() {
 	graphics.NewUpdateAbleTextGraphic(&s.timeString, 150, 10)
 	log.Printf("Entering Mowing Scene")
 	s.gameLog.SongPlayer.Play(soundFX.IndieCafe)
+
+	stringSlice := []string{
+		"1. Press Space and U to start your mower",
+		" 2. Hold Space to keep it running",
+		" 3. Mow as much grass as possible to\n earn a higher allowance"}
+
+	s.removeWindowFunc = ui.TriggerTextWindow(s.gameLog.GlobalEventHub, s.ui, "How To Play", stringSlice)
+
 	s.subs(s.gameLog.GlobalEventHub)
 }
 
@@ -263,6 +292,11 @@ func (s *MowingScene) subs(eventHub *tasks.EventHub) {
 		case "Continue":
 			println("switching back to fish tank ")
 			s.returnScene = sceneManagement.FishTank
+		case "Lets Mow!":
+			if s.removeWindowFunc != nil {
+				s.removeWindowFunc()
+			}
+			s.state = started
 		}
 
 	})
@@ -403,9 +437,7 @@ func updateScoreAfterTimeLimit(s *MowingScene) {
 			s.allowance += 0.05
 			s.allowanceString = "Allowance Earned: $" + strconv.FormatFloat(s.allowance, 'f', 2, 32)
 		}
-		if s.ui == nil {
-			s.ui = ui.LoadMowingUI(s.gameLog.GlobalEventHub)
-		}
+
 	}
 
 	if s.ui != nil {
@@ -413,31 +445,35 @@ func updateScoreAfterTimeLimit(s *MowingScene) {
 	}
 }
 
-func updateMowingTimers(scene *MowingScene, timers map[string]*entities.Timer) {
+func updateMowingTimers(scene *MowingScene, timers map[string]*util.Timer) {
 	for key, timer := range timers {
 		state := timer.Update()
 		switch key {
 		case "calcAllowance":
-			if state == entities.Done {
+			if state == util.Done {
 				timer.TurnOff()
 				scene.allowanceTime = true
-				graphics.NewUpdateAbleTextGraphic(&scene.allowanceString, 400, 250)
+				graphics.NewUpdateAbleTextGraphic(&scene.allowanceString, 400, 100)
 			}
 		}
 	}
 }
 
 func updateTimeAndScore(s *MowingScene) {
-	if s.time > 0.0 {
-		s.time = s.time - 0.016 //0.016 seconds per tick
-	}
-	if s.time-0.02 <= 0.0 {
-		s.time = 0.0
-	}
+	if s.state == started {
+		if s.time > 0.0 {
+			s.time = s.time - 0.016 //0.016 seconds per tick
+		}
 
-	s.scoreString = "Score: " + strconv.Itoa(s.score)
+		if s.time-0.02 <= 0.0 {
+			s.state = finished
+			s.time = 0.0
+		}
 
-	s.timeString = "Time: " + strconv.FormatFloat(s.time, 'f', 2, 32)
+		s.scoreString = "Score: " + strconv.Itoa(s.score)
+
+		s.timeString = "Time: " + strconv.FormatFloat(s.time, 'f', 2, 32)
+	}
 }
 
 func drawSimpleTileMap(screen *ebiten.Image, mapImage *ebiten.Image, arr [mapHeight][mapWidth]int, tileSize int) {
@@ -484,40 +520,26 @@ func LoadChar(s *MowingScene) {
 		log.Print("ERROR: TankCharacter sprite image not loaded in map")
 	}
 
-	sp := &sprite.Sprite{Img: s.images["characterSpriteSheet"], X: characterOrignX, Y: characterOriginY}
-
-	charAnimation, charSpriteSheet, err := loader.LoadAnimation("data/animationData/lawnMowingCharacterSprite.json")
+	charAnimation, charSpriteSheet, err := entImportableLoaders.LoadAnimation("data/animationData/lawnMowingCharacterSprite.json")
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	asp := &sprite.AnimatedSprite{Sprite: sp, SpriteSheet: charSpriteSheet, Animation: charAnimation}
+	asp := &sprite.Sprite{Img: s.images["characterSpriteSheet"], X: characterOrignX, Y: characterOriginY, SpriteSheet: charSpriteSheet, Animation: charAnimation}
 
-	sps := &sprite.Sprite{Img: s.images["lawnMowerStartSpriteSheet"], X: characterOrignX, Y: characterOriginY}
-
-	startUpAnimation2, startUpSpriteSheet2, err := loader.LoadAnimation("data/animationData/lawnMowerStartAnimation.json")
+	startUpAnimation2, startUpSpriteSheet2, err := entImportableLoaders.LoadAnimation("data/animationData/lawnMowerStartAnimation.json")
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	asp2 := &sprite.AnimatedSprite{Sprite: sps, SpriteSheet: startUpSpriteSheet2, Animation: startUpAnimation2}
+	asp2 := &sprite.Sprite{Img: s.images["lawnMowerStartSpriteSheet"], X: characterOrignX, Y: characterOriginY, SpriteSheet: startUpSpriteSheet2, Animation: startUpAnimation2}
 
-	crashAnimation, crashSpriteSheet, err := loader.LoadAnimation("data/animationData/lawnMowerCrashAnimation.json")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	sp3 := &sprite.Sprite{Img: s.images["lawnMowerCrashSpriteSheet"], X: characterOrignX, Y: characterOriginY}
-
-	asp3 := &sprite.AnimatedSprite{Sprite: sp3, SpriteSheet: crashSpriteSheet, Animation: crashAnimation}
-
-	animationMap := make(map[string]*sprite.AnimatedSprite)
+	animationMap := make(map[string]*sprite.Sprite)
 
 	animationMap["StartUp"] = asp2
 	animationMap["Moving"] = asp
-	animationMap["Crash"] = asp3
 
 	movementParams := movement.Params{
 		MaxSpeed:     1.2, // Slower for a mowing game

@@ -12,8 +12,6 @@ func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
 
     //inRadius := distance(dstCoord.xy, Point) < Radius
 
-
-
 if color.a > 0 {
 		//Map pH values to colors (standard pH color scale)
 		//pH 0-14 scale: Red (acidic) -> Yellow -> Green (neutral) -> Blue -> Purple (basic)

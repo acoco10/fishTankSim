@@ -1,3 +1,5 @@
+//go:build old
+
 package scenes
 
 import (
@@ -7,19 +9,18 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
-func ShaderSwapper(f *FishScene) {
+func ShaderSwapper(f *FishScene2) {
 	if inpututil.IsKeyJustPressed(ebiten.KeyE) && f.lightingShader == registry.ShaderMap["OnePointLighting"] {
 		f.lightingShader = registry.ShaderMap["TurnOff"]
 		f.shaderUpdater = shaders.FadeLightIntensityForTurnOff
-		f.shaderParams["LightIntensity"] = 1.0
+		f.lightingShaderParams["LightIntensity"] = 1.0
 		f.offScreenShader = nil
-		f.shaderParams["Counter"] = 0.0
+		f.lightingShaderParams["Counter"] = 0.0
 		return
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyE) && f.lightingShader == registry.ShaderMap["DayLight"] {
-		f.lightingShader = registry.ShaderMap["OnePointLighting"]
-		f.shaderUpdater = nil
+		f.SetNightLight()
 		return
 	}
 

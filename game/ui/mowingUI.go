@@ -54,7 +54,9 @@ func LoadMowingUI(eHub *tasks.EventHub) *ebitenui.UI {
 	ui := ebitenui.UI{
 		Container: rootContainer,
 	}
-
 	return &ui
+}
+
+func MowingUiSubs(hub *tasks.EventHub) {
 
 }

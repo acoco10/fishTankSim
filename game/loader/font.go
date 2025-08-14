@@ -35,4 +35,10 @@ func LoadFontRegistry() {
 	}
 	registry.FontMap["nk57_12"] = face
 
+	face, err = util.LoadFont(24, "nk57")
+	if err != nil {
+		log.Fatal(err)
+	}
+	registry.FontMap["nk57_24"] = face
+
 }

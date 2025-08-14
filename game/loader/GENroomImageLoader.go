@@ -15,12 +15,11 @@ type BackGroundImages struct {
 	OffScreen2 *ebiten.Image
 	RoomBackground *ebiten.Image
 	FishTank *ebiten.Image
-	FrontLayer *ebiten.Image
 	FishTank_n *ebiten.Image
-	FishTankFrontLayer *ebiten.Image
-	FishTankFrontLayerNoLight *ebiten.Image
 	FishTankFrontLayerDayLight *ebiten.Image
+	FishTankNight *ebiten.Image
 	FishTankFrontLayerNoLightSmaller *ebiten.Image
+	LaptopRoomBackground *ebiten.Image
 }
 
 
@@ -51,24 +50,9 @@ func LoadAllRoomBackGroundImages(basePath string) (*BackGroundImages, error) {
 		return nil, fmt.Errorf("loading fishTank: %w", err)
 	}
 
-	m.FrontLayer, err = LoadImage(filepath.Join(basePath, "frontLayer.png"))
-	if err != nil {
-		return nil, fmt.Errorf("loading frontLayer: %w", err)
-	}
-
 	m.FishTank_n, err = LoadImage(filepath.Join(basePath, "fishTank_n.png"))
 	if err != nil {
 		return nil, fmt.Errorf("loading fishTank_n: %w", err)
-	}
-
-	m.FishTankFrontLayer, err = LoadImage(filepath.Join(basePath, "fishTankFrontLayer.png"))
-	if err != nil {
-		return nil, fmt.Errorf("loading fishTankFrontLayer: %w", err)
-	}
-
-	m.FishTankFrontLayerNoLight, err = LoadImage(filepath.Join(basePath, "fishTankFrontLayerNoLight.png"))
-	if err != nil {
-		return nil, fmt.Errorf("loading fishTankFrontLayerNoLight: %w", err)
 	}
 
 	m.FishTankFrontLayerDayLight, err = LoadImage(filepath.Join(basePath, "fishTankFrontLayerDayLight.png"))
@@ -76,9 +60,19 @@ func LoadAllRoomBackGroundImages(basePath string) (*BackGroundImages, error) {
 		return nil, fmt.Errorf("loading fishTankFrontLayerDayLight: %w", err)
 	}
 
+	m.FishTankNight, err = LoadImage(filepath.Join(basePath, "fishTankNight.png"))
+	if err != nil {
+		return nil, fmt.Errorf("loading fishTankNight: %w", err)
+	}
+
 	m.FishTankFrontLayerNoLightSmaller, err = LoadImage(filepath.Join(basePath, "fishTankFrontLayerNoLightSmaller.png"))
 	if err != nil {
 		return nil, fmt.Errorf("loading fishTankFrontLayerNoLightSmaller: %w", err)
+	}
+
+	m.LaptopRoomBackground, err = LoadImage(filepath.Join(basePath, "laptopRoomBackground.png"))
+	if err != nil {
+		return nil, fmt.Errorf("loading laptopRoomBackground: %w", err)
 	}
 
 	return &m, nil

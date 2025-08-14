@@ -1,0 +1,21 @@
+//kage:unit pixels
+package main
+
+var LightPoint vec2
+
+func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
+    origin := dstCoord.xy
+    dis := distance(origin, LightPoint)
+    color := imageSrc0UnsafeAt(texCoord)
+
+    if dis < 50{
+        return color
+    }
+
+    return vec4(0, 0, 0, 1.0)
+}
+
+
+
+
+

@@ -7,7 +7,7 @@ func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
     color := imageSrc0UnsafeAt(texCoord)
 
     // Fixed light source in top-left corner
-    lightSource := vec2(100.0, 100.0)
+    lightSource := vec2(0.0, 0.0)
 
     // Get screen dimensions for proper positioning
     screenWidth := ImgRect.z
@@ -30,10 +30,10 @@ func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
         brightness = clamp(brightness, 0.1, 1.0)
 
         // Warmer early morning color temperature (more golden)
-        morningTint := vec3(1.2, 1.0, 0.7)
+        morningTint := vec3(1.0, 0.9, 0.7)
 
         // More dramatic lighting effect
-        lightMultiplier := 1.5 + brightness * 2.0
+        lightMultiplier := 1.5 + brightness * 1.5
 
         // Apply morning tint with enhanced brightness
         color.rgb *= morningTint * lightMultiplier

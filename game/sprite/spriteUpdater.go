@@ -1,24 +1,24 @@
 package sprite
 
-import "github.com/hajimehoshi/ebiten/v2"
+import (
+	"github.com/acoco10/fishTankWebGame/game/util"
+)
 
 type XYUpdater struct {
 	offSetX float32
 	offSetY float32
-	Loaded  bool
-	*Sprite
 }
 
 func NewUpdater(sprite *Sprite) *XYUpdater {
-	x, y := ebiten.CursorPosition()
+	x, y := util.GetScaledCursorPosition()
 	difX := float32(x) - sprite.X
 	difY := float32(y) - sprite.Y
-	newUpdater := XYUpdater{difX, difY, false, sprite}
+	newUpdater := XYUpdater{difX, difY}
 	return &newUpdater
 }
 
-func (up *XYUpdater) Update() {
-	x, y := ebiten.CursorPosition()
-	up.Sprite.X = float32(x) - up.offSetX
-	up.Sprite.Y = float32(y) - up.offSetY
+func (up *XYUpdater) Update(sprite *Sprite) {
+	x, y := util.GetScaledCursorPosition()
+	sprite.X = float32(x) - up.offSetX
+	sprite.Y = float32(y) - up.offSetY
 }

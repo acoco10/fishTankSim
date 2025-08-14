@@ -8,7 +8,9 @@ import (
 var eventId int
 var EventMap = make(map[int]Handler)
 
-type Event interface{}
+type Event interface {
+	Type() string
+}
 
 type Handler func(Event)
 

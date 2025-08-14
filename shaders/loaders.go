@@ -23,6 +23,15 @@ func LoadPulseOutlineShader() *ebiten.Shader {
 	return s
 }
 
+func LoadTextOutline() *ebiten.Shader {
+	ols := []byte(textOutline)
+	s, err := ebiten.NewShader(ols)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return s
+}
+
 func LoadSolidColorShader() *ebiten.Shader {
 	sls := []byte(SolidColor)
 	s, err := ebiten.NewShader(sls)
@@ -45,7 +54,7 @@ func LoadOnePointLightingBlue() *ebiten.Shader {
 	opl := []byte(OnePointLightingBlue)
 	s, err := ebiten.NewShader(opl)
 	if err != nil {
-		log.Printf("Couldnt Load one point lighting shader %q", err)
+		log.Fatal("Couldnt load one point shader", err)
 	}
 	return s
 }
@@ -139,6 +148,46 @@ func LoadPHShader() *ebiten.Shader {
 	s, err := ebiten.NewShader(es)
 	if err != nil {
 		log.Fatal("couldnt load ph shader ", err)
+	}
+	return s
+}
+
+func LoadExperiment() *ebiten.Shader {
+
+	es := []byte(FigureOutCoords)
+
+	s, err := ebiten.NewShader(es)
+
+	if err != nil {
+		log.Fatal("couldnt load experiment shader ", err)
+	}
+
+	return s
+}
+
+func LoadHighlightShader() *ebiten.Shader {
+	es := []byte(Highlight)
+	s, err := ebiten.NewShader(es)
+	if err != nil {
+		log.Fatal("Couldn't load highlight shader ", err)
+	}
+	return s
+}
+
+func LoadStomachFillShader() *ebiten.Shader {
+	es := []byte(StomachFill)
+	s, err := ebiten.NewShader(es)
+	if err != nil {
+		log.Fatal("Couldn't load stomach shader ", err)
+	}
+	return s
+}
+
+func LoadNormalMapOutlined() *ebiten.Shader {
+	es := []byte(NormalMapOutlined)
+	s, err := ebiten.NewShader(es)
+	if err != nil {
+		log.Fatal("Couldn't load stomach shader ", err)
 	}
 	return s
 }

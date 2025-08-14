@@ -1,0 +1,43 @@
+//kage:unit pixels
+package main
+
+var Fullness float //normalized % of hunger gauge
+
+func Fragment(dstCoord vec4, sourceCoord vec2, _ vec4) vec4 {
+    color := imageSrc0UnsafeAt(sourceCoord)
+    originx := imageSrc0Origin().x //for some reason you need to add the source origin x to the x coord you want to use
+    originy := imageSrc0Origin().y
+
+    imgWidth := imageSrc0Size().x
+    imgHeight := imageSrc0Size().y
+
+    midX := imgWidth/2.0
+    midY := imgHeight/2.0
+
+    midColor := imageSrc0UnsafeAt(vec2(originx+midX, originy+midY))
+    isMid := CheckAgainstTarget(color, midColor)
+
+    yCheck := originy + (imgHeight * (1-Fullness))
+
+    if isMid && sourceCoord.y > yCheck{
+        return vec4(0.5, 0.7, 0.4, 1.0)
+    }
+
+    return color
+}
+
+
+func CheckAgainstTarget(color vec4, targetColor vec4)bool{
+    tolerance := 0.1
+
+    rDif := abs(color.x -targetColor.x)
+    gDif := abs(color.y - targetColor.y)
+    bDif := abs(color.w - targetColor.w)
+
+    if rDif < tolerance && gDif < tolerance && bDif < tolerance{
+        return true
+    }
+
+    return false
+
+}

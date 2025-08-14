@@ -2,14 +2,14 @@ package entities
 
 import (
 	"github.com/acoco10/QuickDrawAdventure/spriteSheet"
-	"github.com/acoco10/fishTankWebGame/game/geometry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
+	"github.com/acoco10/fishTankWebGame/game/util"
 	"log"
 	"testing"
 )
 
 func TestNormallyDistributedYRandomPoint(t *testing.T) {
-	tankSize := geometry.Rect{X1: 0, Y1: 0, X2: 200, Y2: 200}
+	tankSize := util.Rect{X1: 0, Y1: 0, X2: 200, Y2: 200}
 	fishStats, err := GenGoldFishStats()
 	if err != nil {
 		log.Fatal(err)
@@ -17,7 +17,7 @@ func TestNormallyDistributedYRandomPoint(t *testing.T) {
 	spriteSheet := spritesheet.SpriteSheet{SpriteWidth: 10}
 	sp := sprite.AnimatedSprite{SpriteSheet: &spriteSheet}
 
-	fish := Creature{FishStats: fishStats, TankBoundaries: tankSize, AnimatedSprite: &sp}
+	fish := CreatureData{FishStats: fishStats, TankBoundaries: tankSize, AnimatedSprite: &sp}
 
 	nTests := 10000
 	results := [10000]float32{}

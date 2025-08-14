@@ -32,7 +32,7 @@ func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
        //depthDarkening := 1.0 - (texCoord.y * 0.1)
        //color.rgb *= depthDarkening
 
-       // Add some shimmer on surfaces (use dstCoord for pixel-based patterns)
+       // Add some shimmer On surfaces (use dstCoord for pixel-based patterns)
        shimmer := sin(dstCoord.x * 0.04 + floatCounter * 0.03) *
         cos(dstCoord.y * 0.035 + floatCounter * 0.025) * 0.02
        color.rgb += vec3(0.9, 0.95, 1.0) * max(shimmer, 0.0)

@@ -28,9 +28,15 @@ func LoadShaderRegistry() {
 
 	ph := shaders.LoadPHShader()
 
+	highlight := shaders.LoadHighlightShader()
+
+	stomach := shaders.LoadStomachFillShader()
+
+	normalMapOutline := shaders.LoadNormalMapOutlined()
+
 	registry.ShaderMap = make(map[string]*ebiten.Shader)
 
-	// I gave these capitol letters to mirror go's way of making structs importable/ kage but im not sure i like it
+	// I gave these capital letters to mirror go's way of making structs importable/ kage but im not sure i like it
 	registry.ShaderMap["Outline"] = ols
 	registry.ShaderMap["Erase"] = erase
 	registry.ShaderMap["HandWriting"] = hwr
@@ -41,4 +47,7 @@ func LoadShaderRegistry() {
 	registry.ShaderMap["Water"] = water
 	registry.ShaderMap["Wall"] = wall
 	registry.ShaderMap["PH"] = ph
+	registry.ShaderMap["Highlight"] = highlight
+	registry.ShaderMap["Stomach"] = stomach
+	registry.ShaderMap["NormalMapOutline"] = normalMapOutline
 }

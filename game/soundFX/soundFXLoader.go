@@ -2,16 +2,21 @@ package soundFX
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	resource "github.com/quasilyte/ebitengine-resource"
 	"io"
+	"log"
 	"sort"
 )
 
+var loadedSounds *resource.Loader
+
 const (
 	BestAdventureEver resource.AudioID = iota
+	CardBoard         resource.AudioID = iota
+	Coins1            resource.AudioID = iota
+	DayTimeJazz       resource.AudioID = iota
 	IndieCafe         resource.AudioID = iota
 	PickUpOne         resource.AudioID = iota
 	PlopSound         resource.AudioID = iota
@@ -30,18 +35,20 @@ var audioContext = audio.NewContext(44100)
 var SoundData = map[string][]byte{}
 
 // key is file path, not just name
-func LoadSounds() (*resource.Loader, error) {
-	var rLoader *resource.Loader
+func LoadSounds() {
 
 	volumeMap := map[resource.AudioID]float64{
 		BestAdventureEver: 0.5,
+		CardBoard:         0.7,
+		Coins1:            0.2,
+		DayTimeJazz:       -0.5,
 		IndieCafe:         0.0,
 		PickUpOne:         0.0,
 		PlopSound:         -0.3,
 		PouringFood:       0.0,
 		SelectSound:       -0.5,
-		SuccessMusic:      -0.6,
-		TropicalHouse:     0.0,
+		SuccessMusic:      -0.8,
+		TropicalHouse:     -0.5,
 		WaterBubbles:      0.0,
 		SelectSound2:      0.0,
 		WhiteBoardMarker1: 0.5,
@@ -51,7 +58,7 @@ func LoadSounds() (*resource.Loader, error) {
 	soundDir, err := assets.SoundDir.ReadDir("soundFx")
 
 	if err != nil {
-		return rLoader, fmt.Errorf("error reading sound files: %w", err)
+		log.Fatal("Error reading sound files")
 	}
 
 	sort.Slice(soundDir, func(i, j int) bool {
@@ -69,7 +76,7 @@ func LoadSounds() (*resource.Loader, error) {
 
 		song, err := assets.SoundDir.ReadFile("soundFx/" + name)
 		if err != nil {
-			return rLoader, fmt.Errorf("error reading sound file: %w", err)
+			log.Fatal("Error reading sound files")
 		}
 
 		SoundData[name] = song
@@ -90,6 +97,5 @@ func LoadSounds() (*resource.Loader, error) {
 	l.OpenAssetFunc = func(path string) io.ReadCloser {
 		return io.NopCloser(bytes.NewReader(SoundData[path]))
 	}
-	return l, nil
-
+	loadedSounds = l
 }

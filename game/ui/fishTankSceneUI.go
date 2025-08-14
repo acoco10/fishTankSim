@@ -2,20 +2,17 @@ package ui
 
 import (
 	"fmt"
+	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/events"
-	"github.com/acoco10/fishTankWebGame/game/loader"
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/ebitenui/ebitenui"
-	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"golang.org/x/image/colornames"
 	"image"
 	"image/color"
 	"log"
+	"strconv"
 )
 
 type ButtonType uint8
@@ -24,6 +21,28 @@ const (
 	SubmitButton ButtonType = iota
 	SpriteSelectButton
 )
+
+type WindowType uint8
+
+const (
+	None WindowType = iota
+	PHGuess
+	ChooseProp
+	GoToBed
+	Door
+	MagazineState
+)
+
+type MainMenuData struct {
+	removeFunc             []widget.RemoveWindowFunc
+	nextDay                bool
+	currentWindowCloseable bool
+	day                    int
+	dayType                string
+	eventHub               *tasks.EventHub
+	windowOpen             WindowType
+	textInputReference     *widget.TextInput
+}
 
 func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenui.UI, *TextBoxUi, error) {
 
@@ -50,8 +69,6 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenu
 			)),
 	)
 
-	button := LoadSubmitButton("Save", eHub, 16, "")
-
 	fishStats, err := NewTextBlock(eHub, StatsMenu)
 
 	if err != nil {
@@ -66,7 +83,6 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenu
 	//notePad.text.SetText("To Do:")
 
 	buttonContainer.AddChild(fishStats)
-	buttonContainer.AddChild(button)
 	rootContainer.AddChild(buttonContainer)
 
 	// construct the UI
@@ -78,10 +94,246 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenu
 	if err != nil {
 		return nil, nil, err
 	}
-
-	MainMenuSubs(mag, &ui, eHub)
+	mainDat := &MainMenuData{eventHub: eHub}
+	MainMenuSubs(mainDat, mag, &ui, eHub)
 
 	return &ui, fishStats, nil
+}
+
+func MakePHmenu(hub *tasks.EventHub) (*widget.Container, *widget.TextInput) {
+
+	face, err := util.LoadFont(32, "reglisseOutline") //white center text
+
+	face2, err := util.LoadFont(32, "reglisseOutlined") //black outline
+
+	rootContainer := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout(
+		//widget.AnchorLayoutOpts.Padding(widget.NewInsetsSimple(200)))))
+		)))
+
+	bImage, err := loadOptionsMenuInputImage()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	childContainer := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(bImage),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				StretchHorizontal:  true,
+				StretchVertical:    false,
+			}),
+		),
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Spacing(20),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(50)),
+		)))
+
+	buttonRow := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+				Stretch:  false,
+			}),
+		),
+		widget.ContainerOpts.Layout(widget.NewGridLayout(
+			//Define number of columns in the grid
+			widget.GridLayoutOpts.Columns(3),
+			//onlt one row so row spacing second input doesnt really matter
+			//widget.GridLayoutOpts.Spacing(),
+			// DefaultStretch values will be used when extra columns/rows are used
+			// out of the ones defined on the normal Stretch
+			widget.GridLayoutOpts.DefaultStretch(false, true),
+			//Define how to stretch the rows and columns.
+			widget.GridLayoutOpts.Stretch([]bool{true}, []bool{false}),
+		),
+		))
+
+	buttonRow2 := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+				Stretch:  false,
+			})),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()))
+
+	textContainer := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				StretchHorizontal:  false,
+				StretchVertical:    false,
+			}),
+		),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+	)
+
+	headContainer := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			}),
+		),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+	)
+
+	headerLbl := widget.NewText(
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			})),
+
+		widget.TextOpts.Text("Guess the PH!", face, color.RGBA{R: 255, G: 255, B: 255, A: 255}),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+		widget.TextOpts.Insets(widget.Insets{}),
+	)
+
+	headerLblOutline := widget.NewText(
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			})),
+
+		widget.TextOpts.Text("Guess the PH!", face2, color.RGBA{R: 0, G: 0, B: 0, A: 255}),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+		widget.TextOpts.Insets(widget.Insets{}),
+	)
+
+	inputFace := registry.FontMap["nk57_24"]
+
+	img, _ := loadTextInputImage()
+
+	textInput := widget.NewTextInput(
+		widget.TextInputOpts.WidgetOpts(
+			//Set the layout information to center the textbox in the parent
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+
+			widget.WidgetOpts.MinSize(50, 10),
+		),
+		//Set the Idle and Disabled background image for the text input
+		//If the NineSlice image has a minimum size, the widget will use that or
+		// widget.WidgetOpts.MinSize; whichever is greater
+		widget.TextInputOpts.Image(img),
+
+		//Set the font face and size for the widget
+		widget.TextInputOpts.Face(inputFace),
+
+		//Set the colors for the text and caret
+		widget.TextInputOpts.Color(&widget.TextInputColor{
+			Idle:          color.NRGBA{0, 0, 50, 255},
+			Disabled:      color.NRGBA{0, 0, 20, 100},
+			Caret:         color.NRGBA{0, 0, 50, 255},
+			DisabledCaret: color.NRGBA{R: 200, G: 200, B: 200, A: 255},
+		}),
+
+		//Set how much padding there is between the edge of the input and the text
+		widget.TextInputOpts.Padding(widget.NewInsetsSimple(5)),
+
+		//Set the font and width of the caret
+		widget.TextInputOpts.CaretOpts(
+			widget.CaretOpts.Size(inputFace, 0),
+		),
+
+		//This text is displayed if the input is empty
+		widget.TextInputOpts.Placeholder("7.0"),
+
+		//This is called when the user hits the "Enter" key.
+		//There are other options that can configure this behavior
+		widget.TextInputOpts.SubmitHandler(func(args *widget.TextInputChangedEventArgs) {
+			ev := entities.SendData{
+				DataFor: "ph guess",
+				Data:    args.InputText,
+			}
+
+			hub.Publish(ev)
+		}),
+
+		//This is called whenever there is a change to the text
+		widget.TextInputOpts.ChangedHandler(func(args *widget.TextInputChangedEventArgs) {
+		}),
+	)
+
+	b1 := LoadOutlineTextButtonNoBg("<", hub)
+
+	b2 := LoadOutlineTextButtonNoBg(">", hub)
+
+	b3 := LoadOutlineTextButtonSubmitBg("Guess", hub, "")
+
+	textInput.SetText("7.0")
+	textContainer.AddChild(textInput)
+
+	buttonRow.AddChild(b1, textContainer, b2)
+	buttonRow2.AddChild(b3)
+
+	headContainer.AddChild(headerLbl, headerLblOutline)
+
+	childContainer.AddChild(headContainer, buttonRow, buttonRow2)
+	rootContainer.AddChild(childContainer)
+
+	return rootContainer, textInput
+}
+
+func makeWindow(rtContainer *widget.Container, y int, width int, height int) *widget.Window {
+
+	windowWidth := 400
+	windowHeight := 400
+	if width != 0 {
+		windowWidth = width
+	}
+	if height != 0 {
+		windowHeight = height
+	}
+
+	var y0 int
+
+	if y == 0 {
+		y0 = registry.Config.ResolutionHeight/3 - windowHeight/2
+	} else {
+		y0 = y
+	}
+	x0 := registry.Config.ResolutionWidth/2 - windowWidth/2
+
+	window := widget.NewWindow(
+		//Set the main contents of the window
+		widget.WindowOpts.Contents(rtContainer),
+		//Set the titlebar for the window (Optional)
+		//Set the window above everything else and block input elsewhere
+		widget.WindowOpts.Modal(),
+		//Set how to close the window. CLICK_OUT will close the window when clicking anywhere
+		//that is not a part of the window object
+		//widget.WindowOpts.CloseMode(widget.CLICK_OUT),
+		//Indicates that the window is draggable. It must have a TitleBar for this to work
+		//Set the window resizeable
+		//Set the minimum size the window can be
+		widget.WindowOpts.MinSize(windowWidth, windowHeight),
+		//Set the maximum size a window can be
+		widget.WindowOpts.MaxSize(windowWidth, windowHeight),
+		//Set the callback that triggers when a move is complete
+		widget.WindowOpts.MoveHandler(func(args *widget.WindowChangedEventArgs) {
+			fmt.Println("Window Moved")
+		}),
+		//Set the callback that triggers when a resize is complete
+		widget.WindowOpts.ResizeHandler(func(args *widget.WindowChangedEventArgs) {
+			fmt.Println("Window Resized")
+		}),
+
+		widget.WindowOpts.Location(image.Rect(x0, y0, x0+windowWidth, y0+windowHeight)),
+	)
+	return window
+}
+
+func triggerPHwindow(ui *ebitenui.UI, hub *tasks.EventHub) (widget.RemoveWindowFunc, *widget.TextInput) {
+	cont, txtInput := MakePHmenu(hub)
+	window := makeWindow(cont, registry.Config.ResolutionHeight/2+100, 400, 130)
+	rfunc := ui.AddWindow(window)
+	return rfunc, txtInput
 }
 
 func TriggerNextDayWindow(ui *ebitenui.UI, hub *tasks.EventHub) widget.RemoveWindowFunc {
@@ -97,14 +349,20 @@ func TriggerNextDayWindow(ui *ebitenui.UI, hub *tasks.EventHub) widget.RemoveWin
 	return removeFunc
 }
 
-func TriggerTextWindow(hub *tasks.EventHub, ui *ebitenui.UI) widget.RemoveWindowFunc {
+func TriggerTextWindow(hub *tasks.EventHub, ui *ebitenui.UI, header string, inputText []string) widget.RemoveWindowFunc {
+
 	rootContainer := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout(
 		//widget.AnchorLayoutOpts.Padding(widget.NewInsetsSimple(200)))))
 		)))
 
+	bimg, err := loadOptionsMenuInputImage()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	childContainer := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(eimage.NewNineSliceColor(colornames.Darkmagenta)),
+		widget.ContainerOpts.BackgroundImage(bimg),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				VerticalPosition:   widget.AnchorLayoutPositionCenter,
@@ -125,75 +383,78 @@ func TriggerTextWindow(hub *tasks.EventHub, ui *ebitenui.UI) widget.RemoveWindow
 				Position: widget.RowLayoutPositionCenter,
 			})),
 
-		widget.TextOpts.Text("Pick your first Decoration", registry.FontMap["nk57_12"], color.RGBA{R: 250, G: 160, B: 0, A: 255}),
+		widget.TextOpts.Text(header, registry.FontMap["nk57_24"], color.RGBA{R: 250, G: 160, B: 0, A: 255}),
 		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionStart),
 		widget.TextOpts.Insets(widget.Insets{}),
 	)
 
-	textBox, err := NewTextBlock(hub, StoreMenu)
-	if err != nil {
-		log.Fatal(err)
-	}
+	line1 := widget.NewText(
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			})),
 
-	childContainer.AddChild(headerLbl)
-	childContainer.AddChild(textBox)
-	rootContainer.AddChild(childContainer)
-
-	window := widget.NewWindow(
-		//Set the main contents of the window
-		widget.WindowOpts.Contents(rootContainer),
-		//Set the titlebar for the window (Optional)
-		//Set the window above everything else and block input elsewhere
-		widget.WindowOpts.Modal(),
-		//Set how to close the window. CLICK_OUT will close the window when clicking anywhere
-		//that is not a part of the window object
-		//widget.WindowOpts.CloseMode(widget.CLICK_OUT),
-		//Indicates that the window is draggable. It must have a TitleBar for this to work
-		//Set the window resizeable
-		//Set the minimum size the window can be
-		widget.WindowOpts.MinSize(200, 100),
-		//Set the maximum size a window can be
-		widget.WindowOpts.MaxSize(300, 300),
-		//Set the callback that triggers when a move is complete
-		widget.WindowOpts.MoveHandler(func(args *widget.WindowChangedEventArgs) {
-			fmt.Println("Window Moved")
-		}),
-		//Set the callback that triggers when a resize is complete
-		widget.WindowOpts.ResizeHandler(func(args *widget.WindowChangedEventArgs) {
-			fmt.Println("Window Resized")
-		}),
-
-		widget.WindowOpts.Location(image.Rect(500, 100, 700, 400)),
+		widget.TextOpts.Text(inputText[0], registry.FontMap["nk57_24"], color.RGBA{R: 250, G: 160, B: 0, A: 255}),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionStart),
+		widget.TextOpts.Insets(widget.Insets{}),
 	)
 
-	rfunc := ui.AddWindow(window)
+	line2 := widget.NewText(
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			})),
+
+		widget.TextOpts.Text(inputText[1], registry.FontMap["nk57_24"], color.RGBA{R: 250, G: 160, B: 0, A: 255}),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionStart),
+		widget.TextOpts.Insets(widget.Insets{}),
+	)
+
+	line3 := widget.NewText(
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			})),
+
+		widget.TextOpts.Text(inputText[2], registry.FontMap["nk57_24"], color.RGBA{R: 250, G: 160, B: 0, A: 255}),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionStart),
+		widget.TextOpts.Insets(widget.Insets{}),
+	)
+
+	childContainer.AddChild(headerLbl)
+	childContainer.AddChild(line1)
+	childContainer.AddChild(line2)
+	childContainer.AddChild(line3)
+
+	b1 := LoadOutlineTextButtonSubmitBg("Lets Mow!", hub, "")
+
+	childContainer.AddChild(b1)
+
+	rootContainer.AddChild(childContainer)
+	wind := makeWindow(rootContainer, 100, 800, 400)
+
+	rfunc := ui.AddWindow(wind)
 	return rfunc
 
 }
 
-func TriggerImageButtonSelectWindow(screenWidth int, screenHeight int, ui *ebitenui.UI, hub *tasks.EventHub) widget.RemoveWindowFunc {
+func TriggerImageButtonSelectWindow(ui *ebitenui.UI, hub *tasks.EventHub) widget.RemoveWindowFunc {
 
-	windowWidth := 400
-	windowHeight := 400
+	castleImg, err := util.LoadImageAssetAsEbitenImage("menuAssets/castleSelectButton")
+	logImg, err := util.LoadImageAssetAsEbitenImage("menuAssets/logSelectButton")
 
-	x0 := screenWidth/2 - windowWidth/2
-	y0 := screenHeight/2 - windowHeight/2
-	x1 := screenWidth/2 + windowWidth/2
-	y1 := screenWidth/2 + windowHeight/2
-
-	castleImg, err := loader.LoadImageAssetAsEbitenImage("menuAssets/castleSelectButton")
-	logImg, err := loader.LoadImageAssetAsEbitenImage("menuAssets/logSelectButton")
-
-	propButton, err := LoadStackSpriteSelectButton("Castle", castleImg, 16, hub, []string{"+Hiding Spot", "-PH"})
+	propButton, err := LoadStackSpriteSelectButtonWithToolTip("Castle", castleImg, 16, hub, []string{"+Hiding Spot", "-PH"})
 
 	if err != nil {
 		log.Fatal(err)
 	}
-	propButton2, err := LoadStackSpriteSelectButton("Log", logImg, 16, hub, []string{"+PH", "+Eco"})
+	propButton2, err := LoadStackSpriteSelectButtonWithToolTip("Log", logImg, 16, hub, []string{"+PH", "+Eco"})
 
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	image, err := loadOptionsMenuInputImage()
 
 	rootContainer := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout(
@@ -201,7 +462,7 @@ func TriggerImageButtonSelectWindow(screenWidth int, screenHeight int, ui *ebite
 		)))
 
 	childContainer := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(eimage.NewNineSliceColor(colornames.Darkmagenta)),
+		widget.ContainerOpts.BackgroundImage(image),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				VerticalPosition:   widget.AnchorLayoutPositionCenter,
@@ -216,52 +477,30 @@ func TriggerImageButtonSelectWindow(screenWidth int, screenHeight int, ui *ebite
 			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(50)),
 		)))
 
-	headerLbl := widget.NewText(
-		widget.TextOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-			})),
-
-		widget.TextOpts.Text("Pick your first Decoration", registry.FontMap["nk57_12"], color.RGBA{R: 250, G: 160, B: 0, A: 255}),
-		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionStart),
-		widget.TextOpts.Insets(widget.Insets{}),
-	)
+	header := MakeOutlineText("Pick your first Tank Decoration!")
 
 	widge := addPickSpriteContainer(2)
 
 	widge.AddChild(propButton, propButton2)
-	window := widget.NewWindow(
-		//Set the main contents of the window
-		widget.WindowOpts.Contents(rootContainer),
-		//Set the titlebar for the window (Optional)
-		//Set the window above everything else and block input elsewhere
-		widget.WindowOpts.Modal(),
-		//Set how to close the window. CLICK_OUT will close the window when clicking anywhere
-		//that is not a part of the window object
-		//widget.WindowOpts.CloseMode(widget.CLICK_OUT),
-		//Indicates that the window is draggable. It must have a TitleBar for this to work
-		//Set the window resizeable
-		//Set the minimum size the window can be
-		widget.WindowOpts.MinSize(200, 100),
-		//Set the maximum size a window can be
-		widget.WindowOpts.MaxSize(300, 300),
-		//Set the callback that triggers when a move is complete
-		widget.WindowOpts.MoveHandler(func(args *widget.WindowChangedEventArgs) {
-			fmt.Println("Window Moved")
-		}),
-		//Set the callback that triggers when a resize is complete
-		widget.WindowOpts.ResizeHandler(func(args *widget.WindowChangedEventArgs) {
-			fmt.Println("Window Resized")
-		}),
 
-		widget.WindowOpts.Location(image.Rect(x0, y0, x1, y1)),
-	)
+	y0 := registry.Config.ResolutionHeight/2 - int(50*registry.Config.ResolutionScalingF) - 100
 
-	b1 := LoadSubmitButton("Confirm", hub, 16, "Confirm for prop select")
+	window := makeWindow(rootContainer, y0, 600, 0)
 
-	childContainer.AddChild(headerLbl)
+	bContainer := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+				Stretch:  false,
+			})),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()))
+
+	b1 := LoadOutlineTextButtonSubmitBg("Confirm", hub, "Confirm for prop select")
+
+	childContainer.AddChild(header)
 	childContainer.AddChild(widge)
-	childContainer.AddChild(b1)
+	bContainer.AddChild(b1)
+	childContainer.AddChild(bContainer)
 	rootContainer.AddChild(childContainer)
 
 	removeFunc := ui.AddWindow(window)
@@ -301,944 +540,208 @@ func TriggerMagWindow(mag *Magazine, ui *ebitenui.UI, hub *tasks.EventHub) widge
 	)
 
 	removeFunc := ui.AddWindow(window)
-
 	return removeFunc
 }
 
-func MainMenuSubs(magazine *Magazine, ui *ebitenui.UI, hub *tasks.EventHub) {
-	var nextDay bool
-	var removeFunc widget.RemoveWindowFunc
-	var Closeable = true
+func MainMenuAddWindow(hub *tasks.EventHub) {
+	ev := events.AddWindow{}
+	hub.Publish(ev)
+}
 
-	hub.Subscribe(events.UISpriteAction{}, func(e tasks.Event) {
-		ev := e.(events.UISpriteAction)
-		if ev.UiSprite == "pillow" && ev.UiSpriteAction == "clicked" && !nextDay {
-			nextDay = true
-			removeFunc = TriggerNextDayWindow(ui, hub)
-		}
-		if ev.UiSprite == "magazine" {
-			removeFunc = TriggerMagWindow(magazine, ui, hub)
-			Closeable = true
-		}
-		if ev.UiSprite == "door" {
-			switch ev.UiSpriteAction {
-			case "clickedCamp":
-				removeFunc = TriggerOptionWindow("Go to Camp?", ui, hub)
-			case "clickedChores":
-				removeFunc = TriggerOptionWindow("Go do your Chores?", ui, hub)
-			}
-			Closeable = true
-		}
-	})
+func SendWindowOpened(hub *tasks.EventHub) {
+	ev := events.WindowOpened{}
+	hub.Publish(ev)
+}
 
-	hub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
-		//subs for updating mag window
-		ev := e.(events.ButtonClickedEvent)
-		println(ev.ButtonText, "button event received")
-		switch ev.ButtonText {
-		case "Fish":
-			removeFunc()
-			removeFunc = TriggerMagWindow(magazine, ui, hub)
-		case "Info":
-			removeFunc()
-			removeFunc = TriggerMagWindow(magazine, ui, hub)
+func (m *MainMenuData) addRemoveFunc(windowFunc widget.RemoveWindowFunc) {
+	m.removeFunc = append(m.removeFunc, windowFunc)
+}
+func (m *MainMenuData) RemoveFunc(args []string) {
+	for _, f := range m.removeFunc {
+		f()
+	}
+	ev2 := events.WindowClosed{}
+	m.eventHub.Publish(ev2)
+	for _, arg := range args {
+		if arg == "maintainState" {
+			return
 		}
+	}
+	m.windowOpen = None
+}
 
-	})
+func closeWindow(hub *tasks.EventHub, data *MainMenuData) {
+	data.RemoveFunc([]string{})
+	ev2 := events.WindowClosed{}
+	hub.Publish(ev2)
+}
+
+func MainMenuSubs(mainDat *MainMenuData, magazine *Magazine, ui *ebitenui.UI, hub *tasks.EventHub) {
+
+	buttonTextSubs(mainDat, magazine, ui, hub)
+	uiSpriteActionSubs(mainDat, magazine, ui, hub)
 
 	hub.Subscribe(tasks.TaskCompleted{}, func(e tasks.Event) {
 		ev := e.(tasks.TaskCompleted)
-		if ev.Task.Text == "1. Take a ph reading of your tank" {
-			width, height := ebiten.WindowSize()
-			removeFunc = TriggerImageButtonSelectWindow(width, height, ui, hub)
-			Closeable = false
+		if ev.Task.Text == "1. Take a ph reading of your tank" && mainDat.day == 1 {
+			{
+				SendWindowOpened(hub)
+				mainDat.addRemoveFunc(TriggerImageButtonSelectWindow(ui, hub))
+				mainDat.windowOpen = 0
+			}
 		}
-	})
-
-	hub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
-		ev := e.(events.ButtonClickedEvent)
-		if ev.ButtonText == "Vibe awhile Longer" {
-			removeFunc()
-			nextDay = false
-			Closeable = true
-		}
-	})
-
-	hub.Subscribe(events.DayOver{}, func(e tasks.Event) {
-		if removeFunc != nil {
-			removeFunc()
-			Closeable = true
-		}
-		nextDay = false
 	})
 
 	hub.Subscribe(events.CloseWindow{}, func(e tasks.Event) {
-		ev := e.(events.CloseWindow)
-		if removeFunc != nil && Closeable || ev.OverRide {
-			removeFunc()
-			Closeable = true
+		switch mainDat.windowOpen {
+		case PHGuess:
+			return
+		case ChooseProp:
+			return
+		case MagazineState:
+			mainDat.RemoveFunc([]string{})
+			magazine.activeIndex = 0
+		case GoToBed:
+			mainDat.RemoveFunc([]string{})
+		case Door:
+			mainDat.RemoveFunc([]string{})
+		default:
+			mainDat.RemoveFunc([]string{})
+		}
+	})
+
+	hub.Subscribe(events.NewDay{}, func(e tasks.Event) {
+		ev := e.(events.NewDay)
+		mainDat.day = ev.Day
+		mainDat.dayType = ev.DayType
+	})
+
+	hub.Subscribe(events.DayOver{}, func(e tasks.Event) {
+		if mainDat.removeFunc != nil {
+			mainDat.RemoveFunc([]string{})
 		}
 	})
 
 }
 
-func loadSubmitButtonImage() *widget.ButtonImage {
-
-	img, _ := loader.LoadImageAssetAsEbitenImage("menuAssets/submitButton3")
-
-	imgClicked, _ := loader.LoadImageAssetAsEbitenImage("menuAssets/submitButtonAlt")
-
-	nineSliceImage := eimage.NewNineSlice(img, [3]int{9, img.Bounds().Dx() - 18, 9}, [3]int{8, 9, 10})
-
-	nineSliceImageClicked := eimage.NewNineSlice(imgClicked, [3]int{9, img.Bounds().Dx() - 18, 9}, [3]int{8, 9, 10})
-
-	idle := nineSliceImage
-
-	hover := nineSliceImage
-
-	pressed := nineSliceImageClicked
-
-	return &widget.ButtonImage{
-		Idle:         idle,
-		Hover:        hover,
-		Pressed:      pressed,
-		PressedHover: pressed,
-		Disabled:     eimage.NewNineSliceColor(color.NRGBA{R: 100, G: 100, B: 200, A: 255}),
-	}
-}
-
-func loadSpriteSelectButtonImage(t string) (*widget.ButtonImage, error) {
-
-	img, err := loader.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButton")
-
-	if err != nil {
-		return nil, err
-	}
-
-	imgClicked, err := loader.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButtonAlt")
-	if err != nil {
-		return nil, err
-	}
-
-	nineSliceImage := eimage.NewNineSlice(img, [3]int{16, 32, 16}, [3]int{16, 48, 16})
-
-	nineSliceImageClicked := eimage.NewNineSlice(imgClicked, [3]int{16, 32, 16}, [3]int{16, 48, 16})
-
-	idle := nineSliceImage
-
-	hover := nineSliceImageClicked
-
-	pressed := nineSliceImageClicked
-	if t == "Selected Button" {
-		return &widget.ButtonImage{
-			Idle:     hover,
-			Hover:    hover,
-			Pressed:  pressed,
-			Disabled: pressed,
-		}, nil
-	} else {
-		return &widget.ButtonImage{
-			Idle:     idle,
-			Hover:    hover,
-			Pressed:  pressed,
-			Disabled: pressed,
-		}, nil
-	}
-}
-
-func loadBackButtonImage() (*widget.ButtonImage, error) {
-
-	img, err := loader.LoadImageAssetAsEbitenImage("menuAssets/backButton")
-
-	if err != nil {
-		return nil, err
-	}
-
-	nineSliceImage := eimage.NewNineSlice(img, [3]int{(59 - 32) / 2, 38, 59 - 32/2}, [3]int{(74 - 66) / 2, 66, (74 - 66) / 2})
-
-	idle := nineSliceImage
-
-	hover := nineSliceImage
-
-	pressed := nineSliceImage
-
-	return &widget.ButtonImage{
-		Idle:    idle,
-		Hover:   hover,
-		Pressed: pressed,
-	}, nil
-}
-
-func LoadMuteButton(buttonText string, hub *tasks.EventHub, fontSize float64) *widget.Button {
-	//load a generic button labeled with button text string that will send a button clicked event to event hub
-	buttonImage, err := loadSpriteSelectButtonImage(buttonText)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	face, err := util.LoadFont(fontSize, "nk57")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var button *widget.Button
-
-	button = widget.NewButton(
-		// set general widget options
-		widget.ButtonOpts.WidgetOpts(
-			// instruct the container's anchor layout to center the button both horizontally and vertically
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-		// specify the images to use
-		widget.ButtonOpts.Image(buttonImage),
-
-		// specify the button's text, the font face, and the color
-		//widget.ButtonOpts.Text("Hello, World!", face, &widget.ButtonTextColor{
-		widget.ButtonOpts.Text(buttonText, face, &widget.ButtonTextColor{
-			Idle:    color.NRGBA{0, 0, 0, 0xff},
-			Hover:   color.NRGBA{255, 255, 0, 255},
-			Pressed: color.NRGBA{255, 255, 0, 255},
-		}),
-		widget.ButtonOpts.TextProcessBBCode(true),
-		// specify that the button's text needs some padding for correct display
-		widget.ButtonOpts.TextPadding(widget.Insets{
-			Left:   30,
-			Right:  30,
-			Top:    100,
-			Bottom: 10,
-		}),
-		//Move the text down and right on press
-		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
-			button.GetWidget().CustomData = true
-			button.KeepPressedOnExit = true
-		}),
-		//Move the text back to start on press released
-		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
-			button.Text().Inset.Top = 0
-			button.Text().Inset.Left = 0
-			button.GetWidget().CustomData = false
-		}),
-		// add a handler that reacts to clicking the button
-		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-			if button.GetWidget().Disabled == false {
-				ev := events.ButtonClickedEvent{
-					buttonText,
-				}
-				hub.Publish(ev)
+func buttonTextSubs(mainDat *MainMenuData, magazine *Magazine, ui *ebitenui.UI, hub *tasks.EventHub) {
+	hub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
+		ev := e.(events.ButtonClickedEvent)
+		switch mainDat.windowOpen {
+		case MagazineState:
+			MagazineWindowButtonEvent(mainDat, magazine, ui, ev, hub)
+		case ChooseProp:
+			if ev.ButtonText == "Confirm for prop select" {
+				closeWindow(hub, mainDat)
 			}
-
-		}),
-
-		// add a handler that reacts to entering the button with the cursor
-		widget.ButtonOpts.CursorEnteredHandler(func(args *widget.ButtonHoverEventArgs) {
-			//If we moved the Text because we clicked on this button previously, move the text down and right
-			if button.GetWidget().Disabled == false {
-				ev := events.ButtonEvent{
-					buttonText,
-					"cursor entered",
-				}
-				hub.Publish(ev)
+		case Door:
+			DoorWindowButtonEvent(mainDat, magazine, ui, ev, hub)
+		case PHGuess:
+			PhGuessWindowButtonEvent(mainDat, ev, hub)
+		case GoToBed:
+			if ev.ButtonText == "Vibe awhile Longer" {
+				mainDat.RemoveFunc([]string{})
 			}
-
-		}),
-
-		// add a handler that reacts to moving the cursor on the button
-		widget.ButtonOpts.CursorMovedHandler(func(args *widget.ButtonHoverEventArgs) {
-		}),
-
-		// add a handler that reacts to exiting the button with the cursor
-		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
-			//ResetVls the Text inset if the cursor is no longer over the button
-			button.Text().Inset.Top = 0
-			button.Text().Inset.Left = 0
-			ev := events.ButtonEvent{
-				buttonText,
-				"cursor exited",
-			}
-			hub.Publish(ev)
-		}),
-	)
-	return button
-}
-
-func LoadStackedImageButton(buttonText string, img *ebiten.Image, fontSize float64, hub *tasks.EventHub) {
-
-}
-
-func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, fontSize float64, hub *tasks.EventHub, tipText []string) (*widget.Container, error) {
-
-	tooltipContainer := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewRowLayout(widget.RowLayoutOpts.Direction(widget.DirectionVertical))),
-		widget.ContainerOpts.AutoDisableChildren(),
-		widget.ContainerOpts.BackgroundImage(eimage.NewNineSliceColor(color.NRGBA{R: 170, G: 170, B: 230, A: 255})),
-	)
-
-	if len(tipText) > 0 {
-		for _, text := range tipText {
-			option1 := widget.NewText(
-				widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
-				widget.TextOpts.Text(fmt.Sprint(text), registry.FontMap["nk57"], colornames.Greenyellow),
-				widget.TextOpts.WidgetOpts(widget.WidgetOpts.MinSize(100, 0)),
-			)
-			tooltipContainer.AddChild(option1)
 		}
-	}
-
-	face, err := util.LoadFont(fontSize, "nk57")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	imgForTransform := ebiten.NewImage(fishImg.Bounds().Dx()*2, fishImg.Bounds().Dx()*2)
-	dopts := &ebiten.DrawImageOptions{}
-	dopts.GeoM.Scale(2, 2)
-
-	imgForTransform.DrawImage(fishImg, dopts)
-
-	img, err := loader.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButton")
-	if err != nil {
-		return nil, err
-	}
-
-	imgClicked, err := loader.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButtonAlt")
-	if err != nil {
-		return nil, err
-	}
-
-	nineSliceImage := eimage.NewNineSlice(img, [3]int{16, 32, 16}, [3]int{16, 48, 16})
-
-	nineSliceImageClicked := eimage.NewNineSlice(imgClicked, [3]int{16, 32, 16}, [3]int{16, 48, 16})
-
-	idle := nineSliceImage
-
-	hover := nineSliceImageClicked
-
-	pressed := nineSliceImageClicked
-
-	btnimg := &widget.ButtonImage{
-		Idle:     idle,
-		Hover:    hover,
-		Pressed:  pressed,
-		Disabled: pressed,
-	}
-
-	buttonStackedLayout := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewStackedLayout()),
-
-		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-			Position: widget.RowLayoutPositionCenter,
-		})),
-	)
-	btnIconG := widget.NewGraphic(
-		widget.GraphicOpts.Images(&widget.GraphicImage{
-			Idle:     imgForTransform,
-			Disabled: imgForTransform,
-		},
-		),
-	)
-	// construct a pressable button
-	var button *widget.Button
-
-	button = widget.NewButton(
-		// specify the images to use
-		widget.ButtonOpts.Image(btnimg),
-
-		// add a handler that reacts to clicking the button
-		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-			btnIconG.GetWidget().Disabled = !btnIconG.GetWidget().Disabled
-
-		}),
-		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
-			button.GetWidget().CustomData = true
-			button.KeepPressedOnExit = true
-		}),
-		//Move the text back to start on press released
-		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
-			button.GetWidget().Disabled = false
-			button.Text().Inset.Top = 0
-			button.Text().Inset.Left = 0
-			button.GetWidget().CustomData = false
-		}),
-		widget.ButtonOpts.Text(buttonText, face, &widget.ButtonTextColor{
-			Idle:     color.NRGBA{0, 0, 0, 0xff},
-			Hover:    color.NRGBA{255, 255, 0, 255},
-			Pressed:  color.NRGBA{255, 255, 0, 255},
-			Disabled: color.NRGBA{255, 255, 0, 255},
-		}),
-		widget.ButtonOpts.TextProcessBBCode(true),
-		// specify that the button's text needs some padding for correct display
-		widget.ButtonOpts.TextPadding(widget.Insets{
-			Left:   10,
-			Right:  10,
-			Top:    100,
-			Bottom: 10,
-		}),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.MinSize(120, 100),
-			widget.WidgetOpts.ToolTip(widget.NewToolTip(
-				widget.ToolTipOpts.Content(tooltipContainer),
-				//widget.WidgetToolTipOpts.Delay(1*time.Second),
-				widget.ToolTipOpts.Offset(image.Point{-5, 5}),
-				widget.ToolTipOpts.Position(widget.TOOLTIP_POS_WIDGET),
-				//When the Position is set to TOOLTIP_POS_WIDGET, you can configure where it opens with the optional parameters below
-				//They will default to what you see below if you do not provide them
-				widget.ToolTipOpts.AnchorOriginHorizontal(widget.TOOLTIP_ANCHOR_END),
-				widget.ToolTipOpts.AnchorOriginVertical(widget.TOOLTIP_ANCHOR_END),
-				widget.ToolTipOpts.ContentOriginHorizontal(widget.TOOLTIP_ANCHOR_END),
-				widget.ToolTipOpts.ContentOriginVertical(widget.TOOLTIP_ANCHOR_START),
-			))),
-		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-			if button.GetWidget().Disabled == false {
-				button.GetWidget().Disabled = true
-				ev := events.ButtonClickedEvent{
-					buttonText,
-				}
-				hub.Publish(ev)
-			}
-		}),
-	)
-	buttonStackedLayout.AddChild(button)
-	// Put an image on top of the button, it will be centered.
-	// If your image doesn't fit the button and there is no Y stretching support,
-	// you may see a transparent rectangle inside the button.
-	// To fix that, either use a separate button image (that can fit the image)
-	// or add an appropriate stretching.
-	buttonStackedLayout.AddChild(
-		btnIconG,
-	)
-
-	return buttonStackedLayout, nil
+	})
 }
 
-func LoadStackedButtonWithText(StackedButton *widget.Container, Description string, hub *tasks.EventHub, eventName string) *widget.Container {
-	rootContainer := widget.NewContainer(
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter}),
-		),
-		widget.ContainerOpts.Layout(
-			widget.NewRowLayout(
-				widget.RowLayoutOpts.Spacing(20),
-				widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
-				widget.RowLayoutOpts.Padding(widget.Insets{}),
-			)))
+func uiSpriteActionSubs(mainDat *MainMenuData, magazine *Magazine, ui *ebitenui.UI, hub *tasks.EventHub) {
+	hub.Subscribe(events.UISpriteAction{}, func(e tasks.Event) {
+		ev := e.(events.UISpriteAction)
+		if ev.UiSprite == "pillow" && ev.UiSpriteAction == "clicked" {
+			SendWindowOpened(hub)
+			mainDat.windowOpen = GoToBed
+			mainDat.addRemoveFunc(TriggerNextDayWindow(ui, hub))
+		}
 
-	face, err := util.LoadFont(12, "nk57")
-	if err != nil {
-		log.Fatal(err)
-	}
+		if ev.UiSprite == "magazine" {
+			mainDat.windowOpen = MagazineState
+			SendWindowOpened(hub)
+			mainDat.addRemoveFunc(TriggerMagWindow(magazine, ui, hub))
+		}
 
-	txtContainer := widget.NewContainer(
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter}),
-		),
-		widget.ContainerOpts.Layout(
-			widget.NewRowLayout(
-				widget.RowLayoutOpts.Spacing(20),
-				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-				widget.RowLayoutOpts.Padding(widget.Insets{}),
-			)))
+		if ev.UiSprite == "door" {
+			mainDat.windowOpen = Door
+			switch mainDat.dayType {
+			case "Camp":
+				SendWindowOpened(hub)
+				mainDat.addRemoveFunc(TriggerOptionWindow("Go to Camp?", ui, hub))
+			case "Chores":
+				SendWindowOpened(hub)
+				mainDat.addRemoveFunc(TriggerOptionWindow("Go do your Chores?", ui, hub))
+			}
+		}
 
-	txtImg := LoadBackgroundImageForTextInput(StoreMenu)
-
-	textarea := widget.NewTextArea(
-		widget.TextAreaOpts.ContainerOpts(
-			widget.ContainerOpts.WidgetOpts(
-				widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter}),
-				//Set the layout data for the textarea
-				//including a max height to ensure the scroll bar is visible
-				//Set the minimum size for the widget
-				widget.WidgetOpts.MinSize(250, 90),
-			),
-		),
-
-		widget.TextAreaOpts.ControlWidgetSpacing(2),
-		widget.TextAreaOpts.ProcessBBCode(true),
-		widget.TextAreaOpts.FontColor(color.Black),
-		widget.TextAreaOpts.FontFace(face),
-
-		//Tell the TextArea to show the vertical scrollbar
-		//Set padding between edge of the widget and where the text is drawn
-		widget.TextAreaOpts.TextPadding(
-			widget.Insets{Top: 10, Right: 10, Left: 10, Bottom: 10}),
-		//This sets the background images for the scroll container
-		widget.TextAreaOpts.ScrollContainerOpts(
-			widget.ScrollContainerOpts.Image(txtImg),
-		),
-		//This sets the images to use for the sliders
-		widget.TextAreaOpts.SliderOpts(
-			widget.SliderOpts.Images(
-				// Set the track images
-				&widget.SliderTrackImage{
-					Idle:  eimage.NewNineSliceColor(color.NRGBA{R: 200, G: 200, B: 200, A: 255}),
-					Hover: eimage.NewNineSliceColor(color.NRGBA{R: 200, G: 200, B: 200, A: 255}),
-				},
-				// Set the handle images
-				&widget.ButtonImage{
-					Idle:    eimage.NewNineSliceColor(color.NRGBA{R: 255, G: 100, B: 100, A: 255}),
-					Hover:   eimage.NewNineSliceColor(color.NRGBA{R: 255, G: 100, B: 100, A: 255}),
-					Pressed: eimage.NewNineSliceColor(color.NRGBA{R: 255, G: 100, B: 100, A: 255}),
-				},
-			),
-		),
-	)
-
-	txtContainer.AddChild(textarea)
-	buyButton := LoadSubmitButton(eventName, hub, 12, "")
-	txtContainer.AddChild(buyButton)
-
-	rootContainer.AddChild(StackedButton)
-	rootContainer.AddChild(txtContainer)
-	AppendTextArea(Description, textarea, 35)
-
-	return rootContainer
+		if ev.UiSprite == "phreader" && ev.UiSpriteAction == "ph reading" {
+			SendWindowOpened(hub)
+			mainDat.windowOpen = PHGuess
+			rfunc, tarea := triggerPHwindow(ui, hub)
+			mainDat.textInputReference = tarea
+			mainDat.addRemoveFunc(rfunc)
+		}
+	})
 }
 
-func LoadSpriteSelectButton(buttonText string, hub *tasks.EventHub, fontSize float64) *widget.Button {
-	//load a generic button labeled with button text string that will send a button clicked event to event hub
+func PhGuessWindowButtonEvent(mainDat *MainMenuData, ev events.ButtonClickedEvent, hub *tasks.EventHub) {
+	switch ev.ButtonText {
+	case ">":
+		curr := mainDat.textInputReference.GetText()
+		phVal, err := strconv.ParseFloat(curr, 64)
+		if err != nil {
+			log.Printf("Error parsing '%s': %v", curr, err) // This will show you exactly what's in the string
+		}
+		phVal += 0.1
+		phValStr := fmt.Sprintf("%.1f", phVal)
+		mainDat.textInputReference.SetText(phValStr)
+	case "<":
+		curr := mainDat.textInputReference.GetText()
+		phVal, err := strconv.ParseFloat(curr, 64)
+		if err != nil {
+			log.Printf("Error parsing '%s': %v", curr, err) // This will show you exactly what's in the string
+		}
+		phVal -= 0.1
+		phValStr := fmt.Sprintf("%.1f", phVal)
+		mainDat.textInputReference.SetText(phValStr)
+	case "Guess":
+		curr := mainDat.textInputReference.GetText()
+		phVal, err := strconv.ParseFloat(curr, 64)
+		if err != nil {
+			log.Printf("Error parsing '%s': %v", curr, err) // This will show you exactly what's in the string
+		}
+		ev2 := events.PHGuess{
+			Guess: phVal,
+		}
+		hub.Publish(ev2)
+		mainDat.RemoveFunc([]string{})
 
-	buttonImage, err := loadSpriteSelectButtonImage(buttonText)
-	if err != nil {
-		log.Fatal(err)
 	}
-
-	face, err := util.LoadFont(fontSize, "nk57")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var button = &widget.Button{}
-
-	button = widget.NewButton(
-		// specify the images to use
-		widget.ButtonOpts.Image(buttonImage),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.MinSize(120, 100)),
-		// specify the button's text, the font face, and the color
-		//widget.ButtonOpts.Text("Hello, World!", face, &widget.ButtonTextColor{
-		widget.ButtonOpts.Text(buttonText, face, &widget.ButtonTextColor{
-			Idle:     color.NRGBA{0, 0, 0, 0xff},
-			Hover:    color.NRGBA{255, 255, 0, 255},
-			Pressed:  color.NRGBA{255, 255, 0, 255},
-			Disabled: color.NRGBA{255, 255, 0, 255},
-		}),
-		widget.ButtonOpts.TextProcessBBCode(true),
-		// specify that the button's text needs some padding for correct display
-		widget.ButtonOpts.TextPadding(widget.Insets{
-			Left:   10,
-			Right:  10,
-			Top:    100,
-			Bottom: 10,
-		}),
-		//Move the text down and right on press
-		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
-			ev := events.ButtonClickedEvent{
-				ButtonText: buttonText,
-			}
-
-			button.Text().Inset.Top = 2
-			button.Text().Inset.Left = 2
-			hub.Publish(ev)
-		}),
-		//Move the text back to start on press released
-		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
-			button.Text().Inset.Top = 0
-			button.Text().Inset.Left = 0
-			button.GetWidget().CustomData = false
-			button.GetWidget().Disabled = false
-		}),
-
-		// add a handler that reacts to clicking the button
-		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-
-		}),
-
-		// add a handler that reacts to entering the button with the cursor
-		widget.ButtonOpts.CursorEnteredHandler(func(args *widget.ButtonHoverEventArgs) {
-			//If we moved the Text because we clicked on this button previously, move the text down and right
-			if button.GetWidget().Disabled == false {
-				ev := events.ButtonEvent{
-					buttonText,
-					"cursor entered",
-				}
-				hub.Publish(ev)
-			}
-
-		}),
-
-		// add a handler that reacts to moving the cursor on the button
-		widget.ButtonOpts.CursorMovedHandler(func(args *widget.ButtonHoverEventArgs) {
-		}),
-
-		// add a handler that reacts to exiting the button with the cursor
-		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
-			//ResetVls the Text inset if the cursor is no longer over the button
-			button.Text().Inset.Top = 0
-			button.Text().Inset.Left = 0
-			ev := events.ButtonEvent{
-				buttonText,
-				"cursor exited",
-			}
-			hub.Publish(ev)
-		}),
-	)
-	return button
 }
 
-func LoadBackButton(hub *tasks.EventHub) *widget.Button {
-	buttonImage, err := loadBackButtonImage()
-	if err != nil {
-		log.Fatal(err)
+func MagazineWindowButtonEvent(mainDat *MainMenuData, magazine *Magazine, ui *ebitenui.UI, ev events.ButtonClickedEvent, hub *tasks.EventHub) {
+	switch ev.ButtonText {
+	case "Fish":
+		mainDat.RemoveFunc([]string{"maintainState"})
+		mainDat.addRemoveFunc(TriggerMagWindow(magazine, ui, hub))
+	case "Info":
+		mainDat.RemoveFunc([]string{"maintainState"})
+		mainDat.addRemoveFunc(TriggerMagWindow(magazine, ui, hub))
+	case "Helpers":
+		mainDat.RemoveFunc([]string{"maintainState"})
+		mainDat.addRemoveFunc(TriggerMagWindow(magazine, ui, hub))
+	case "ph+", "ph-":
+		closeWindow(hub, mainDat)
+		magazine.activeIndex = 0
 	}
-
-	var button = &widget.Button{}
-
-	button = widget.NewButton(
-		// specify the images to use
-		widget.ButtonOpts.Image(buttonImage),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.MinSize(40, 68)),
-		// specify the button's text, the font face, and the color
-		//widget.ButtonOpts.Text("Hello, World!", face, &widget.ButtonTextColor{
-		widget.ButtonOpts.TextProcessBBCode(true),
-		// specify that the button's text needs some padding for correct display
-		//Move the text down and right on press
-		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
-			button.GetWidget().CustomData = true
-			button.KeepPressedOnExit = true
-		}),
-		//Move the text back to start on press released
-		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
-			button.Text().Inset.Top = 0
-			button.Text().Inset.Left = 0
-			button.GetWidget().CustomData = false
-		}),
-
-		// add a handler that reacts to clicking the button
-		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-			if button.GetWidget().Disabled == false {
-				ev := events.ButtonClickedEvent{
-					ButtonText: "back",
-				}
-				hub.Publish(ev)
-			}
-
-		}),
-
-		// add a handler that reacts to entering the button with the cursor
-		widget.ButtonOpts.CursorEnteredHandler(func(args *widget.ButtonHoverEventArgs) {
-			//If we moved the Text because we clicked on this button previously, move the text down and right
-			if button.GetWidget().Disabled == false {
-				ev := events.ButtonEvent{
-					ButtonText: "backButton",
-					EType:      "cursor entered",
-				}
-				hub.Publish(ev)
-			}
-
-		}),
-
-		// add a handler that reacts to moving the cursor on the button
-		widget.ButtonOpts.CursorMovedHandler(func(args *widget.ButtonHoverEventArgs) {
-		}),
-
-		// add a handler that reacts to exiting the button with the cursor
-		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
-			//ResetVls the Text inset if the cursor is no longer over the button
-			button.Text().Inset.Top = 0
-			button.Text().Inset.Left = 0
-			ev := events.ButtonEvent{
-				ButtonText: "back",
-				EType:      "cursor exited",
-			}
-			hub.Publish(ev)
-		}),
-	)
-	return button
 }
 
-func LoadSubmitButtonAltEvent(buttonText string, hub *tasks.EventHub, fontSize float64, eventText string) *widget.Button {
-	//load a generic button labeled with button text string that will send a button clicked event to event hub
-	buttonImage := loadSubmitButtonImage()
-
-	face, err := util.LoadFont(fontSize, "nk57")
-	if err != nil {
-		log.Fatal(err)
+func DoorWindowButtonEvent(mainDat *MainMenuData, magazine *Magazine, ui *ebitenui.UI, ev events.ButtonClickedEvent, hub *tasks.EventHub) {
+	switch ev.ButtonText {
+	case "Go to Bed?: Yes":
+		closeWindow(hub, mainDat)
+	case "Go do your Chores?: Yes", "Go do your Chores?: No":
+		mainDat.RemoveFunc([]string{})
+	case "Go to Camp?: Yes", "Go to Camp?: No":
+		mainDat.RemoveFunc([]string{})
 	}
-
-	var button *widget.Button
-
-	button = widget.NewButton(
-		// set general widget options
-		widget.ButtonOpts.WidgetOpts(
-			// instruct the container's anchor layout to center the button both horizontally and vertically
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter}),
-		),
-		// specify the images to use
-		widget.ButtonOpts.Image(buttonImage),
-
-		// specify the button's text, the font face, and the color
-		//widget.ButtonOpts.Text("Hello, World!", face, &widget.ButtonTextColor{
-		widget.ButtonOpts.Text(buttonText, face, &widget.ButtonTextColor{
-			Idle:    color.NRGBA{0, 0, 100, 0xff},
-			Hover:   color.NRGBA{0, 0, 100, 255},
-			Pressed: color.NRGBA{0, 0, 100, 255},
-		}),
-		widget.ButtonOpts.TextProcessBBCode(true),
-		// specify that the button's text needs some padding for correct display
-		widget.ButtonOpts.TextPadding(widget.Insets{
-			Left:   30,
-			Right:  30,
-			Top:    3,
-			Bottom: 3,
-		}),
-		//Move the text down and right on press
-		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-
-		}),
-
-		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
-
-		}),
-
-		//Move the text back to start on press released
-		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
-			if button.GetWidget().Disabled == false {
-				button.GetWidget().Disabled = true
-				println("button event generated for", eventText)
-				ev := events.ButtonClickedEvent{
-					ButtonText: eventText,
-				}
-				hub.Publish(ev)
-			}
-			button.Text().Inset.Top = 2
-			button.Text().Inset.Left = -2
-			button.GetWidget().Disabled = false
-			button.Text().Inset.Top = 0
-			button.Text().Inset.Left = 0
-			button.GetWidget().CustomData = false
-		}),
-		widget.ButtonOpts.CursorMovedHandler(func(args *widget.ButtonHoverEventArgs) {
-		}),
-
-		// add a handler that reacts to exiting the button with the cursor
-		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
-			//ResetVls the Text inset if the cursor is no longer over the button
-			button.Text().Inset.Top = 0
-			button.Text().Inset.Left = 0
-		}),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.MinSize(113, 27)),
-	)
-	return button
-}
-
-func LoadSubmitButton(buttonText string, hub *tasks.EventHub, fontSize float64, eventText string) *widget.Button {
-	//load a generic button labeled with button text string that will send a button clicked event to event hub
-	buttonImage := loadSubmitButtonImage()
-
-	face, err := util.LoadFont(fontSize, "nk57")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var button *widget.Button
-
-	button = widget.NewButton(
-		// set general widget options
-		widget.ButtonOpts.WidgetOpts(
-			// instruct the container's anchor layout to center the button both horizontally and vertically
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter}),
-		),
-		// specify the images to use
-		widget.ButtonOpts.Image(buttonImage),
-
-		// specify the button's text, the font face, and the color
-		//widget.ButtonOpts.Text("Hello, World!", face, &widget.ButtonTextColor{
-		widget.ButtonOpts.Text(buttonText, face, &widget.ButtonTextColor{
-			Idle:    color.NRGBA{0, 0, 100, 0xff},
-			Hover:   color.NRGBA{0, 0, 100, 255},
-			Pressed: color.NRGBA{0, 0, 100, 255},
-		}),
-		widget.ButtonOpts.TextProcessBBCode(true),
-		// specify that the button's text needs some padding for correct display
-		widget.ButtonOpts.TextPadding(widget.Insets{
-			Left:   30,
-			Right:  30,
-			Top:    3,
-			Bottom: 3,
-		}),
-		//Move the text down and right on press
-		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-
-		}),
-
-		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
-
-		}),
-
-		//Move the text back to start on press released
-		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
-			if button.GetWidget().Disabled == false {
-				button.GetWidget().Disabled = true
-				if eventText == "" {
-					println("button event generated for", buttonText)
-					ev := events.ButtonClickedEvent{
-						ButtonText: buttonText,
-					}
-					hub.Publish(ev)
-				} else {
-					println("button event generated for", eventText)
-					ev := events.ButtonClickedEvent{
-						ButtonText: eventText,
-					}
-					hub.Publish(ev)
-				}
-			}
-			button.Text().Inset.Top = 2
-			button.Text().Inset.Left = -2
-			button.GetWidget().Disabled = false
-			button.Text().Inset.Top = 0
-			button.Text().Inset.Left = 0
-			button.GetWidget().CustomData = false
-		}),
-		widget.ButtonOpts.CursorMovedHandler(func(args *widget.ButtonHoverEventArgs) {
-		}),
-
-		// add a handler that reacts to exiting the button with the cursor
-		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
-			//ResetVls the Text inset if the cursor is no longer over the button
-			button.Text().Inset.Top = 0
-			button.Text().Inset.Left = 0
-		}),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.MinSize(113, 27)),
-	)
-	return button
-}
-
-func LoadButton(buttonText string, hub *tasks.EventHub, fontSize float64) *widget.Button {
-	//load a generic button labeled with button text string that will send a button clicked event to event hub
-	buttonImage := loadSubmitButtonImage()
-
-	face, err := util.LoadFont(fontSize, "nk57")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var button *widget.Button
-
-	button = widget.NewButton(
-		// set general widget options
-		widget.ButtonOpts.WidgetOpts(
-			// instruct the container's anchor layout to center the button both horizontally and vertically
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-		// specify the images to use
-		widget.ButtonOpts.Image(buttonImage),
-
-		// specify the button's text, the font face, and the color
-		//widget.ButtonOpts.Text("Hello, World!", face, &widget.ButtonTextColor{
-		widget.ButtonOpts.Text(buttonText, face, &widget.ButtonTextColor{
-			Idle:    color.NRGBA{0, 0, 0, 0xff},
-			Hover:   color.NRGBA{0, 255, 128, 255},
-			Pressed: color.NRGBA{255, 0, 0, 255},
-		}),
-		widget.ButtonOpts.TextProcessBBCode(true),
-		// specify that the button's text needs some padding for correct display
-		widget.ButtonOpts.TextPadding(widget.Insets{
-			Left:   30,
-			Right:  30,
-			Top:    3,
-			Bottom: 3,
-		}),
-		//Move the text down and right on press
-		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
-			ev := events.ButtonClickedEvent{
-				ButtonText: buttonText,
-			}
-			hub.Publish(ev)
-		}),
-		//Move the text back to start on press released
-		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
-			button.Text().Inset.Top = 0
-			button.Text().Inset.Left = 0
-			button.GetWidget().CustomData = false
-		}),
-		// add a handler that reacts to clicking the button
-		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-			ev := events.ButtonClickedEvent{
-				ButtonText: buttonText,
-			}
-
-			hub.Publish(ev)
-
-		}),
-
-		// add a handler that reacts to entering the button with the cursor
-		widget.ButtonOpts.CursorEnteredHandler(func(args *widget.ButtonHoverEventArgs) {
-			//If we moved the Text because we clicked on this button previously, move the text down and right
-			if button.GetWidget().CustomData == true {
-				button.Text().Inset.Top = 4
-				button.Text().Inset.Left = 4
-			}
-		}),
-
-		// add a handler that reacts to moving the cursor on the button
-		widget.ButtonOpts.CursorMovedHandler(func(args *widget.ButtonHoverEventArgs) {
-		}),
-
-		// add a handler that reacts to exiting the button with the cursor
-		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
-			//ResetVls the Text inset if the cursor is no longer over the button
-			button.Text().Inset.Top = 0
-			button.Text().Inset.Left = 0
-		}),
-	)
-	return button
-}
-
-func LoadHeader(headerText string, face text.Face) *widget.Container {
-	headerContainer := widget.NewContainer(
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				VerticalPosition:   widget.AnchorLayoutPositionStart,
-				HorizontalPosition: widget.AnchorLayoutPositionStart,
-				StretchHorizontal:  false,
-				StretchVertical:    false,
-			}),
-		),
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-	)
-
-	headerLbl := widget.NewText(
-		widget.TextOpts.Text(headerText, face, color.RGBA{R: 0, G: 160, B: 0, A: 255}),
-		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
-		widget.TextOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				VerticalPosition:   widget.AnchorLayoutPositionStart,
-				HorizontalPosition: widget.AnchorLayoutPositionEnd,
-				StretchHorizontal:  false,
-				StretchVertical:    false,
-			}),
-		),
-		widget.TextOpts.Insets(widget.Insets{
-			Left:   30,
-			Right:  10,
-			Top:    50,
-			Bottom: 600,
-		}),
-	)
-
-	headerContainer.AddChild(headerLbl)
-
-	return headerContainer
 }

@@ -2,12 +2,13 @@
 package main
 
 var Counter int
+var Speed float
 
 func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
       color := imageSrc0UnsafeAt(texCoord)
       if color.a > 0.0{
-        if int(dstCoord.x) <= Counter{
-               return color
+            if dstCoord.x <= float(Counter)*Speed{
+                return color
       }
        if int(dstCoord.x) <= Counter+50{
               dis := float(Counter) + 50.0 - dstCoord.x

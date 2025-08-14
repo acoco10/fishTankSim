@@ -1,6 +1,8 @@
 package debug
 
-import "github.com/acoco10/fishTankWebGame/game/geometry"
+import (
+	"github.com/acoco10/fishTankWebGame/game/util"
+)
 
 type DebugOption uint8
 
@@ -20,7 +22,7 @@ const (
 
 type DebugData struct {
 	DebugText      string
-	DebugRect      *geometry.Rect
+	DebugRect      *util.Rect
 	DebugParameter map[DebugOption]bool
 	GameMode       GameMode
 }

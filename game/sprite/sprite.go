@@ -3,6 +3,8 @@ package sprite
 import (
 	"github.com/acoco10/QuickDrawAdventure/animations"
 	"github.com/acoco10/QuickDrawAdventure/spriteSheet"
+	"github.com/acoco10/fishTankWebGame/game/registry"
+	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image"
@@ -11,28 +13,52 @@ import (
 )
 
 type Sprite struct {
-	Img                *ebiten.Image
-	NormalMap          *ebiten.Image
-	Scale              float64
-	X, Y               float32
-	Z                  int
-	Dy, Dx             float32
-	Shader             *ebiten.Shader
-	ShaderParams       map[string]any
-	CPUShaderParams    map[string]any
-	UpdateShaderParams func(map[string]any) map[string]any
-	UpdateBothParams   func(map[string]any, map[string]any) (map[string]any, map[string]any)
-	remove             bool
-	UpdateFunc         func(s *Sprite)
-	effect             *AnimatedSprite
-	highlight          bool
-	DoptsUpdaterTag    string
-	DoptsUpdaterParams map[string]float64
+	LayerIndex                     int
+	Img                            *ebiten.Image
+	NormalMap                      *ebiten.Image
+	Flip                           bool
+	LinkedSprite                   *Sprite
+	Scale                          float64
+	X, Y                           float32 //these could really be 64
+	Z                              int     //not used yet, layer based not math based haha
+	Dy, Dx                         float32 //these could really be 64
+	Shader                         *ebiten.Shader
+	ShaderParams                   map[string]any
+	CPUShaderParams                map[string]any
+	UpdateShaderParams             func(map[string]any) map[string]any
+	UpdateBothParams               func(map[string]any, map[string]any) (map[string]any, map[string]any)
+	Remove                         bool //stop drawing this sprite
+	UpdateFunc                     func(s *Sprite)
+	PublishedGraphicId             []int
+	Focused                        bool
+	Unfocusable                    bool
+	AbleToBeUnfocusedAutomatically bool
+	highlight                      bool
+	DOptsUpdaterTag                string //for animating with external function
+	DOptsUpdaterParams             map[string]float64
+	*XYUpdater
+	*animations.Animation
+	*spritesheet.SpriteSheet
+	frameImg   *ebiten.Image
+	drawOpts   *ebiten.DrawImageOptions
+	shaderOpts *ebiten.DrawRectShaderOptions //flexible interface for animation checks needed at draw or update time
 }
 
+func (s *Sprite) SavePublishedGraphicID(id int) {
+	s.PublishedGraphicId = append(s.PublishedGraphicId, id)
+}
 func (s *Sprite) Update() {
-	if s.DoptsUpdaterParams == nil {
-		s.DoptsUpdaterParams = make(map[string]float64)
+	if s.XYUpdater != nil {
+		s.XYUpdater.Update(s)
+	}
+	if s.LinkedSprite != nil {
+		s.LinkedSprite.Update()
+	}
+	if s.Animation != nil {
+		UpdateSpriteAnimation(s)
+	}
+	if s.DOptsUpdaterParams == nil {
+		s.DOptsUpdaterParams = make(map[string]float64)
 	}
 
 	if s.UpdateFunc != nil {
@@ -42,14 +68,57 @@ func (s *Sprite) Update() {
 	s.UpdateShader()
 }
 
+func (s *Sprite) Focus() {
+	if s.NormalMap == nil {
+		s.Shader = registry.ShaderMap["Outline"]
+		if s.ShaderParams == nil {
+			log.Fatal("nil shader param issue when focusing sprite")
+		}
+		s.ShaderParams["OutlineColor"] = [4]float32{0.9, 0.9, 0.2, 1.0}
+		s.Focused = true
+	} else {
+		s.Shader = registry.ShaderMap["NormalMapOutline"]
+		if s.ShaderParams == nil {
+			log.Fatal("nil shader param issue when focusing sprite")
+		}
+		s.ShaderParams["OutlineColor"] = [4]float32{0.9, 0.9, 0.2, 1.0}
+		s.Focused = true
+	}
+}
+
+func (s *Sprite) UnFocus() {
+	if s.NormalMap != nil {
+		s.Shader = registry.ShaderMap["NormalMap"]
+	} else {
+		s.Shader = nil
+	}
+	s.Focused = false
+
+}
+
 func (s *Sprite) Draw(screen *ebiten.Image) {
+	if s.LinkedSprite != nil {
+		s.LinkedSprite.Draw(screen)
+	}
+	if s.Animation != nil {
+		DrawAnimation(s, screen)
+		return
+	}
+
+	if s.Img == nil {
+		log.Println("sprite with no img trying to draw")
+		return
+	}
 
 	if s.Shader != nil {
 		shaderOpts := &ebiten.DrawRectShaderOptions{}
 
-		degrees, exists := s.DoptsUpdaterParams["degree"]
+		degrees, exists := s.DOptsUpdaterParams["degree"]
 		if exists {
 			shaderOpts.GeoM.Rotate(degrees)
+		}
+		if s.Scale != 0.0 {
+			shaderOpts.GeoM.Scale(s.Scale, s.Scale)
 		}
 		shaderOpts.GeoM.Translate(float64(s.X), float64(s.Y))
 		shaderOpts.Images[0] = s.Img
@@ -61,11 +130,11 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 	}
 
 	dOpts := &ebiten.DrawImageOptions{}
-	if s.DoptsUpdaterTag == "spin" {
+	if s.DOptsUpdaterTag == "spin" {
 		spinAnimation(s, dOpts)
 	}
 
-	degrees, exists := s.DoptsUpdaterParams["degree"]
+	degrees, exists := s.DOptsUpdaterParams["degree"]
 	if exists {
 		dOpts.GeoM.Rotate(degrees)
 	}
@@ -81,16 +150,16 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 }
 
 func (s *Sprite) ShouldRemove() bool {
-	return s.remove
+	return s.Remove
 }
 
 func spinAnimation(s *Sprite, dOpts *ebiten.DrawImageOptions) {
-	theta := s.DoptsUpdaterParams["degree"]
+	theta := s.DOptsUpdaterParams["degree"]
 	dOpts.GeoM.Rotate(theta)
 	dOpts.GeoM.Translate(float64(s.Img.Bounds().Dx()/2), float64(s.Img.Bounds().Dy()/2))
-	s.DoptsUpdaterParams["degree"] += 0.1
-	if s.DoptsUpdaterParams["degree"] >= math.Pi {
-		s.DoptsUpdaterTag = ""
+	s.DOptsUpdaterParams["degree"] += 0.1
+	if s.DOptsUpdaterParams["degree"] >= math.Pi {
+		s.DOptsUpdaterTag = ""
 	}
 }
 
@@ -112,38 +181,62 @@ func (s *Sprite) UpdateShader() {
 }
 
 func (s *Sprite) SpriteHovered() bool {
-	x, y := ebiten.CursorPosition()
+	x, y := util.GetScaledCursorPosition()
+
+	cpt := image.Point{x, y}
+	rect := s.getSpriteRect()
+	return cpt.In(rect)
+
+	/*	pixelX := point.X - int(s.X)
+		pixelY := point.Y - int(s.Y)
+		_, _, _, a := s.Img.At(pixelX, pixelY).RGBA()
+		s.Img.Bounds()
+
+		if a != 0.0 {
+			return true
+		}*/
+
+}
+
+func (s *Sprite) getSpriteRect() image.Rectangle {
+	b := s.Img.Bounds()
+	width := b.Dx()
+	height := b.Dy()
+	rect := image.Rect(int(s.X), int(s.Y), int(s.X)+width, int(s.Y)+height)
+
+	if s.Animation != nil && s.frameImg != nil {
+		b = s.frameImg.Bounds()
+		width = b.Dx()
+		height = b.Dy()
+		rect = image.Rect(int(s.X), int(s.Y), int(s.X)+width, int(s.Y)+height)
+		if s.Flip {
+			rect = image.Rect(int(s.X)-width, int(s.Y), int(s.X), int(s.Y)+height)
+		}
+	}
+
+	return rect
+}
+
+func (s *Sprite) SpriteHoveredWithBuffer(buffer int) bool {
+	x, y := util.GetScaledCursorPosition()
 	point := image.Point{X: x, Y: y}
-	rect := s.Img.Bounds()
 
-	if rect.Max.X < 50 {
-		rect.Max.X += 25
-		rect.Min.X -= 25
-	}
+	bounds := s.Img.Bounds()
+	width := bounds.Dx()
+	height := bounds.Dy()
 
-	if rect.Max.Y < 50 {
-		rect.Max.Y += 25
-		rect.Min.Y -= 25
-	}
+	rect := image.Rect(
+		int(s.X)-buffer,
+		int(s.Y)-buffer,
+		int(s.X)+width+buffer,
+		int(s.Y)+height+buffer+20, // If you need extra bottom padding
+	)
 
-	rect.Min.X += int(s.X)
-	rect.Min.Y += int(s.Y)
-	rect.Max.X += int(s.X)
-	rect.Max.Y += int(s.Y)
 	return point.In(rect)
 }
 
 type AnimatedSprite struct {
 	*Sprite
-	*animations.Animation
-	*spritesheet.SpriteSheet
-	frameImg   *ebiten.Image
-	drawOpts   *ebiten.DrawImageOptions
-	shaderOpts *ebiten.DrawRectShaderOptions
-}
-
-func (s *Sprite) AddEffect() {
-
 }
 
 func (s *Sprite) Coord() (float32, float32) {
@@ -167,7 +260,7 @@ func (s *Sprite) CheckOverlap(sprite Sprite) bool {
 	return s.Img.Bounds().Overlaps(sprite.Img.Bounds())
 }
 
-func (as *AnimatedSprite) Update() {
+func UpdateSpriteAnimation(as *Sprite) {
 
 	shaderOpts := &ebiten.DrawRectShaderOptions{}
 
@@ -189,28 +282,37 @@ func (as *AnimatedSprite) Update() {
 	as.drawOpts = drawOpts
 	as.UpdateShader()
 	as.Animation.Update()
-	as.UpdateSpriteFrameImg()
-
+	UpdateSpriteFrameImg(as)
 }
 
-func (as *AnimatedSprite) UpdateSpriteFrameImg() {
+func UpdateSpriteFrameImg(as *Sprite) {
 	frame := as.Frame()
 	frameRect := as.SpriteSheet.Rect(frame)
 	img := as.Img.SubImage(frameRect).(*ebiten.Image)
 	as.frameImg = img
 }
-func (as *AnimatedSprite) GetFirstFrameAsStaticImage() *ebiten.Image {
+
+func (as *Sprite) GetFirstFrameAsStaticImage() *ebiten.Image {
 	frameRect := as.SpriteSheet.Rect(1)
 	img := as.Img.SubImage(frameRect).(*ebiten.Image)
 	return img
 }
-func (as *AnimatedSprite) Draw(screen *ebiten.Image) {
+
+func DrawAnimation(as *Sprite, screen *ebiten.Image) {
 	frame := as.Frame()
 	frameRect := as.SpriteSheet.Rect(frame)
 	img := as.Img.SubImage(frameRect).(*ebiten.Image)
-
+	if as.frameImg != nil {
+		// for debugging cursor hovered
+		/*	rect := as.getSpriteRect()
+			if as.SpriteHovered() {
+				vector.StrokeRect(screen, float32(rect.Min.X), float32(rect.Min.Y), float32(rect.Dx()), float32(rect.Dy()), 2.0, colornames.Teal, false)
+			} else {
+				vector.StrokeRect(screen, float32(rect.Min.X), float32(rect.Min.Y), float32(rect.Dx()), float32(rect.Dy()), 2.0, colornames.Crimson, false)
+			}*/
+	}
 	if as.NormalMap != nil {
-		as.DrawNormal(screen)
+		DrawNormal(as, screen)
 		return
 	}
 
@@ -225,10 +327,11 @@ func (as *AnimatedSprite) Draw(screen *ebiten.Image) {
 		as.drawOpts = &ebiten.DrawImageOptions{}
 		as.drawOpts.GeoM.Translate(float64(as.X), float64(as.Y))
 	}
+
 	screen.DrawImage(img, as.drawOpts)
 }
 
-func (as *AnimatedSprite) DrawNormal(screen *ebiten.Image) {
+func DrawNormal(as *Sprite, screen *ebiten.Image) {
 
 	if as.shaderOpts == nil {
 		log.Printf("nil shader opts")
@@ -237,7 +340,7 @@ func (as *AnimatedSprite) DrawNormal(screen *ebiten.Image) {
 	}
 
 	if as.Shader == nil {
-		shader := shaders.LoadNormalMapShader()
+		shader := registry.ShaderMap["NormalMap"]
 		as.Shader = shader
 	}
 
@@ -264,7 +367,7 @@ func (as *AnimatedSprite) DrawNormal(screen *ebiten.Image) {
 	screen.DrawRectShader(b.Dx(), b.Dy(), as.Shader, as.shaderOpts)
 }
 
-func (as *AnimatedSprite) UpdateOpts(options any) {
+func (as *Sprite) UpdateOpts(options any) {
 
 	opts, ok := options.(*ebiten.DrawImageOptions)
 	if ok {
@@ -278,24 +381,14 @@ func (as *AnimatedSprite) UpdateOpts(options any) {
 
 }
 
-func NewAnimatedSprite() *AnimatedSprite {
-
-	as := AnimatedSprite{
-		Sprite:      &Sprite{},
-		Animation:   &animations.Animation{},
-		SpriteSheet: &spritesheet.SpriteSheet{},
-		frameImg:    &ebiten.Image{},
+func (s *Sprite) ChangeAnimationSpeed(newSpeed float32) {
+	if s.Animation != nil {
+		s.Animation.SpeedInTPS = newSpeed
 	}
-
-	return &as
-}
-
-func (as *AnimatedSprite) ChangeAnimationSpeed(newSpeed float32) {
-	as.Animation.SpeedInTPS = newSpeed
 }
 
 func LoadPulseOutlineShader(us *Sprite) {
-	ols := shaders.LoadOutlineShader()
+	ols := registry.ShaderMap["Outline"]
 	us.Shader = ols
 	us.ShaderParams["Opacity"] = float32(0.0)
 	us.ShaderParams["OutlineColor"] = [4]float32{0.2, 0.7, 0.2, 1.0}
