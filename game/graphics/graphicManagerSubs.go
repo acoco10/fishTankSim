@@ -76,6 +76,7 @@ func WhiteBoardGMSubs(manager *GraphicManager, hub *tasks.EventHub) {
 
 	hub.Subscribe(events.DayOver{}, func(e tasks.Event) {
 		AddClothGraphiC(manager)
+		manager.Timers["DeInit"].TurnOn()
 		manager.Params["Index"] = 0
 	})
 

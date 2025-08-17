@@ -12,6 +12,7 @@ const (
 type Point struct {
 	X, Y  float32
 	PType InterestPoint
+	Tag   string
 }
 
 func (p *Point) PointCoord() (float32, float32) {
@@ -26,5 +27,6 @@ func (p *Point) Clone() *Point {
 		X:     p.X,
 		Y:     p.Y,
 		PType: p.PType,
+		Tag:   p.Tag,
 	}
 }

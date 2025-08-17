@@ -33,6 +33,9 @@ func (p *Particle) ShouldRemove() bool {
 func (p *Particle) float() {
 	vy := 10.0
 	dx := float32(-5.0)
+	if p.Point.Tag == "left" {
+		dx = float32(5)
+	}
 	if p.underWater {
 		dx = -0.01
 		p.underWaterCounter++
@@ -71,7 +74,7 @@ func (p *Particle) Update() {
 
 func (p *Particle) Draw(screen *ebiten.Image) {
 	clr := color.RGBA{255, 234, 0, 255}
-	vector.DrawFilledCircle(screen, p.Point.X, p.Point.Y, 2, clr, false)
+	vector.DrawFilledCircle(screen, p.Point.X, p.Point.Y, 1, clr, false)
 }
 
 func NewParticle(point *util.Point, rect image.Rectangle, hub *tasks.EventHub) *Entity {

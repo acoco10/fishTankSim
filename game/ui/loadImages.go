@@ -218,8 +218,8 @@ func loadOptionsMenuInputImage() (*eimage.NineSlice, error) {
 	}
 
 	nineSliceImage := eimage.NewNineSlice(img,
-		[3]int{10, img.Bounds().Dx() - 20, 10}, // left, middle, right
-		[3]int{10, img.Bounds().Dy() - 20, 10})
+		[3]int{11, img.Bounds().Dx() - 22, 11}, // left, middle, right
+		[3]int{11, img.Bounds().Dy() - 22, 11})
 	return nineSliceImage, nil
 }
 

@@ -70,14 +70,6 @@ func NewGraphicText(face text.Face, face2 text.Face, outputText *string, x float
 	}
 
 	ft.face2 = face2
-
-	shaderParams := make(map[string]any)
-	shaderParams["OutlineColor"] = [4]float64{0, 0, 0, 1.0}
-	shaderParams["OutlineThickness"] = 4.0
-	shaderParams["TextureSize"] = []float64{width, height}
-	shaderParams["OutlineStyle"] = 1
-
-	ft.shaderParams = shaderParams
 	return ft.GraphicId
 
 }

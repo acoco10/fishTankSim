@@ -227,7 +227,7 @@ func (t *TextBoxUi) subs(tp TextBoxType) {
 				switch ev.Data {
 				default:
 					t.ReplaceTextArea(ev.Data)
-					t.text.GetWidget().Visibility = widget.Visibility_Show
+					//t.text.GetWidget().Visibility = widget.Visibility_Show
 				}
 			}
 		})

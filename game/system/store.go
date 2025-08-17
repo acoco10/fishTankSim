@@ -27,17 +27,11 @@ func NewStore(eHub *tasks.EventHub) *Store {
 }
 
 func (s *Store) Subscribe(eHub *tasks.EventHub) {
-
 	eHub.Subscribe(events.BuyAttempt{}, func(e tasks.Event) {
 		ev := e.(events.BuyAttempt)
-		s.tryingToBuy = ev.Name
+		s.tryingToBuy = ev.Item
 		pev := events.MoneySpent{Amount: ev.Cost}
 		eHub.Publish(pev)
-	})
-
-	eHub.Subscribe(events.PurchaseSuccessful{}, func(e tasks.Event) {
-		ev := events.NewPurchase{Purchase: s.tryingToBuy, PurchaseType: "Fish"}
-		eHub.Publish(ev)
 	})
 
 }

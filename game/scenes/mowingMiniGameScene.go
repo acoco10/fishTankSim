@@ -20,18 +20,21 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"golang.org/x/image/colornames"
 	"image"
 	"image/color"
 	"log"
+	"math"
 	"strconv"
+	time2 "time"
 )
 
 const (
-	mapWidth      = 15
-	mapHeight     = 12
-	time          = 10
+	mapWidth      = 20
+	mapHeight     = 11
+	time          = 30
 	treePositionX = 0
 	treePositionY = 0
 )
@@ -44,32 +47,37 @@ const (
 	finished
 )
 
+var SoundPlayer *soundFX.SoundPlayer
+
 type MowingScene struct {
-	images            map[string]*ebiten.Image
-	state             mowState
-	smallerResolution *ebiten.Image
-	gameLog           *sceneManagement.GameLog
-	isLoaded          bool
-	gameMap           [mapHeight][mapWidth]int
-	locationMap       [mapHeight][mapWidth]int
-	colliders         []image.Rectangle
-	character         *entities.TankCharacter
-	score             int
-	time              float64
-	timeString        string
-	scoreString       string
-	timers            map[string]*util.Timer
-	allowanceTime     bool
-	allowanceString   string
-	allowance         float64
-	mowerStarted      bool
-	collisionsOccured []entities.Collision
-	direction         string
-	debug             bool
-	ui                *ebitenui.UI
-	sprites           []*sprite.Sprite
-	returnScene       sceneManagement.SceneId
-	removeWindowFunc  widget.RemoveWindowFunc
+	images             map[string]*ebiten.Image
+	state              mowState
+	gameState          *SceneStateMachine
+	smallerResolution  *ebiten.Image
+	brush              *ebiten.Image
+	gameLog            *sceneManagement.GameLog
+	isLoaded           bool
+	gameMap            [mapHeight][mapWidth]int
+	locationMap        [mapHeight][mapWidth]int
+	colliders          []image.Rectangle
+	character          *entities.Entity
+	score              int
+	time               float64
+	timeString         string
+	mowedOverLay       *ebiten.Image
+	scoreString        string
+	timers             map[string]*util.Timer
+	allowanceTime      bool
+	allowanceString    string
+	allowance          float64
+	collisionsOccurred []entities.Collision
+	direction          string
+	frameCount         int
+	debug              bool
+	ui                 *ebitenui.UI
+	sprites            []*sprite.Sprite
+	returnScene        sceneManagement.SceneId
+	removeWindowFunc   widget.RemoveWindowFunc
 }
 
 func NewMowingScene(gameLog *sceneManagement.GameLog) *MowingScene {
@@ -80,82 +88,163 @@ func NewMowingScene(gameLog *sceneManagement.GameLog) *MowingScene {
 	s.gameMap = LoadMap()
 	s.sprites = LoadMowSprites(s.images)
 	s.colliders = loadMapCollisions(s.gameMap)
-
+	s.mowedOverLay = ebiten.NewImage(ScreenWidth, ScreenHeight)
+	s.brush = s.images["grassBrush"]
 	s.timers = make(map[string]*util.Timer)
 	s.timers["calcAllowance"] = util.NewTimer(0.3)
 
 	s.smallerResolution = ebiten.NewImage(ScreenWidth, ScreenHeight)
 
+	SoundPlayer = s.gameLog.SoundPlayer
 	LoadChar(s)
 
-	//graphics.NewUpdateAbleTextGraphic(&s.direction, 300, 200)
 	s.time = time
-	s.character.Update([]entities.Collision{})
 	s.returnScene = sceneManagement.MowingMiniGameScene
+
+	gameStates := make(map[int]*MowSceneStateHandler)
+	gameStates[1] = &MowSceneStateHandler{Updater: GameJustStartedUpdate, TransitionTo: 2, TransitionFunc: mowTransition}
+	gameStates[2] = &MowSceneStateHandler{Updater: GameMowingState, TransitionTo: 3, TransitionFunc: overSceneTransition}
+	gameStates[3] = &MowSceneStateHandler{Updater: CalcScoreState, TransitionTo: 0}
+	s.gameState = &SceneStateMachine{States: gameStates, CurrentState: 1}
 	return s
 }
 
-func (s *MowingScene) Update() (sceneManagement.SceneId, error) {
-	if s.state == loaded || s.state == finished {
-		s.ui.Update()
+type SceneStateMachine struct {
+	States       map[int]*MowSceneStateHandler
+	CurrentState int
+}
+
+type MowSceneStateHandler struct {
+	Updater        func(s *MowingScene)
+	TransitionFunc func(s *MowingScene)
+	TransitionTo   int
+}
+
+func (s *SceneStateMachine) Transition(m *MowingScene) {
+	if s.States[s.CurrentState].TransitionFunc != nil {
+		s.States[s.CurrentState].TransitionFunc(m)
 	}
+	s.CurrentState = s.States[s.CurrentState].TransitionTo
+}
 
-	updateMowingTimers(s, s.timers)
+func mowTransition(s *MowingScene) {
+	graphics.NewUpdateAbleTextGraphic(&s.scoreString, 10, 10)
+	graphics.NewUpdateAbleTextGraphic(&s.timeString, 140, 10)
+}
 
-	if s.time < 0.1 && s.time > 0.0 {
-		s.timers["calcAllowance"].TurnOn()
-		returnmsg := fmt.Sprintf("Times up! Square footage mowed: %d", s.score)
-		graphics.NewFadeInTextGraphic(returnmsg, 400, 200)
+func UpdateMowerCharacter(ent *entities.Entity) {
+	if ent.StateMachine != nil {
+		ent.StateMachine.States[ent.StateMachine.CurrentState].Updater(ent)
 	}
+}
 
-	if s.time <= 0.0 {
+func GameJustStartedUpdate(s *MowingScene) {
+	s.ui.Update()
+}
+
+func GameMowingState(s *MowingScene) {
+	s.frameCount++
+	UpdateMowerCharacter(s.character)
+	updateTimeAndScore(s)
+	if s.time <= 0 {
+		s.gameState.Transition(s)
+	}
+}
+
+func CalcScoreState(s *MowingScene) {
+	s.frameCount++
+	s.allowanceString = fmt.Sprintf("Allowance Earned: $ %0.2f", s.allowance)
+	msg := fmt.Sprintf("Allowance Earned: $ %0.2f", s.allowance)
+	if s.frameCount == 120 {
+		graphics.NewUpdateAbleTextGraphic(&s.allowanceString, ScreenWidth/2, ScreenHeight/2+20)
+	}
+	if s.frameCount > 120 {
 		updateScoreAfterTimeLimit(s)
-	} else {
-		updateTimeAndScore(s)
-		if s.character.Moving {
+	}
+	if s.frameCount == 600 {
 
-			if !ebiten.IsKeyPressed(ebiten.KeySpace) {
-				//keep space bar held to keep mower on
-				s.mowerStarted = false
-				s.character.Sprite = s.character.AnimationMap["StartUp"]
-				s.character.Sprite.X = s.character.AnimationMap["Moving"].X
-				s.character.Sprite.Y = s.character.AnimationMap["Moving"].Y
-			}
-		}
+		/*	msg := "Press r to try again"
+			graphics.NewUpdateAbleTextGraphic(&msg, ScreenWidth/2, ScreenHeight/2+45)*/
+	}
 
-		if s.character.Moving == false {
-			s.mowerStarted = false
-			s.character.Sprite = s.character.AnimationMap["StartUp"]
-			if ebiten.IsKeyPressed(ebiten.KeySpace) && ebiten.IsKeyPressed(ebiten.KeyU) {
-				if s.character.Sprite.Frame() == s.character.Sprite.LastF {
-					//last frame of startup = start mower
-					s.mowerStarted = true
-					s.character.Moving = true
-					s.character.Sprite.Animation.Reset()
-				}
-			}
-		}
+	fmt.Printf("Local: '%s' (len=%d)\n", msg, len(msg))
+	fmt.Printf("Struct: '%s' (len=%d)\n", s.allowanceString, len(s.allowanceString))
+	fmt.Printf("Equal: %t\n", msg == s.allowanceString)
 
-		for _, sp := range s.sprites {
-			sp.Update()
-		}
+}
 
-		s.collisionsOccured = CheckCollision(s.character.Corners, s.colliders)
-		s.character.Update(s.collisionsOccured)
-		s.updateScore()
+func overSceneTransition(s *MowingScene) {
+	SoundPlayer.Pause()
+	s.frameCount = 0
+	msg := "Times Up!"
+	graphics.NewUpdateAbleTextGraphic(&msg, ScreenWidth/2, ScreenHeight/2-5)
+}
 
-		if s.debug {
-			s.debugUpdate()
-		}
-
-		graphics.UpdateGraphics()
+func (s *MowingScene) Update() (sceneManagement.SceneId, error) {
+	s.gameLog.SoundPlayer.Update()
+	graphics.UpdateGraphics()
+	if inpututil.IsKeyJustPressed(ebiten.KeyR) {
+		return sceneManagement.Reset, nil
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyD) {
+		s.debug = true
+	}
+	s.gameState.States[s.gameState.CurrentState].Updater(s)
+	if s.debug {
+		s.debugUpdate()
 	}
 
 	return s.returnScene, nil
 }
 
+func Crash(character *entities.Entity) {
+	SoundPlayer.Pause()
+	SoundPlayer.Play(soundFX.Crash)
+	time2.AfterFunc(1*time2.Second, func() { SoundPlayer.Pause() })
+	id := graphics.NewFadeInTextGraphic("Crash!",
+		float64(character.Sprite.X+4)*3,
+		float64(character.Sprite.Y+2)*3)
+
+	eff := entImportableLoaders.LoadStaticEffect("Crash", character.Sprite.X-32, character.Sprite.Y-32, "")
+	id2 := graphics.AddGraphic(&graphics.SpriteGraphic{Sprite: *eff})
+	time2.AfterFunc(1*time2.Second, func() { graphics.DeInitGraphicId(id) })
+	time2.AfterFunc(1*time2.Second, func() { graphics.DeInitGraphicId(id2) })
+
+	character.Sprite.PublishedGraphicId = append(character.Sprite.PublishedGraphicId, id, id2)
+	character.StateMachine.Transition()
+}
+
+func Mowing(character *entities.Entity) {
+	character.Update(character.TankMovement.WorldBoundaries)
+}
+
+func JustStarted(character *entities.Entity) {
+
+	if character.Sprite != character.AnimationMap["StartUp"] {
+		character.Sprite = character.AnimationMap["StartUp"]
+		character.Sprite.X = character.AnimationMap["Moving"].X
+		character.Sprite.Y = character.AnimationMap["Moving"].Y
+	}
+
+	if ebiten.IsKeyPressed(ebiten.KeySpace) && ebiten.IsKeyPressed(ebiten.KeyU) {
+		SoundPlayer.Play(soundFX.FailedStart)
+		character.Sprite.Update()
+	} else if character.Sprite.Frame() != 0 {
+		SoundPlayer.Pause()
+		character.Sprite.Animation.Reset()
+	}
+	if character.Sprite.Frame() == character.Sprite.LastF {
+		SoundPlayer.Pause()
+		SoundPlayer.Play(soundFX.MowerRunning)
+		character.Sprite.Animation.Reset()
+		//transferState
+		character.Sprite = character.AnimationMap["Moving"]
+		character.StateMachine.Transition()
+	}
+}
+
 func (s *MowingScene) debugUpdate() {
-	switch s.character.Direction {
+	switch s.character.TankMovement.Direction {
 	case entities.CharRight:
 		s.direction = "right"
 	case entities.CharLeft:
@@ -167,20 +256,6 @@ func (s *MowingScene) debugUpdate() {
 	}
 }
 
-func (s *MowingScene) updateScore() {
-
-	if s.character.Sprite.X < 0 || s.character.Sprite.Y < 0 {
-		println("coordinates are fucked")
-	}
-	charTileY := int(s.character.Sprite.Y / 16)
-	charTileX := int(s.character.Sprite.X / 16)
-	if s.gameMap[charTileY][charTileX] == 1 {
-		s.gameMap[charTileY][charTileX] = 2
-		s.score++
-	}
-
-}
-
 func (s *MowingScene) Draw(screen *ebiten.Image) {
 	if s.images["map"] == nil {
 		log.Print("Map image is nil, cannot draw tilemap")
@@ -189,6 +264,34 @@ func (s *MowingScene) Draw(screen *ebiten.Image) {
 
 	drawSimpleTileMap(s.smallerResolution, s.images["map"], s.gameMap, 16)
 
+	for _, sp := range s.sprites {
+		sp.Draw(s.smallerResolution)
+	}
+
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Rotate(s.character.MovementSystem.Params.Direction)
+	angle := s.character.MovementSystem.Params.Direction
+
+	x := float64(s.character.TankMovement.Corners.FrontRight.X + s.character.TankMovement.Corners.FrontLeft.X - s.character.TankMovement.Corners.FrontRight.X)
+	y := float64(s.character.TankMovement.Corners.FrontRight.Y + s.character.TankMovement.Corners.FrontLeft.Y - s.character.TankMovement.Corners.FrontRight.Y)
+
+	frontDistance := float64(0) // how far forward
+	sideDistance := float64(0)  // how far to the side (adjust as needed)
+
+	// Calculate forward and perpendicular directions
+	forwardX := math.Cos(angle) * frontDistance
+	forwardY := math.Sin(angle) * frontDistance
+	sideX := math.Cos(angle+math.Pi/2) * sideDistance // perpendicular
+	sideY := math.Sin(angle+math.Pi/2) * sideDistance
+
+	op.GeoM.Translate(x+forwardX+sideX, y+forwardY+sideY)
+	if s.character.StateMachine.CurrentState == 2 {
+		s.mowedOverLay.DrawImage(s.brush, op)
+	}
+	op.GeoM.Reset()
+	// In draw function, draw mowed layer before character
+
+	s.smallerResolution.DrawImage(s.mowedOverLay, op)
 	if s.character != nil && s.character.Sprite.Img != nil {
 		dopts := &ebiten.DrawImageOptions{}
 		dopts.GeoM.Translate(float64(-s.character.Sprite.SpriteWidth/2), -float64(s.character.Sprite.SpriteHeight/2))
@@ -198,36 +301,40 @@ func (s *MowingScene) Draw(screen *ebiten.Image) {
 		s.character.Sprite.Draw(s.smallerResolution)
 	}
 
-	for _, sp := range s.sprites {
-		sp.Draw(s.smallerResolution)
-	}
-
-	dOpts := &ebiten.DrawImageOptions{}
-	xOffset := float64(registry.Config.ResolutionWidth) - (mapWidth*16)*registry.Config.ResolutionScalingF*2
-	xOffset = xOffset / 8
-	dOpts.GeoM.Translate(float64(xOffset), registry.Config.YOffsetF)
-	dOpts.GeoM.Scale(registry.Config.ResolutionScalingF*2, registry.Config.ResolutionScalingF*2)
-
-	screen.DrawImage(s.smallerResolution, dOpts)
-	graphics.DrawUnScaledGraphics(screen)
+	graphics.DrawScaledGraphics(s.smallerResolution)
 
 	if s.debug {
-		s.DebugDraw(screen)
+		s.DebugDraw(s.smallerResolution)
 	}
+	dOpts := &ebiten.DrawImageOptions{}
+
+	dOpts.GeoM.Scale(registry.Config.ResolutionScalingF*3, registry.Config.ResolutionScalingF*3)
+
+	screen.DrawImage(s.smallerResolution, dOpts)
+
+	graphics.DrawUnScaledGraphics(screen)
 
 	if s.state == loaded || s.state == finished {
 		s.ui.Draw(screen)
 	}
-
 }
 
 func (s *MowingScene) DebugDraw(screen *ebiten.Image) {
-	drawCollisionMap(MakeCollisionMap(s.colliders, s.character.Corners), s.character, s.smallerResolution)
+	drawCollisionMap(MakeDebugCollisionMap(s.colliders, s.character.TankMovement.Corners), s.character.TankMovement, s.smallerResolution)
 	debugPrintCollisions(s, screen)
+	vector.StrokeRect(
+		s.smallerResolution,
+		float32(s.character.TankMovement.WorldBoundaries.Min.X),
+		float32(s.character.TankMovement.WorldBoundaries.Min.Y),
+		float32(s.character.TankMovement.WorldBoundaries.Dx()),
+		float32(s.character.TankMovement.WorldBoundaries.Dy()),
+		1,
+		colornames.Red,
+		false)
 }
 
 func debugPrintCollisions(s *MowingScene, screen *ebiten.Image) {
-	for _, col := range s.collisionsOccured {
+	for _, col := range s.collisionsOccurred {
 		switch col.Corner {
 		case entities.FrontLeft:
 			{
@@ -256,18 +363,19 @@ func debugPrintCollisions(s *MowingScene, screen *ebiten.Image) {
 func (s *MowingScene) FirstLoad() {
 	s.ui = ui.LoadMowingUI(s.gameLog.GlobalEventHub)
 	s.isLoaded = true
+
 }
 
 func (s *MowingScene) OnEnter() {
-	graphics.NewUpdateAbleTextGraphic(&s.scoreString, 10, 10)
-	graphics.NewUpdateAbleTextGraphic(&s.timeString, 150, 10)
+
 	log.Printf("Entering Mowing Scene")
 	s.gameLog.SongPlayer.Play(soundFX.IndieCafe)
 
 	stringSlice := []string{
 		"1. Press Space and U to start your mower",
-		" 2. Hold Space to keep it running",
-		" 3. Mow as much grass as possible to\n earn a higher allowance"}
+		"2. WASD or Arrow Keys to move: forward and backwards for acceleration, Left and Right for Direction",
+		"3. Mow as much grass as possible to\n earn a higher allowance",
+		"4. If you crash you'll need to start the mower again"}
 
 	s.removeWindowFunc = ui.TriggerTextWindow(s.gameLog.GlobalEventHub, s.ui, "How To Play", stringSlice)
 
@@ -277,6 +385,7 @@ func (s *MowingScene) OnEnter() {
 func (s *MowingScene) OnExit() {
 	log.Printf("Leaving Mowing Scene")
 	s.gameLog.SongPlayer.Pause()
+	graphics.DeInitAllGraphics()
 	s.gameLog.GlobalEventHub.Publish(events.MoneyAvailable{Amount: s.allowance})
 }
 
@@ -296,7 +405,7 @@ func (s *MowingScene) subs(eventHub *tasks.EventHub) {
 			if s.removeWindowFunc != nil {
 				s.removeWindowFunc()
 			}
-			s.state = started
+			s.gameState.Transition(s)
 		}
 
 	})
@@ -350,7 +459,7 @@ func DrawRectangleFromPoints(screen *ebiten.Image, corners *entities.TankCorners
 		strokeWidth, strokeColor, false)
 }
 
-func MakeCollisionMap(cols []image.Rectangle, corners *entities.TankCorners) map[image.Rectangle]bool {
+func MakeDebugCollisionMap(cols []image.Rectangle, corners *entities.TankCorners) map[image.Rectangle]bool {
 	colMap := make(map[image.Rectangle]bool)
 
 	for _, col := range cols {
@@ -370,31 +479,6 @@ func MakeCollisionMap(cols []image.Rectangle, corners *entities.TankCorners) map
 		}
 	}
 	return colMap
-}
-
-func CheckCollision(corners *entities.TankCorners, colliders []image.Rectangle) []entities.Collision {
-	var collisions []entities.Collision
-
-	for _, col := range colliders {
-		if corners.FrontRight.In(col) {
-			collision := entities.Collision{Corner: entities.FrontRight, Object: col}
-			collisions = append(collisions, collision)
-		}
-		if corners.FrontLeft.In(col) {
-			collision := entities.Collision{Corner: entities.FrontLeft, Object: col}
-			collisions = append(collisions, collision)
-		}
-
-		if corners.RearLeft.In(col) {
-			collision := entities.Collision{Corner: entities.RearRight, Object: col}
-			collisions = append(collisions, collision)
-		}
-		if corners.RearRight.In(col) {
-			collision := entities.Collision{Corner: entities.RearLeft, Object: col}
-			collisions = append(collisions, collision)
-		}
-	}
-	return collisions
 }
 
 func drawCollisionMap(colMap map[image.Rectangle]bool, character *entities.TankCharacter, screen *ebiten.Image) {
@@ -429,51 +513,32 @@ func drawCollisionMap(colMap map[image.Rectangle]bool, character *entities.TankC
 }
 
 func updateScoreAfterTimeLimit(s *MowingScene) {
-
-	graphics.UpdateGraphics()
-
-	if s.allowanceTime {
-		if float64(s.score)*0.05-s.allowance >= 0.05 {
-			s.allowance += 0.05
-			s.allowanceString = "Allowance Earned: $" + strconv.FormatFloat(s.allowance, 'f', 2, 32)
-		}
-
+	if s.allowance < float64(s.score/3)*0.05 {
+		s.allowance += 0.005
+		s.gameLog.SoundPlayer.Play(soundFX.Kaching)
+	}
+	if s.allowance >= float64(s.score/3)*0.05 {
+		s.gameLog.SoundPlayer.Pause()
 	}
 
-	if s.ui != nil {
-		s.ui.Update()
-	}
-}
-
-func updateMowingTimers(scene *MowingScene, timers map[string]*util.Timer) {
-	for key, timer := range timers {
-		state := timer.Update()
-		switch key {
-		case "calcAllowance":
-			if state == util.Done {
-				timer.TurnOff()
-				scene.allowanceTime = true
-				graphics.NewUpdateAbleTextGraphic(&scene.allowanceString, 400, 100)
-			}
-		}
-	}
+	s.ui.Update()
 }
 
 func updateTimeAndScore(s *MowingScene) {
-	if s.state == started {
-		if s.time > 0.0 {
-			s.time = s.time - 0.016 //0.016 seconds per tick
+	if s.frameCount%30 == 0 { // every 0.5 seconds at 60fps
+		pixels := make([]byte, ScreenWidth*ScreenHeight*4)
+		s.mowedOverLay.ReadPixels(pixels)
+		mowedPixels := 0
+		for i := 0; i < len(pixels); i += 4 {
+			if pixels[i+3] > 0 { // alpha > 0 means mowed
+				mowedPixels++
+			}
 		}
-
-		if s.time-0.02 <= 0.0 {
-			s.state = finished
-			s.time = 0.0
-		}
-
-		s.scoreString = "Score: " + strconv.Itoa(s.score)
-
-		s.timeString = "Time: " + strconv.FormatFloat(s.time, 'f', 2, 32)
+		s.score = mowedPixels / 100 // scale it down
 	}
+	s.scoreString = fmt.Sprintf("Score: %d", s.score)
+	s.timeString = fmt.Sprintf("Time: " + strconv.FormatFloat(s.time, 'f', 2, 32))
+	s.time -= 0.016
 }
 
 func drawSimpleTileMap(screen *ebiten.Image, mapImage *ebiten.Image, arr [mapHeight][mapWidth]int, tileSize int) {
@@ -513,9 +578,10 @@ func drawSimpleTileMap(screen *ebiten.Image, mapImage *ebiten.Image, arr [mapHei
 
 func LoadChar(s *MowingScene) {
 	//start character in bottom leftish corner
-	characterOrignX := float32((mapWidth - 3) * 16)
-	characterOriginY := float32((mapHeight - 3) * 16)
+	characterOrignX := float32(mapWidth-2) * 16
+	characterOriginY := float32(mapHeight-3) * 16
 
+	println("charx at time of load:", characterOrignX, "char y at time of load", characterOriginY)
 	if s.images["characterSpriteSheet"] == nil {
 		log.Print("ERROR: TankCharacter sprite image not loaded in map")
 	}
@@ -529,6 +595,7 @@ func LoadChar(s *MowingScene) {
 	asp := &sprite.Sprite{Img: s.images["characterSpriteSheet"], X: characterOrignX, Y: characterOriginY, SpriteSheet: charSpriteSheet, Animation: charAnimation}
 
 	startUpAnimation2, startUpSpriteSheet2, err := entImportableLoaders.LoadAnimation("data/animationData/lawnMowerStartAnimation.json")
+	startUpAnimation2.SpeedInTPS = 15
 
 	if err != nil {
 		log.Fatal(err)
@@ -542,22 +609,31 @@ func LoadChar(s *MowingScene) {
 	animationMap["Moving"] = asp
 
 	movementParams := movement.Params{
-		MaxSpeed:     1.2, // Slower for a mowing game
+		MaxSpeed:     1.9, // Slower for a mowing game
 		Acceleration: 0.0, // Moderate acceleration
 		Friction:     0.5, // High friction for precise control
 	}
 
 	movementS := movement.NewMovementSystem(movementParams, &movement.WASDInputHandler{})
 
-	character := entities.NewCharacter(100, 100, asp)
-
-	character.AnimationMap = animationMap
-
+	tankMove := entities.TankCharacter{}
+	character := &entities.Entity{MovementSystem: movementS, Sprite: asp2, AnimationMap: animationMap, MovementState: &movement.State{}, TankMovement: &tankMove}
+	character.TankMovement.WorldBoundaries = image.Rect(16, -8, (mapWidth+2)*16, (mapHeight+2)*16)
 	character.MovementSystem = movementS
-
-	character.Sprite = character.AnimationMap["StartUp"]
-
+	character.TankMovement.Corners = entities.GetCharCorners(character)
 	s.character = character
+	mowerState1 := entities.StateHandler{Updater: JustStarted, TransitionTo: 2}
+	mowerState2 := entities.StateHandler{Updater: Mowing, TransitionTo: 3}
+	mowerState3 := entities.StateHandler{Updater: Crash, TransitionTo: 1}
+
+	states := make(map[int]*entities.StateHandler)
+	states[1] = &mowerState1
+	states[2] = &mowerState2
+	states[3] = &mowerState3
+	charSM := &entities.StateMachine{States: states, CurrentState: 1}
+
+	s.character.StateMachine = charSM
+	s.character.TankMovement.Colliders = s.colliders
 }
 
 func LoadMap() [mapHeight][mapWidth]int {
@@ -575,7 +651,7 @@ func LoadMap() [mapHeight][mapWidth]int {
 				//right side hedge
 				arr[i][j] = 5
 			}
-			if i == mapHeight-1 {
+			if i >= mapHeight-2 {
 				//back line roof
 				arr[i][j] = 3
 			}
@@ -593,6 +669,7 @@ func LoadMap() [mapHeight][mapWidth]int {
 			}
 		}
 	}
+	arr[3][7] = 8
 	return arr
 }
 
@@ -642,7 +719,7 @@ func LoadMowSprites(imgMap map[string]*ebiten.Image) []*sprite.Sprite {
 	var sprites []*sprite.Sprite
 
 	yoffset := float32(0.0)
-	for _ = range 4 {
+	for _ = range 3 {
 		treeSprite := &sprite.Sprite{Img: imgMap["treeSprite"], X: treePositionX, Y: treePositionY + yoffset}
 		yoffset += float32(treeSprite.Img.Bounds().Dy()/2) + float32(20)
 		sprites = append(sprites, treeSprite)

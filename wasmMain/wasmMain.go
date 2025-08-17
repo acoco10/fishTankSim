@@ -39,7 +39,7 @@ func main() {
 		println("fish", n, fish.Size)
 	}
 
-	gameLog := sceneManagement.NewGameLog(state)
+	gameLog := sceneManagement.NewGameLog(state, "")
 
 	var g ebiten.Game
 

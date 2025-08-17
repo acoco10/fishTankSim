@@ -12,9 +12,7 @@ type Player struct {
 	Direction float64 // In radians
 }
 
-// GetCardinalDirection determines which cardinal direction the player is facing
-func GetCardinalDirection(radians float64) (dx, dy int) {
-	// Normalize angle to 0-2π range
+func GetAngleInDegrees(radians float64) float64 {
 	angle := math.Mod(radians-math.Pi/2, 2*math.Pi)
 	if angle < 0 {
 		angle += 2 * math.Pi
@@ -22,6 +20,13 @@ func GetCardinalDirection(radians float64) (dx, dy int) {
 
 	// Convert to degrees for easier calculation
 	degrees := angle * 180 / math.Pi
+	return degrees
+}
+
+// GetCardinalDirection determines which cardinal direction the player is facing
+func GetCardinalDirection(radians float64) (dx, dy int) {
+	// Normalize angle to 0-2π range
+	degrees := GetAngleInDegrees(radians)
 
 	// Determine cardinal direction based on angle ranges
 	if degrees >= 315 || degrees < 45 {

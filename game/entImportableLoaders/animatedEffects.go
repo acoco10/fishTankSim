@@ -41,5 +41,4 @@ func LoadStaticEffect(eff string, x, y float32, location string) *sprite.Sprite 
 		se := &sprite.Sprite{Img: image, X: x, Y: y}
 		return se
 	}
-
 }

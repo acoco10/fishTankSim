@@ -2,7 +2,6 @@ package entities
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/movement"
-	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"image"
 	"math"
 )
@@ -14,6 +13,15 @@ const (
 	FrontLeft
 	RearRight
 	RearLeft
+)
+
+type SurfaceType int
+
+const (
+	TopSurface SurfaceType = iota
+	BottomSurface
+	LeftSurface
+	RightSurface
 )
 
 type CharState uint8
@@ -37,36 +45,25 @@ const (
 
 // TankCharacter represents a character with position and rendering info
 type TankCharacter struct {
-	Direction      Direction
-	Corners        *TankCorners
-	MovementState  movement.State
-	Sprite         *sprite.Sprite
-	AnimationMap   map[string]*sprite.Sprite
-	Width, Height  int
-	MovementSystem *movement.System
-	Collision      bool
-	Moving         bool
-	state          CharState
+	Direction       Direction
+	Corners         *TankCorners
+	Width, Height   int
+	Collisions      []Collision
+	WorldBoundaries image.Rectangle
+	Colliders       []image.Rectangle
+
+	state CharState
 }
 
 type Collision struct {
+	Angle    float64
 	Corner   Corner
 	Velocity float64
 	Object   image.Rectangle
+	Surface  SurfaceType
 }
 
-func NewCharacter(x, y float64, sprite *sprite.Sprite) *TankCharacter {
-	char := TankCharacter{
-		MovementState: movement.State{}, // Zero values
-		Sprite:        sprite,
-		Width:         32,
-		Height:        32,
-	}
-
-	return &char
-}
-
-func CharMovementUpdate(character *TankCharacter) {
+func CharMovementUpdate(character *Entity) {
 	// Get input acceleration
 	character.MovementState.AccelX, character.MovementState.AccelY = character.MovementSystem.Input.GetAcceleration(&character.MovementSystem.Params)
 
@@ -76,10 +73,10 @@ func CharMovementUpdate(character *TankCharacter) {
 	character.MovementState.VelY += character.MovementState.AccelY
 
 	if character.MovementState.AccelX == 0 {
-		character.MovementState.VelX *= 0.95
+		character.MovementState.VelX *= 0.89
 	}
 	if character.MovementState.AccelY == 0 {
-		character.MovementState.VelY *= 0.95
+		character.MovementState.VelY *= 0.89
 	}
 
 	speed := math.Sqrt(character.MovementState.VelX*character.MovementState.VelX + character.MovementState.VelY*character.MovementState.VelY)
@@ -88,8 +85,11 @@ func CharMovementUpdate(character *TankCharacter) {
 		character.MovementState.VelY = (character.MovementState.VelY / speed) * character.MovementSystem.Params.MaxSpeed
 	}
 
-	if !character.Moving {
-		return
+	if character.MovementSystem.Params.Acceleration < 0 {
+		if speed > character.MovementSystem.Params.MaxSpeed/3 {
+			character.MovementState.VelX = (character.MovementState.VelX / speed) * character.MovementSystem.Params.MaxSpeed / 3
+			character.MovementState.VelY = (character.MovementState.VelY / speed) * character.MovementSystem.Params.MaxSpeed / 3
+		}
 	}
 
 	// CharUpdate position based on velocity
@@ -97,32 +97,34 @@ func CharMovementUpdate(character *TankCharacter) {
 	character.Sprite.Y += float32(character.MovementState.VelY)
 }
 
-func HandleCollision(character *TankCharacter, collisions []Collision) {
+func HandleCollision(character *Entity, collisions []Collision) {
 
 	var frontRight bool
 	var frontLeft bool
+	angle := movement.GetAngleInDegrees(character.MovementSystem.Params.Direction)
 
 	for _, collision := range collisions {
-
 		if collision.Corner == FrontRight {
 			frontRight = true
+			character.MovementSystem.Params.Acceleration = math.Max(character.MovementSystem.Params.Acceleration-0.2, 0)
+			if CompareSurfaceOfCrash(angle, collision, FrontRight) {
+				CrashFunc(character)
+				return
+			}
 		}
 		if collision.Corner == FrontLeft {
 			frontLeft = true
+			character.MovementSystem.Params.Acceleration = math.Max(character.MovementSystem.Params.Acceleration-0.2, 0)
+			if CompareSurfaceOfCrash(angle, collision, FrontLeft) {
+				CrashFunc(character)
+				return
+			}
 		}
-	}
-
-	if frontLeft && frontRight {
-		character.Moving = false
-		character.Sprite = character.AnimationMap["Crash"]
-		character.Sprite.X = character.AnimationMap["Moving"].X
-		character.Sprite.Y = character.AnimationMap["Moving"].Y
-		dx, dy := movement.GetCardinalDirection(character.MovementSystem.Params.Direction)
-		character.state = Crashed
-		// Move back one tile in the opposite direction
-		character.Sprite.X -= float32(dx * 16)
-		character.Sprite.Y -= float32(dy * 16)
-		return
+		if collision.Corner == RearRight || collision.Corner == RearLeft {
+			character.MovementState.VelX = 0
+			character.MovementState.VelY = 0
+			character.MovementSystem.Params.Acceleration = 0
+		}
 	}
 
 	if frontRight {
@@ -133,18 +135,80 @@ func HandleCollision(character *TankCharacter, collisions []Collision) {
 		HandleGlance(character, FrontLeft)
 	}
 
-	// Get the direction the player is facing
+	if frontLeft && frontRight {
 
+		CrashFunc(character)
+		return
+	}
+
+	// Get the direction the player is facing
 }
 
-func HandleCollisionSmooth(player *TankCharacter) {
-	// Calculate the exact direction vector
-	dirX := math.Cos(player.MovementSystem.Params.Direction)
-	dirY := math.Sin(player.MovementSystem.Params.Direction)
+func CompareSurfaceOfCrash(tankAngle float64, collision Collision, cor Corner) bool {
 
-	// Push back one tile distance in the opposite direction
-	player.Sprite.X += float32(dirX * 32)
-	player.Sprite.Y += float32(dirY * 32)
+	switch cor {
+	case FrontRight:
+		return handleSurfaceCollision(collision.Surface, tankAngle)
+
+	case FrontLeft:
+		return handleSurfaceCollision(collision.Surface, tankAngle)
+
+	case RearLeft:
+		return handleSurfaceCollision(collision.Surface, tankAngle)
+
+	case RearRight:
+
+		return handleSurfaceCollision(collision.Surface, tankAngle)
+	default:
+		return false
+	}
+}
+
+func handleSurfaceCollision(surface SurfaceType, tankAngle float64) bool {
+	switch surface {
+	case TopSurface:
+		// Shallow if tank moving roughly horizontal (parallel to surface)
+		return isVerticalMovement(tankAngle)
+
+	case BottomSurface:
+		// Shallow if tank moving roughly horizontal
+		return isVerticalMovement(tankAngle)
+
+	case LeftSurface:
+		// Shallow if tank moving roughly vertical or parallel to surface
+		return isHorizontalMovement(tankAngle)
+
+	case RightSurface:
+		return isHorizontalMovement(tankAngle)
+	default:
+		return false
+	}
+}
+
+func isHorizontalMovement(angle float64) bool {
+	return (angle >= -20 && angle <= 10) || (angle >= 170 && angle <= 200)
+}
+
+func isVerticalMovement(angle float64) bool {
+	return (angle >= 80 && angle <= 110) || (angle >= 260 && angle <= 290)
+}
+
+func CrashFunc(character *Entity) {
+
+	dx, dy := movement.GetCardinalDirection(character.MovementSystem.Params.Direction)
+	// Move back one tile in the opposite direction
+	character.Sprite.X -= float32(dx * 8)
+	character.Sprite.Y -= float32(dy * 8)
+	collisions := CheckCollision(*character.TankMovement.Corners, character.TankMovement.Colliders)
+	x, y := findClosestValidPosition(collisions, *character, 20, 1)
+	character.Sprite.X = x
+	character.Sprite.Y = y
+	character.UpdateCorners()
+	character.MovementState.VelX = 0
+	character.MovementState.VelY = 0
+	character.MovementState.AccelX = 0
+	character.MovementState.AccelY = 0
+	character.StateMachine.Transition()
 }
 
 type TankCorners struct {
@@ -154,11 +218,11 @@ type TankCorners struct {
 	RearRight  image.Point //3
 }
 
-func GetCharCorners(character *TankCharacter) *TankCorners {
+func GetCharCorners(character *Entity) *TankCorners {
 
 	// Get half dimensions
-	halfWidth := float32(character.Sprite.SpriteWidth)/2 - 2
-	halfHeight := float32(character.Sprite.SpriteHeight)/2 - 1
+	halfWidth := float32(character.Sprite.SpriteWidth)/2 - 4
+	halfHeight := float32(character.Sprite.SpriteHeight)/2 - 2
 
 	// Center position
 	centerX := character.Sprite.X
@@ -202,25 +266,128 @@ func GetCharCorners(character *TankCharacter) *TankCorners {
 
 }
 
-func (c *TankCharacter) UpdateCorners() {
+func (c *Entity) UpdateCorners() {
 	corners := GetCharCorners(c)
-	c.Corners = corners
+	c.TankMovement.Corners = corners
 }
 
-func (c *TankCharacter) Update(collisions []Collision) {
+func (c *Entity) Update(worldBounds image.Rectangle) {
 	CalcDirection(c)
 	c.UpdateCorners()
 
 	//update to current location
-	c.Sprite.Update()
-	CharMovementUpdate(c) //move
+
+	CharMovementUpdate(c)
+
+	collisions := CheckCollision(*c.TankMovement.Corners, c.TankMovement.Colliders)
+
 	if len(collisions) > 0 {
 		HandleCollision(c, collisions) //handle collisions and glances
 	}
-	EnforceBoundaries(c, image.Rectangle{image.Point{0, 0}, image.Point{15 * 16, 10 * 16}})
+	collisions = CheckCollision(*c.TankMovement.Corners, c.TankMovement.Colliders)
+	if len(collisions) > 0 {
+		x, y := findClosestValidPosition(collisions, *c, 10, 1)
+		c.Sprite.X = x
+		c.Sprite.Y = y
+		c.UpdateCorners()
+	}
+
+	c.Sprite.Update()
 }
 
-func CalcDirection(c *TankCharacter) {
+func findClosestValidPosition(collisions []Collision, character Entity, maxRadius int, step float32) (float32, float32) {
+	if len(collisions) == 0 {
+		return character.Sprite.X, character.Sprite.Y
+	}
+
+	startX := character.Sprite.X
+	startY := character.Sprite.Y
+
+	// Simple approach: try moving in all 8 directions
+	directions := [][2]int{
+		{0, -1},  // up
+		{0, 1},   // down
+		{-1, 0},  // left
+		{1, 0},   // right
+		{-1, -1}, // up-left
+		{1, -1},  // up-right
+		{-1, 1},  // down-left
+		{1, 1},   // down-right
+	}
+
+	for r := 1; r <= maxRadius; r++ {
+		for _, dir := range directions {
+			testX := startX + float32(dir[0]*r)*step
+			testY := startY + float32(dir[1]*r)*step
+
+			character.Sprite.X = testX
+			character.Sprite.Y = testY
+			character.UpdateCorners()
+			if CheckPosition(*character.TankMovement.Corners, character.TankMovement.Colliders) {
+				return testX + float32(dir[0]*r), testY + float32(dir[1]*r)
+			}
+		}
+	}
+	println("No Valid Position")
+	return startX, startY
+}
+
+func CheckPosition(corners TankCorners, colliders []image.Rectangle) bool {
+	minX := min(corners.FrontLeft.X, corners.FrontRight.X, corners.RearLeft.X, corners.RearRight.X)
+	maxX := max(corners.FrontLeft.X, corners.FrontRight.X, corners.RearLeft.X, corners.RearRight.X)
+	minY := min(corners.FrontLeft.Y, corners.FrontRight.Y, corners.RearLeft.Y, corners.RearRight.Y)
+	maxY := max(corners.FrontLeft.Y, corners.FrontRight.Y, corners.RearLeft.Y, corners.RearRight.Y)
+
+	rect := image.Rect(minX, minY, maxX, maxY)
+	for _, col := range colliders {
+		if rect.Overlaps(col) {
+			return false
+		}
+	}
+	return true
+}
+
+func abs(i int) int {
+	if i < 0 {
+		return -i
+	}
+	return i
+}
+
+func CheckCollision(corners TankCorners, colliders []image.Rectangle) []Collision {
+	var collisions []Collision
+
+	for _, col := range colliders {
+		if corners.FrontRight.In(col) {
+			collision := Collision{Corner: FrontRight, Object: col}
+			collisions = append(collisions, collision)
+			collision.Surface = GetSurface(corners.FrontRight, col)
+
+		}
+		if corners.FrontLeft.In(col) {
+			collision := Collision{Corner: FrontLeft, Object: col}
+			collisions = append(collisions, collision)
+			collision.Surface = GetSurface(corners.FrontLeft, col)
+
+		}
+
+		if corners.RearLeft.In(col) {
+			collision := Collision{Corner: RearLeft, Object: col}
+			collisions = append(collisions, collision)
+			collision.Surface = GetSurface(corners.RearLeft, col)
+
+		}
+		if corners.RearRight.In(col) {
+			collision := Collision{Corner: RearRight, Object: col}
+			collisions = append(collisions, collision)
+			collision.Surface = GetSurface(corners.RearRight, col)
+
+		}
+	}
+	return collisions
+}
+
+func CalcDirection(c *Entity) {
 	// Normalize angle to 0-2π range
 	angle := math.Mod(c.MovementSystem.Params.Direction-math.Pi/2, 2*math.Pi)
 	if angle < 0 {
@@ -232,18 +399,18 @@ func CalcDirection(c *TankCharacter) {
 
 	// Determine cardinal direction based on angle ranges
 	if degrees >= 315 || degrees < 45 {
-		c.Direction = CharRight
+		c.TankMovement.Direction = CharRight
 	} else if degrees >= 45 && degrees < 135 {
-		c.Direction = Down
+		c.TankMovement.Direction = Down
 	} else if degrees >= 135 && degrees < 225 {
-		c.Direction = CharLeft
+		c.TankMovement.Direction = CharLeft
 	} else {
-		c.Direction = Up
+		c.TankMovement.Direction = Up
 	}
 
 }
 
-func HandleGlance(c *TankCharacter, cor Corner) {
+func HandleGlance(c *Entity, cor Corner) {
 
 	if c.MovementState.VelY > 0.2 {
 		dx, dy, directionModifier := Glance(cor)
@@ -280,30 +447,39 @@ func Glance(cor Corner) (dx float32, dy float32, direction float64) {
 	}
 }
 
-func EnforceBoundaries(c *TankCharacter, worldBounds image.Rectangle) {
+func EnforceBoundaries(c *Entity, worldBounds image.Rectangle) {
 	// Get current tank bounds
-	tankBounds := image.Rect(
-		int(c.Sprite.X)-c.Width/2,
-		int(c.Sprite.Y)-c.Height/2,
-		int(c.Sprite.X)+c.Width/2,
-		int(c.Sprite.Y)+c.Height/2,
-	)
 
-	// Check and correct each boundary
-	if tankBounds.Min.X < worldBounds.Min.X {
-		c.Sprite.X = float32(worldBounds.Min.X + c.Width/2)
-		c.MovementState.VelX = math.Max(0, c.MovementState.VelX) // Only allow positive velocity
+}
+
+func GetSurface(corner image.Point, rect image.Rectangle) SurfaceType {
+	// Calculate distances to each edge
+	distToTop := corner.Y - rect.Min.Y
+	distToBottom := rect.Max.Y - corner.Y
+	distToLeft := corner.X - rect.Min.X
+	distToRight := rect.Max.X - corner.X
+
+	// Find the minimum distance to determine which surface
+	minDist := distToTop
+	surface := TopSurface
+
+	if distToBottom < minDist {
+		minDist = distToBottom
+		surface = BottomSurface
 	}
-	if tankBounds.Max.X > worldBounds.Max.X {
-		c.Sprite.X = float32(worldBounds.Max.X - c.Width/2)
-		c.MovementState.VelX = math.Min(0, c.MovementState.VelX) // Only allow negative velocity
+	if distToLeft < minDist {
+		minDist = distToLeft
+		surface = LeftSurface
 	}
-	if tankBounds.Min.Y < worldBounds.Min.Y {
-		c.Sprite.Y = float32(worldBounds.Min.Y + c.Height/2)
-		c.MovementState.VelY = math.Max(0, c.MovementState.VelY) // Only allow positive velocity
+	if distToRight < minDist {
+		surface = RightSurface
 	}
-	if tankBounds.Max.Y > worldBounds.Max.Y {
-		c.Sprite.Y = float32(worldBounds.Max.Y - c.Height/2)
-		c.MovementState.VelY = math.Min(0, c.MovementState.VelY) // Only allow negative velocity
-	}
+
+	return surface
+}
+
+type StateData struct {
+	name         CharState
+	condition    func(character *TankCharacter) bool
+	transitionTo CharState
 }

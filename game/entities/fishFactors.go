@@ -71,7 +71,7 @@ func MakeFishMenu(forFish uint32) {
 			condImg := CheckIconValue(val, threshHolds, indMap)
 			iconSprite.Sprite.LinkedSprite = &sprite.Sprite{
 				Img: &condImg,
-				X:   iconSprite.Sprite.X + 64, Y: iconSprite.Sprite.Y, Z: iconSprite.Sprite.Z,
+				X:   iconSprite.Sprite.X + 45, Y: iconSprite.Sprite.Y, Z: iconSprite.Sprite.Z,
 				Scale: registry.Config.ZoomFactor}
 		case "ph":
 			threshHolds := []float64{2.5, 5.0}
@@ -79,7 +79,7 @@ func MakeFishMenu(forFish uint32) {
 			condImg := CheckIconValue(val, threshHolds, indMap)
 			iconSprite.Sprite.LinkedSprite = &sprite.Sprite{
 				Img: &condImg,
-				X:   iconSprite.Sprite.X + 64, Y: iconSprite.Sprite.Y, Z: iconSprite.Sprite.Z, Scale: registry.Config.ZoomFactor}
+				X:   iconSprite.Sprite.X + 35, Y: iconSprite.Sprite.Y, Z: iconSprite.Sprite.Z, Scale: registry.Config.ZoomFactor}
 		case "otherFish":
 		case "structures":
 		}

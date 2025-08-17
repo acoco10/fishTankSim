@@ -21,7 +21,9 @@ func FishFoodUpdate(ent *Entity) {
 	ff := ent.UiData
 	s := ent.Sprite
 
-	s.XYUpdater = sprite.NewUpdater(s)
+	if s.XYUpdater == nil {
+		s.XYUpdater = sprite.NewUpdater(s)
+	}
 
 	s.Shader = registry.ShaderMap["Outline"]
 	s.ShaderParams = make(map[string]any)
@@ -31,16 +33,25 @@ func FishFoodUpdate(ent *Entity) {
 	pt := image.Point{x, y}
 
 	if ff.state == Activatable {
+
 		s.ShaderParams["OutlineColor"] = [4]float64{0, 1, 0, 1}
 		s.Scale = 0.95
 		UpdateEntityZAndReSortEntitySlice(ent.Id, 0)
 
 		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-
+			leftRect := ff.ActivationRect
+			leftRect.Max.X = leftRect.Max.X / 2
 			s.Img = ff.AltImg
+
 			ev2 := input.MouseButtonPressedUISpriteActivity{
 				Point: &util.Point{X: float32(x), Y: float32(y), PType: util.Food},
 			}
+			if pt.In(leftRect) {
+				s.Img = ff.HoverImg
+				ev2.Point.X += float32(s.Img.Bounds().Dx())
+				ev2.Point.Tag = "left"
+			}
+
 			ff.EventHub.Publish(ev2)
 		}
 

@@ -69,11 +69,11 @@ func LoadDay2Tasks(gameLog *sceneManagement.GameLog) {
 
 	taskCondition3 := func(e tasks.Event) bool {
 		log.Printf("Day 2 purchase task condition met")
-		_, ok := e.(events.NewPurchase)
-		return ok
+		ev, ok := e.(events.PurchaseSuccessful)
+		return ok && entities.FishList(ev.Purchase) != ""
 	}
 
-	gameTask3 := tasks.NewTask(events.NewPurchase{}, "3. Buy a new fish.", taskCondition3, gameLog.GlobalEventHub)
+	gameTask3 := tasks.NewTask(events.PurchaseSuccessful{}, "3. Buy a new fish.", taskCondition3, gameLog.GlobalEventHub)
 
 	gameTask4 := FeedAllFishTask(4, gameLog.GlobalEventHub)
 

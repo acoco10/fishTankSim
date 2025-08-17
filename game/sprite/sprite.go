@@ -112,13 +112,16 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 
 	if s.Shader != nil {
 		shaderOpts := &ebiten.DrawRectShaderOptions{}
-
 		degrees, exists := s.DOptsUpdaterParams["degree"]
 		if exists {
 			shaderOpts.GeoM.Rotate(degrees)
 		}
 		if s.Scale != 0.0 {
-			shaderOpts.GeoM.Scale(s.Scale, s.Scale)
+			//shaderOpts.GeoM.Scale(s.Scale, s.Scale)
+		}
+		if s.DOptsUpdaterTag == "flip" {
+			shaderOpts.GeoM.Scale(-1, 1) // flip horizontally
+			shaderOpts.GeoM.Translate(float64(s.Img.Bounds().Dx()), 0)
 		}
 		shaderOpts.GeoM.Translate(float64(s.X), float64(s.Y))
 		shaderOpts.Images[0] = s.Img
@@ -134,6 +137,10 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 		spinAnimation(s, dOpts)
 	}
 
+	if s.DOptsUpdaterTag == "flip" {
+		FlipSprite(s, dOpts)
+	}
+
 	degrees, exists := s.DOptsUpdaterParams["degree"]
 	if exists {
 		dOpts.GeoM.Rotate(degrees)
@@ -147,6 +154,26 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 
 	screen.DrawImage(s.Img, dOpts)
 
+}
+
+func FlipSprite(sprite *Sprite, dopts any) {
+	opts, ok := dopts.(ebiten.DrawImageOptions)
+	if !ok {
+		sopts, _ := dopts.(ebiten.DrawRectShaderOptions)
+		sopts.GeoM.Scale(-1, 1) // flip horizontally
+		if sprite.SpriteSheet != nil {
+			sopts.GeoM.Translate(float64(sprite.SpriteWidth), 0)
+		} else {
+			sopts.GeoM.Translate(float64(sprite.Img.Bounds().Dx()), 0)
+		}
+		return
+	}
+	opts.GeoM.Scale(-1, 1) // flip horizontally
+	if sprite.SpriteSheet != nil {
+		opts.GeoM.Translate(float64(sprite.SpriteWidth), 0)
+	} else {
+		opts.GeoM.Translate(float64(sprite.Img.Bounds().Dx()), 0)
+	}
 }
 
 func (s *Sprite) ShouldRemove() bool {
@@ -184,7 +211,7 @@ func (s *Sprite) SpriteHovered() bool {
 	x, y := util.GetScaledCursorPosition()
 
 	cpt := image.Point{x, y}
-	rect := s.getSpriteRect()
+	rect := s.GetSpriteRect()
 	return cpt.In(rect)
 
 	/*	pixelX := point.X - int(s.X)
@@ -198,7 +225,7 @@ func (s *Sprite) SpriteHovered() bool {
 
 }
 
-func (s *Sprite) getSpriteRect() image.Rectangle {
+func (s *Sprite) GetSpriteRect() image.Rectangle {
 	b := s.Img.Bounds()
 	width := b.Dx()
 	height := b.Dy()
@@ -304,7 +331,7 @@ func DrawAnimation(as *Sprite, screen *ebiten.Image) {
 	img := as.Img.SubImage(frameRect).(*ebiten.Image)
 	if as.frameImg != nil {
 		// for debugging cursor hovered
-		/*	rect := as.getSpriteRect()
+		/*	rect := as.GetSpriteRect()
 			if as.SpriteHovered() {
 				vector.StrokeRect(screen, float32(rect.Min.X), float32(rect.Min.Y), float32(rect.Dx()), float32(rect.Dy()), 2.0, colornames.Teal, false)
 			} else {

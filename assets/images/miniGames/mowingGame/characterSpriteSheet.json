@@ -1,0 +1,45 @@
+{ "frames": [
+   {
+    "filename": "characterSpriteSheet 0.png",
+    "frame": { "x": 0, "y": 0, "w": 20, "h": 32 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 20, "h": 32 },
+    "sourceSize": { "w": 20, "h": 32 },
+    "duration": 100
+   },
+   {
+    "filename": "characterSpriteSheet 1.png",
+    "frame": { "x": 20, "y": 0, "w": 20, "h": 32 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 20, "h": 32 },
+    "sourceSize": { "w": 20, "h": 32 },
+    "duration": 100
+   },
+   {
+    "filename": "characterSpriteSheet 2.png",
+    "frame": { "x": 40, "y": 0, "w": 20, "h": 32 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 20, "h": 32 },
+    "sourceSize": { "w": 20, "h": 32 },
+    "duration": 100
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.3.9.2-arm64",
+  "image": "characterSpriteSheet.png",
+  "format": "RGBA8888",
+  "size": { "w": 60, "h": 32 },
+  "scale": "1",
+  "frameTags": [
+  ],
+  "layers": [
+   { "name": "Sprite Sheet", "opacity": 255, "blendMode": "normal" }
+  ],
+  "slices": [
+  ]
+ }
+}

@@ -37,6 +37,7 @@ func InitFish(fishName entities.SavedFish, environment *system.Environment, hub 
 	sprite.X = float32(collisions["tank"].Min.X) + rand.Float32()*float32(collisions["tank"].Max.X)
 	sprite.Y = float32(collisions["tank"].Min.Y) + rand.Float32()*float32(collisions["tank"].Max.Y)
 	sprite.Z = 1
+	sprite.Unfocusable = true
 
 	if err != nil {
 		log.Fatal(err)
@@ -46,8 +47,10 @@ func InitFish(fishName entities.SavedFish, environment *system.Environment, hub 
 
 	firstPoint := newFishEntity.RandomTarget()
 	newFishEntity.MakeTargetPoint(firstPoint)
-	entities.CreatureEventSubscriptions(newFishEntity)
 	newFishEntity.EventHub = hub
+
+	entities.CreatureEventSubscriptions(newFishEntity)
+
 	entities.RegisterEntity(newFishEntity)
 
 	return newFishEntity

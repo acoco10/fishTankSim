@@ -3,34 +3,11 @@ package soundFX
 import (
 	"bytes"
 	"github.com/acoco10/fishTankWebGame/assets"
-	"github.com/hajimehoshi/ebiten/v2/audio"
 	resource "github.com/quasilyte/ebitengine-resource"
 	"io"
 	"log"
 	"sort"
 )
-
-var loadedSounds *resource.Loader
-
-const (
-	BestAdventureEver resource.AudioID = iota
-	CardBoard         resource.AudioID = iota
-	Coins1            resource.AudioID = iota
-	DayTimeJazz       resource.AudioID = iota
-	IndieCafe         resource.AudioID = iota
-	PickUpOne         resource.AudioID = iota
-	PlopSound         resource.AudioID = iota
-	PouringFood       resource.AudioID = iota
-	SelectSound       resource.AudioID = iota
-	SuccessMusic      resource.AudioID = iota
-	TropicalHouse     resource.AudioID = iota
-	WaterBubbles      resource.AudioID = iota
-	SelectSound2      resource.AudioID = iota
-	WhiteBoardMarker1 resource.AudioID = iota
-	WhiteBoardMarker2 resource.AudioID = iota
-)
-
-var audioContext = audio.NewContext(44100)
 
 var SoundData = map[string][]byte{}
 
@@ -41,8 +18,13 @@ func LoadSounds() {
 		BestAdventureEver: 0.5,
 		CardBoard:         0.7,
 		Coins1:            0.2,
+		Crash:             0.1,
 		DayTimeJazz:       -0.5,
+		FailedStart:       0.9,
 		IndieCafe:         0.0,
+		Kaching:           0.3,
+		MoneyCounter:      0.5,
+		MowerRunning:      -0.2,
 		PickUpOne:         0.0,
 		PlopSound:         -0.3,
 		PouringFood:       0.0,
@@ -55,7 +37,7 @@ func LoadSounds() {
 		WhiteBoardMarker2: 0.5,
 	}
 
-	soundDir, err := assets.SoundDir.ReadDir("soundFx")
+	soundDir, err := assets.SoundDir.ReadDir("soundFx/wavs")
 
 	if err != nil {
 		log.Fatal("Error reading sound files")
@@ -74,7 +56,7 @@ func LoadSounds() {
 		sName := name[:endIndex]
 		println(i, "Loading sound:", sName)
 
-		song, err := assets.SoundDir.ReadFile("soundFx/" + name)
+		song, err := assets.SoundDir.ReadFile("soundFx/wavs/" + name)
 		if err != nil {
 			log.Fatal("Error reading sound files")
 		}

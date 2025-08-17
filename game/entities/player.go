@@ -26,11 +26,11 @@ func (p *Player) Subscribe() {
 		p.AddMoney(ev.Amount)
 	})
 
-	p.EventHub.Subscribe(events.MoneySpent{}, func(e tasks.Event) {
-		ev := e.(events.MoneySpent)
-		if ev.Amount < p.Money {
-			p.SpendMoney(ev.Amount)
-			ev2 := events.PurchaseSuccessful{}
+	p.EventHub.Subscribe(events.BuyAttempt{}, func(e tasks.Event) {
+		ev := e.(events.BuyAttempt)
+		if ev.Cost <= p.Money {
+			p.SpendMoney(ev.Cost)
+			ev2 := events.PurchaseSuccessful{Purchase: ev.Item}
 			p.EventHub.Publish(ev2)
 		} else {
 			ev2 := events.InsufficientFunds{}

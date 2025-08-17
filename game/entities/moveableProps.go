@@ -136,6 +136,7 @@ func (p *StructureProp) Update() {
 	}
 	if p.Y >= float32(p.boundaries.Max.Y-p.Img.Bounds().Dy())-29 {
 		p.state = SetInPlace
+		p.Sprite.Unfocusable = true
 	}
 
 	p.Sprite.Update()

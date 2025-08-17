@@ -13,6 +13,7 @@ import (
 	"image/color"
 	"log"
 	"strconv"
+	"strings"
 )
 
 type ButtonType uint8
@@ -377,6 +378,14 @@ func TriggerTextWindow(hub *tasks.EventHub, ui *ebitenui.UI, header string, inpu
 			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(50)),
 		)))
 
+	btnContainer := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+				Stretch:  false,
+			})),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()))
+
 	headerLbl := widget.NewText(
 		widget.TextOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
@@ -388,47 +397,30 @@ func TriggerTextWindow(hub *tasks.EventHub, ui *ebitenui.UI, header string, inpu
 		widget.TextOpts.Insets(widget.Insets{}),
 	)
 
-	line1 := widget.NewText(
-		widget.TextOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-			})),
+	var lines []*widget.Text
+	for _, line := range inputText {
+		textCon := widget.NewText(
+			widget.TextOpts.WidgetOpts(
+				widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+					Position: widget.RowLayoutPositionCenter,
+				})),
 
-		widget.TextOpts.Text(inputText[0], registry.FontMap["nk57_24"], color.RGBA{R: 250, G: 160, B: 0, A: 255}),
-		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionStart),
-		widget.TextOpts.Insets(widget.Insets{}),
-	)
-
-	line2 := widget.NewText(
-		widget.TextOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-			})),
-
-		widget.TextOpts.Text(inputText[1], registry.FontMap["nk57_24"], color.RGBA{R: 250, G: 160, B: 0, A: 255}),
-		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionStart),
-		widget.TextOpts.Insets(widget.Insets{}),
-	)
-
-	line3 := widget.NewText(
-		widget.TextOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-			})),
-
-		widget.TextOpts.Text(inputText[2], registry.FontMap["nk57_24"], color.RGBA{R: 250, G: 160, B: 0, A: 255}),
-		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionStart),
-		widget.TextOpts.Insets(widget.Insets{}),
-	)
+			widget.TextOpts.Text(line, registry.FontMap["nk57_24"], color.RGBA{R: 250, G: 160, B: 0, A: 255}),
+			widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionStart),
+			widget.TextOpts.Insets(widget.Insets{}),
+		)
+		lines = append(lines, textCon)
+	}
 
 	childContainer.AddChild(headerLbl)
-	childContainer.AddChild(line1)
-	childContainer.AddChild(line2)
-	childContainer.AddChild(line3)
+
+	for _, line := range lines {
+		childContainer.AddChild(line)
+	}
 
 	b1 := LoadOutlineTextButtonSubmitBg("Lets Mow!", hub, "")
-
-	childContainer.AddChild(b1)
+	btnContainer.AddChild(b1)
+	childContainer.AddChild(btnContainer)
 
 	rootContainer.AddChild(childContainer)
 	wind := makeWindow(rootContainer, 100, 800, 400)
@@ -733,6 +725,12 @@ func MagazineWindowButtonEvent(mainDat *MainMenuData, magazine *Magazine, ui *eb
 		closeWindow(hub, mainDat)
 		magazine.activeIndex = 0
 	}
+
+	if strings.HasPrefix(ev.ButtonText, "Buy:") {
+		closeWindow(hub, mainDat)
+		magazine.activeIndex = 0
+	}
+
 }
 
 func DoorWindowButtonEvent(mainDat *MainMenuData, magazine *Magazine, ui *ebitenui.UI, ev events.ButtonClickedEvent, hub *tasks.EventHub) {

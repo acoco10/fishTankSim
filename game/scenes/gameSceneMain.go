@@ -4,6 +4,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/graphics"
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
+	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
@@ -94,13 +95,12 @@ func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
 
 func ScaleScreenToResolution() float64 {
 
-	windowWidth, windowHeight := ebiten.WindowSize()
 	screenWidth := float64(ScreenWidth)
 	screenHeight := float64(ScreenHeight)
 
 	// Calculate scaling factors for both dimensions
-	scaleX := float64(windowWidth) / screenWidth
-	scaleY := float64(windowHeight) / screenHeight
+	scaleX := float64(1920) / screenWidth
+	scaleY := float64(1080) / screenHeight
 
 	// Use the smaller scale to ensure content fits within the window
 	scale := scaleX
@@ -112,7 +112,7 @@ func ScaleScreenToResolution() float64 {
 	// Safety check for division by zero
 	if scale <= 0 {
 		log.Fatalf("Invalid scaling: screenWidth=%f, screenHeight=%f, windowWidth=%d, windowHeight=%d",
-			screenWidth, screenHeight, windowWidth, windowHeight)
+			screenWidth, screenHeight, screenWidth, screenHeight)
 	}
 
 	println("resolution scalar =", scale)
@@ -127,7 +127,20 @@ func (g *Game) Update() error {
 	}
 
 	if nextSceneId != g.activeSceneId {
+		if nextSceneId == sceneManagement.Reset {
+			g.gameLog.GlobalEventHub = tasks.NewEventHub()
+			g.sceneMap[g.activeSceneId].OnExit()
+			g.sceneMap[g.activeSceneId] = g.sceneMap[sceneManagement.Reset]
+			g.sceneMap[g.activeSceneId].FirstLoad()
+			g.sceneMap[g.activeSceneId].OnEnter()
 
+			switch g.activeSceneId {
+			case sceneManagement.MowingMiniGameScene:
+				g.sceneMap[sceneManagement.Reset] = NewMowingScene(g.gameLog)
+			}
+
+			return nil
+		}
 		nextScene := g.sceneMap[nextSceneId]
 		// if not loaded? then load in
 		if !nextScene.IsLoaded() && g.state == Ready {
@@ -161,13 +174,18 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 }
 
 func NewTestScene(TestSceneID sceneManagement.SceneId, log *sceneManagement.GameLog) *Game {
-	ConfigResolution()
 
+	ConfigResolution()
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	activeSceneId := TestSceneID
 
 	sceneMap := make(map[sceneManagement.SceneId]sceneManagement.Scene)
 
-	sceneMap[TestSceneID] = NewTitleScene(log)
+	switch TestSceneID {
+	case sceneManagement.MowingMiniGameScene:
+		sceneMap[TestSceneID] = NewMowingScene(log)
+		sceneMap[sceneManagement.Reset] = NewMowingScene(log)
+	}
 
 	sceneMap[TestSceneID].FirstLoad()
 
@@ -184,12 +202,10 @@ func NewTestScene(TestSceneID sceneManagement.SceneId, log *sceneManagement.Game
 
 func ConfigResolution() {
 
-	width, height := ebiten.WindowSize()
-
 	registry.Config.Set(registry.ScreenWidth, ScreenWidth)
 	registry.Config.Set(registry.ScreenHeight, ScreenHeight)
-	registry.Config.Set(registry.ResolutionWidth, width)
-	registry.Config.Set(registry.ResolutionHeight, height)
+	registry.Config.Set(registry.ResolutionWidth, 1920)
+	registry.Config.Set(registry.ResolutionHeight, 1080)
 	scaling := ScaleScreenToResolution()
 
 	//this one needs to be set last to get the correct y/x offset

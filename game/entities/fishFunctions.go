@@ -5,6 +5,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/entImportableLoaders"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/graphics"
+	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -24,7 +25,7 @@ const (
 
 func CreatureEventSubscriptions(c *Entity) {
 
-	c.CreatureData.EventHub.Subscribe(PointGenerated{}, func(e tasks.Event) {
+	c.EventHub.Subscribe(PointGenerated{}, func(e tasks.Event) {
 		ev := e.(PointGenerated)
 		point, exists := GetEntity(ev.PointId)
 		if !exists {
@@ -40,7 +41,7 @@ func CreatureEventSubscriptions(c *Entity) {
 
 	})
 
-	c.CreatureData.EventHub.Subscribe(CreatureReachedPoint{}, func(e tasks.Event) {
+	c.EventHub.Subscribe(CreatureReachedPoint{}, func(e tasks.Event) {
 		ev := e.(CreatureReachedPoint)
 		delete(c.CreatureData.ParticlePointQueue, ev.PointID)
 		if c.CreatureData.Hunger < c.CreatureData.maxHunger {
@@ -386,7 +387,7 @@ func (e *Entity) TranSlateFishOpts() *ebiten.DrawImageOptions {
 	opts := &ebiten.DrawImageOptions{}
 
 	if c.Flip {
-		FlipSprite(float64(e.Sprite.SpriteSheet.SpriteWidth/2), opts)
+		sprite.FlipSprite(e.Sprite, opts)
 	}
 
 	if e.Sprite.Dy < -0.5 {
@@ -411,11 +412,6 @@ func (e *Entity) TranSlateFishOpts() *ebiten.DrawImageOptions {
 	}
 
 	return opts
-}
-
-func FlipSprite(spriteWidth float64, opts *ebiten.DrawImageOptions) {
-	opts.GeoM.Scale(-1, 1) // flip horizontally
-	opts.GeoM.Translate(spriteWidth, 0)
 }
 
 func (e *Entity) MakeTargetPoint(point *util.Point) {
@@ -616,7 +612,7 @@ func GenGoldFishStats() (*FishStats, error) {
 	fs.idealPH = 6.5
 	fs.avgDepth = 40.0
 	fs.avgSpeed = 1.2
-	fs.maxSpeed = rand.Float32() * 0.5
+	fs.maxSpeed = rand.Float32()*0.5 + 0.2
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
 	fs.FishType = Fish
 	fs.maxEnergy = 25
@@ -643,7 +639,7 @@ func GenGuppyFishStats() (*FishStats, error) {
 	fs.Size = 1
 	fs.avgDepth = 150
 	fs.avgSpeed = 1.6
-	fs.maxSpeed = rand.Float32() * 0.5
+	fs.maxSpeed = rand.Float32()*0.5 + 0.2
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
 	fs.FishType = Guppy
 	fs.maxEnergy = 25
@@ -671,7 +667,7 @@ func GenKirbensisFishStats() (*FishStats, error) {
 	fs.Size = 1
 	fs.avgDepth = 100
 	fs.avgSpeed = 1.3
-	fs.maxSpeed = rand.Float32() * 0.5
+	fs.maxSpeed = rand.Float32()*0.5 + 0.2
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
 	fs.FishType = Guppy
 	fs.maxEnergy = 25

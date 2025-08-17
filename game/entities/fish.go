@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/system"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
@@ -24,6 +25,15 @@ const (
 	Guppy     FishList = "guppy"
 	Kirbensis FishList = "kirbensis"
 )
+
+func IsValidFishType(fishType string) bool {
+	switch FishList(fishType) {
+	case MollyFish, Fish, Guppy, Kirbensis:
+		return true
+	default:
+		return false
+	}
+}
 
 type Direction uint8
 
@@ -72,6 +82,15 @@ func (e *Entity) FishUpdate() {
 	sopts := e.TranSlateFishShaderOpts()
 	e.Sprite.UpdateOpts(sopts)
 	e.Sprite.UpdateOpts(dopts)
+
+	if registry.Config.Zoom {
+		e.Sprite.Unfocusable = false
+	} else {
+		if e.Sprite.Focused {
+			UnFocus(e.Id)
+		}
+		e.Sprite.Unfocusable = true
+	}
 
 	e.publishStats("statsMenu")
 

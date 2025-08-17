@@ -10,7 +10,7 @@ type Params struct {
 	MaxSpeed     float64 // Maximum speed the character can reach
 	Acceleration float64 // How fast the character accelerates
 	Friction     float64 // How
-	Direction    float64 // much velocity is reduced each frame (0.0 = no friction, 1.0 = instant stop)
+	Direction    float64
 }
 
 // DefaultMovementParams returns sensible default movement parameters
@@ -94,7 +94,7 @@ func (h *WASDInputHandler) GetAcceleration(params *Params) (accelX, accelY float
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyS) || ebiten.IsKeyPressed(ebiten.KeyArrowDown) {
-		params.Acceleration -= 0.01
+		params.Acceleration -= 0.005
 		input = true
 	}
 

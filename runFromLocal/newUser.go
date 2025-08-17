@@ -7,7 +7,6 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/acoco10/fishTankWebGame/game/scenes"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/pkg/profile"
 	"log"
 )
 
@@ -45,9 +44,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	gameLog := sceneManagement.NewGameLog(state)
-	p := profile.Start(profile.MemProfile, profile.ProfilePath("."), profile.NoShutdownHook)
-	defer p.Stop()
+	gameLog := sceneManagement.NewGameLog(state, "")
+	//p := profile.Start(profile.MemProfile, profile.ProfilePath("."), profile.NoShutdownHook)
+	//defer p.Stop()
 	g := scenes.NewGame(gameLog, scenes.NewUser)
 	err = ebiten.RunGame(g)
 	if err != nil {

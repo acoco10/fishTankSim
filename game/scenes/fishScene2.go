@@ -30,6 +30,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	time2 "time"
 )
 
 type lightingState uint8
@@ -43,16 +44,16 @@ const (
 var backGroundImgShelfHeight = 150
 
 type FishScene2 struct {
-	zoomScree             *ebiten.Image
-	state                 FishSceneState
-	loaded                bool
-	tankSize              image.Rectangle
-	ui                    *ebitenui.UI
-	gameLog               *sceneManagement.GameLog
-	timers                map[string]*util.Timer
-	returnScene           sceneManagement.SceneId
-	tutorialManager       *tutorial.Manager
-	store                 *system.Store
+	zoomScree       *ebiten.Image
+	state           FishSceneState
+	loaded          bool
+	tankSize        image.Rectangle
+	ui              *ebitenui.UI
+	gameLog         *sceneManagement.GameLog
+	timers          map[string]*util.Timer
+	returnScene     sceneManagement.SceneId
+	tutorialManager *tutorial.Manager
+	//store                 *system.Store
 	collisionMap          map[string]image.Rectangle
 	environment           *system.Environment
 	playerState           *entities.Player
@@ -154,7 +155,7 @@ func NewFishScene2(gameLog *sceneManagement.GameLog) *FishScene2 {
 
 func (g *FishScene2) LoadStuff() {
 
-	g.playerState = &entities.Player{Money: 10, EventHub: g.gameLog.GlobalEventHub}
+	g.playerState = &entities.Player{Money: 0, EventHub: g.gameLog.GlobalEventHub}
 	g.playerState.Subscribe()
 
 }
@@ -168,8 +169,8 @@ func (g *FishScene2) FirstLoad() {
 
 	}
 	g.zoomScree = ebiten.NewImage(registry.Config.ScreenWidth, registry.Config.ScreenHeight)
-	store := system.NewStore(g.gameLog.GlobalEventHub)
-	g.store = store
+	//store := system.NewStore(g.gameLog.GlobalEventHub)
+	//g.store = store
 	g.LoadStuff()
 
 	tutMngr := &tutorial.Manager{}
@@ -655,32 +656,37 @@ func (g *FishScene2) uiSubs() {
 			}
 		}
 
-		if ev.ButtonText == "ph+" {
-			img, err := util.LoadImageAssetAsEbitenImage("uiSprites/" + ev.ButtonText)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			x, y := util.GetScaledCursorPosition()
-			parameters := make(map[string]any)
-			parameters["tag"] = ev.ButtonText
-			loader.MakeSpriteEntity(img, float32(x), float32(y), loader.SpriteEntFlags{Unfocusable: true, Updater: true, UpdateFunc: entities.PHModifier, Zlayer: 3, Parameters: parameters, EventHub: g.gameLog.GlobalEventHub})
-
-		}
-
 		g.gameLog.GlobalEventHub.Subscribe(input.MouseButtonPressedUISpriteActivity{}, func(e tasks.Event) {
 			ev := e.(input.MouseButtonPressedUISpriteActivity)
 			//handled click relates to only proccessing one event per game tick
 			if g.timers["pointGeneratedTimer"].TimerState == util.Done && !g.gameState.MouseFlags.HandledClick {
 				g.gameState.MouseFlags.HandledClick = true
 				pt := ev.Point.Clone()
-				pt.X = pt.X - 50 + rand.Float32()*10
-				pt.Y += 50
+				if pt.Tag == "left" {
+					pt.X = pt.X + 50 - rand.Float32()*10
+					pt.Y += 50
+				} else {
+					pt.X = pt.X - 50 + rand.Float32()*10
+					pt.Y += 50
+				}
 				entities.NewParticle(pt, g.collisionMap["tank"], g.gameLog.GlobalEventHub)
 
 			}
 		})
 	})
+}
+
+func LoadPHEffect(kind string, hub *tasks.EventHub) {
+	img, err := util.LoadImageAssetAsEbitenImage("uiSprites/" + kind)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	x, y := util.GetScaledCursorPosition()
+	parameters := make(map[string]any)
+	parameters["tag"] = kind
+	loader.MakeSpriteEntity(img, float32(x), float32(y), loader.SpriteEntFlags{Unfocusable: true, Updater: true,
+		UpdateFunc: entities.PHModifier, Zlayer: 3, Parameters: parameters, EventHub: hub})
 }
 
 func (g *FishScene2) soundSubs() {
@@ -779,14 +785,18 @@ func (g *FishScene2) creatureSubs(colMap map[string]image.Rectangle) {
 		}
 	})
 
-	/*	g.gameLog.GlobalEventHub.Subscribe(events.NewPurchase{}, func(e tasks.Event) {
-		ev := e.(events.NewPurchase)
+	g.gameLog.GlobalEventHub.Subscribe(events.PurchaseSuccessful{}, func(e tasks.Event) {
+		ev := e.(events.PurchaseSuccessful)
 		log.Printf("New Purchase:%s ", ev.Purchase)
-		creature := LoadPurchasedSprite(g.environment, ev.Purchase, g.gameLog.GlobalEventHub, g.collisionMap["tank"])
-		newCreatureEntity := &entities.Entity{CreatureData: creature}
-		entities.RegisterEntity(newCreatureEntity)
-		g.gameEntities = append(g.gameEntities, newCreatureEntity)
-	})*/
+		if ev.Purchase == "ph+" || ev.Purchase == "ph-" {
+			LoadPHEffect(ev.Purchase, g.gameLog.GlobalEventHub)
+		}
+	})
+
+	g.gameLog.GlobalEventHub.Subscribe(events.InsufficientFunds{}, func(e tasks.Event) {
+		id := graphics.NewFadeInTextGraphic("Get a job Kid!", float64(200), float64(100))
+		time2.AfterFunc(4*time2.Second, func() { graphics.DeInitGraphicId(id) })
+	})
 
 	g.gameLog.GlobalEventHub.Subscribe(entities.CreatureReachedPoint{}, func(e tasks.Event) {
 		if !creatureManager.allFishFed && entities.CheckIfAllFishFed() {
@@ -794,13 +804,15 @@ func (g *FishScene2) creatureSubs(colMap map[string]image.Rectangle) {
 			g.gameLog.GlobalEventHub.Publish(entities.AllFishFed{})
 		}
 	})
-	g.gameLog.GlobalEventHub.Subscribe(events.NewPurchase{}, func(e tasks.Event) {
-		ev := e.(events.NewPurchase)
-		log.Printf("New Purchase:%s ", ev.Purchase)
-		ent := loader.InitFish(entities.SavedFish{FishType: ev.Purchase, Size: 1}, g.environment, g.gameLog.GlobalEventHub, g.collisionMap)
-		ev2 := events.CloseWindow{}
-		entities.RegisterEntity(ent)
-		entities.UnFocus(g.gameState.FocusedEntity.Id)
-		g.gameLog.GlobalEventHub.Publish(ev2)
+	g.gameLog.GlobalEventHub.Subscribe(events.PurchaseSuccessful{}, func(e tasks.Event) {
+		ev := e.(events.PurchaseSuccessful)
+		if entities.FishList(ev.Purchase) != "" {
+			log.Printf("New Purchase:%s ", ev.Purchase)
+			ent := loader.InitFish(entities.SavedFish{FishType: ev.Purchase, Size: 1}, g.environment, g.gameLog.GlobalEventHub, g.collisionMap)
+			ev2 := events.CloseWindow{}
+			entities.RegisterEntity(ent)
+			entities.UnFocus(g.gameState.FocusedEntity.Id)
+			g.gameLog.GlobalEventHub.Publish(ev2)
+		}
 	})
 }

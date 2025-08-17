@@ -11,13 +11,13 @@ import (
 
 func main() {
 
-	loader.LoadShaderRegistry()
+	//loader.LoadShaderRegistry()
 	loader.LoadFontRegistry()
 
 	state := entities.SaveGameState{}
-	gameLog := sceneManagement.NewGameLog(state)
+	gameLog := sceneManagement.NewGameLog(state, "w")
 
-	game := scenes.NewTestScene(sceneManagement.CampScene, gameLog)
+	game := scenes.NewTestScene(sceneManagement.MowingMiniGameScene, gameLog)
 
 	err := ebiten.RunGame(game)
 	if err != nil {

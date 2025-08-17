@@ -8,8 +8,6 @@ import (
 	"time"
 )
 
-var sfxMap = make(map[string]*audio.Player)
-
 type SoundPlayer struct {
 	sounds      map[resource.AudioID]*audio.Player
 	timers      map[resource.AudioID]*util.Timer
@@ -22,6 +20,11 @@ func (s *SoundPlayer) LoadPlayer(playerType string) {
 	soundList := []resource.AudioID{
 		CardBoard,
 		Coins1,
+		Crash,
+		MoneyCounter,
+		Kaching,
+		MowerRunning,
+		FailedStart,
 		PickUpOne,
 		PlopSound,
 		PouringFood,
@@ -42,7 +45,6 @@ func (s *SoundPlayer) LoadPlayer(playerType string) {
 
 	if playerType == "sound" {
 		for _, sound := range soundList {
-
 			s.sounds[sound] = loadedSounds.LoadWAV(sound).Player
 			s.sounds[sound].SetVolume(loadedSounds.LoadAudio(sound).Volume)
 			bufferDuration := 64 * time.Millisecond
@@ -66,6 +68,29 @@ func (s *SoundPlayer) LoadPlayer(playerType string) {
 		}
 	}
 
+	if playerType == "ogg" {
+		for _, sound := range soundList {
+			s.sounds[sound] = loadedOGGs.LoadOGG(sound).Player
+			s.sounds[sound].SetVolume(loadedOGGs.LoadAudio(sound).Volume)
+			s.updateFuncs = make(map[resource.AudioID]func(id *audio.Player, targetVol float64, currentVol float64, time float64))
+			err := s.sounds[sound].Rewind()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+	if playerType == "oggMusic" {
+		for _, sound := range musicList {
+			s.sounds[sound] = loadedOGGs.LoadOGG(sound).Player
+			s.sounds[sound].SetVolume(loadedOGGs.LoadAudio(sound).Volume)
+			s.updateFuncs = make(map[resource.AudioID]func(id *audio.Player, targetVol float64, currentVol float64, time float64))
+			err := s.sounds[sound].Rewind()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+
 }
 
 func (s *SoundPlayer) Play(id resource.AudioID) {
@@ -75,6 +100,10 @@ func (s *SoundPlayer) Play(id resource.AudioID) {
 func (s *SoundPlayer) Pause() {
 	for _, sound := range s.sounds {
 		sound.Pause()
+		err := sound.Rewind()
+		if err != nil {
+			log.Fatal("Rewinding sound after pausing caused error")
+		}
 	}
 }
 
@@ -98,15 +127,23 @@ func (s *SoundPlayer) Update() {
 			}
 			s.updateFuncs[key](playing, targetVol, playing.Volume(), s.counter)
 			s.counter += 0.016
-
 		}
+		if s.updateFuncs[key] != nil && playing.Position() > 1*time.Minute {
+			s.updateFuncs[key](playing, 0, playing.Volume(), s.counter)
+			s.counter += 0.016
+			if playing.Volume() <= 0.015 {
+				s.counter = 0
+				continue
+			}
+		}
+
 		if !playing.IsPlaying() && playing.Position() > 0 {
 			err := playing.Rewind()
 			if err != nil {
 				log.Fatal(err)
 			}
 		}
-		
+
 	}
 }
 

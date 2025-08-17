@@ -24,6 +24,7 @@ func (i InsufficientFunds) Type() string {
 }
 
 type PurchaseSuccessful struct {
+	Purchase string
 }
 
 func (p PurchaseSuccessful) Type() string {
@@ -33,7 +34,6 @@ func (p PurchaseSuccessful) Type() string {
 type BuyAttempt struct {
 	Cost float64
 	Item string
-	Name string
 }
 
 func (b BuyAttempt) Type() string {

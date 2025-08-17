@@ -60,6 +60,7 @@ func LoadUISprites(spritesToLoad []entities.Label, environment *system.Environme
 		uSprite.ActivationRect = image.Rect(tankBounds.Min.X, tankBounds.Min.Y+50, tankBounds.Max.X, tankBounds.Min.Y-200)
 
 		entity := &entities.Entity{UiData: uSprite, Sprite: uSprite.Sprite}
+
 		uSprite.LayerIndex = i //well just order by the order we load these cus we lazy af
 		entity.EventHub = hub
 		entities.RegisterEntity(entity)

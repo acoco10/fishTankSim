@@ -29,24 +29,37 @@ const (
 	Camp
 )
 
-func NewGameLog(state entities.SaveGameState) *GameLog {
+func NewGameLog(state entities.SaveGameState, flag string) *GameLog {
+
 	g := GameLog{}
 	g.Save = &state
 	eHub := tasks.NewEventHub()
 	g.GlobalEventHub = eHub
 
-	soundFX.LoadSounds()
-	songP := &soundFX.SoundPlayer{}
-	soundP := &soundFX.SoundPlayer{}
+	if flag == "w" {
+		soundFX.LoadOggs()
+		oggPlay := &soundFX.SoundPlayer{}
+		oggPlay.LoadPlayer("ogg")
+		g.SoundPlayer = oggPlay
 
-	songP.LoadPlayer("music")
-	soundP.LoadPlayer("sound")
+		oggPlayMusic := &soundFX.SoundPlayer{}
+		oggPlayMusic.LoadPlayer("oggMusic")
+		g.SongPlayer = oggPlayMusic
+	} else {
+		soundFX.LoadSounds()
+		songP := &soundFX.SoundPlayer{}
+		soundP := &soundFX.SoundPlayer{}
 
-	g.SongPlayer = songP
-	g.SoundPlayer = soundP
+		songP.LoadPlayer("music")
+		soundP.LoadPlayer("sound")
+
+		g.SongPlayer = songP
+		g.SoundPlayer = soundP
+	}
+
 	g.Day = 1
-	var tasks []*tasks.Task
-	g.Tasks = tasks
+	var gTasks []*tasks.Task
+	g.Tasks = gTasks
 
 	return &g
 }
@@ -61,6 +74,7 @@ const (
 	CampScene
 	FishSceneDev
 	TitleScene
+	Reset
 )
 
 type GameMode uint

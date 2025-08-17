@@ -5,6 +5,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/graphics"
 	"github.com/acoco10/fishTankWebGame/game/input"
+	"github.com/acoco10/fishTankWebGame/game/movement"
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
@@ -28,6 +29,7 @@ func RegisterEntity(ent *Entity) {
 	ent.Draw = true
 	currentEntID++
 	LiveList = append(LiveList, ent)
+
 	ZSortEntities()
 }
 
@@ -66,6 +68,29 @@ type Entity struct {
 	GraphicManager     *graphics.GraphicManager
 	UpdateFunc         func(entity *Entity)
 	Parameters         map[string]any
+	TankMovement       *TankCharacter
+	MovementState      *movement.State
+	MovementSystem     *movement.System
+	StateMachine       *StateMachine
+}
+
+type StateMachine struct {
+	States       map[int]*StateHandler
+	CurrentState int
+}
+
+func (s *StateMachine) Transition() {
+	if s.States[s.CurrentState].TransitionFunc != nil {
+		s.States[s.CurrentState].TransitionFunc()
+	}
+	s.CurrentState = s.States[s.CurrentState].TransitionTo
+
+}
+
+type StateHandler struct {
+	Updater        func(entity *Entity)
+	TransitionTo   int
+	TransitionFunc func()
 }
 
 type GameState struct {
@@ -105,8 +130,19 @@ func UpdateEntities(gs *GameState) {
 			ent.Sprite.Update()
 		}
 
-		if ent.UiData != nil && !gs.MouseFlags.WindowOpen && !registry.Config.Zoom {
+		if ent.UiData != nil && !gs.MouseFlags.WindowOpen {
+			if registry.Config.Zoom {
+				if ent.Sprite.X != ent.UiData.baseX {
+					ent.Sprite.Shader = nil
+					ent.Sprite.X = ent.UiData.baseX
+					ent.Sprite.Y = ent.UiData.baseY
+					ent.Sprite.Z = 0
+					ZSortEntities()
+					continue
+				}
+			}
 			ent.UpdateUiSprite(gs)
+
 		}
 
 		if ent.CreatureData != nil {
@@ -262,8 +298,7 @@ func Focus(ID uint32) {
 
 	if e.CreatureData != nil {
 		e.Sprite.Z = 3
-		eff := LoadCreatureEffect("Day", e)
-		AddEffectToSprite(eff, e.Sprite)
+		LoadCreatureEffect("Day", e)
 		MakeFishMenu(e.Id)
 	}
 
@@ -274,25 +309,19 @@ func Focus(ID uint32) {
 	}
 }
 
-func LoadCreatureEffect(state string, ent *Entity) *sprite.Sprite {
+func LoadCreatureEffect(state string, ent *Entity) {
 
 	switch state {
 	case "Night":
-		return entImportableLoaders.LoadEffect("zzz")
+		LoadFollowEffectAsEnt("zzz", ent.Id, ent.EventHub)
 	case "Day":
 		switch ent.CreatureData.HealthState {
 		case Healthy:
-			return entImportableLoaders.LoadEffect("happy")
+			LoadFollowEffectAsEnt("happy", ent.Id, ent.EventHub)
 		case Stressed:
-			return entImportableLoaders.LoadEffect("stressed")
+			LoadFollowEffectAsEnt("stressed", ent.Id, ent.EventHub)
 		}
 	}
-	return nil
-}
-
-func AddEffectToSprite(effect *sprite.Sprite, sp *sprite.Sprite) {
-	id := graphics.NewTravelingEffect(effect, &sp.X, &sp.Y)
-	sp.SavePublishedGraphicID(id)
 }
 
 func ReFocus(ID uint32) {
@@ -310,6 +339,7 @@ func ReFocus(ID uint32) {
 
 	if e.EventHub != nil {
 		e.EventHub.Publish(events.Focus{EntID: ID})
+
 	} else {
 		log.Fatal("making this a crash for now for detecting un focus events on ents that dont have event hubs initiated", ID)
 	}
@@ -323,4 +353,32 @@ func PHModifier(ent *Entity) {
 		ent.EventHub.Publish(events.UISpriteAction{UiSprite: "PHModifier", UiSpriteAction: ent.Parameters["tag"].(string)})
 	}
 
+}
+
+func LoadFollowEffectAsEnt(eff string, targID uint32, hub *tasks.EventHub) {
+	effect := entImportableLoaders.LoadEffect(eff)
+	effect.Z = 3.0
+	effect.Unfocusable = true
+	effEnt := &Entity{Sprite: effect, UpdateFunc: FollowEnt, LinkedID: targID}
+	RegisterEntity(effEnt)
+	hub.Subscribe(events.UnFocus{}, func(e tasks.Event) {
+		RemoveEntity(effEnt.Id)
+	})
+}
+
+func FollowEnt(ent *Entity) {
+	targetEnt, exists := GetEntity(ent.LinkedID)
+
+	if !exists {
+		log.Println("Follow effect lined to de initated sprite, deinitiating effect")
+		RemoveEntity(ent.Id)
+	}
+
+	ent.Sprite.X = targetEnt.Sprite.X
+	ent.Sprite.Y = targetEnt.Sprite.Y - float32(ent.Sprite.SpriteHeight) - 10
+	if targetEnt.CreatureData != nil {
+		if targetEnt.CreatureData.Flip {
+			ent.Sprite.X -= float32(targetEnt.Sprite.SpriteWidth)
+		}
+	}
 }

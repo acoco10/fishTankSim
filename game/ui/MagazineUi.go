@@ -23,6 +23,7 @@ type Magazine struct {
 	activeIndex   int
 	buttonGraphic *graphics.SpriteGraphic
 	fish          [12]*ebiten.Image
+	CostMap       map[string]float64
 }
 
 func (m *Magazine) ActiveWindow() *widget.Container {
@@ -83,6 +84,16 @@ func LoadMagazineUiMenu(eHub *tasks.EventHub, screenWidth int, screenHeight int)
 	magUI.pages = append(magUI.pages, indexPage, fishPage, infoPage1, stuffPage)
 
 	MagSubscriptions(&magUI, eHub)
+
+	costs := make(map[string]float64)
+	costs["ph+"] = .25
+	costs["ph-"] = .25
+	costs[string(entities.Kirbensis)] = 2
+	costs[string(entities.MollyFish)] = 1
+	costs[string(entities.Fish)] = 1
+	costs[string(entities.Guppy)] = 1
+
+	magUI.CostMap = costs
 
 	return &magUI, nil
 }
@@ -189,10 +200,27 @@ func LoadTankStuff(hub *tasks.EventHub) (*widget.Container, error) {
 		),
 	)
 
+	conainerWithPrice := widget.NewContainer(widget.ContainerOpts.Layout(
+		widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Spacing(10),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(30)),
+		),
+	))
+
+	text := widget.NewText(widget.TextOpts.Text("price: $.25", registry.FontMap["nk57"], color.RGBA{R: 60, G: 160, B: 50, A: 255}),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			})))
+
 	b1 := LoadSpriteSelectButton("ph+", hub, 32)
 	b2 := LoadSpriteSelectButton("ph-", hub, 32)
 
-	leftPage.AddChild(b1, b2)
+	conainerWithPrice.AddChild(b1, text)
+
+	leftPage.AddChild(conainerWithPrice, b2)
 
 	rootContainer.AddChild(leftPage)
 	rootContainer.AddChild(rightPage)
@@ -569,11 +597,14 @@ func MagSubscriptions(magUi *Magazine, eHub *tasks.EventHub) {
 			itemName = util.LowCase(itemName)
 
 			pev := events.BuyAttempt{
-				Name: itemName,
-				Cost: 1,
-				Item: "fish",
+				Cost: magUi.CostMap[itemName],
+				Item: itemName,
 			}
 			eHub.Publish(pev)
+		}
+		if ev.ButtonText == "ph+" || ev.ButtonText == "ph-" {
+			purchase := events.BuyAttempt{Item: ev.ButtonText, Cost: magUi.CostMap[ev.ButtonText]}
+			eHub.Publish(purchase)
 		}
 	})
 
