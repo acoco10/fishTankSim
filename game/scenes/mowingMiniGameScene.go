@@ -162,7 +162,7 @@ func CalcScoreState(s *MowingScene) {
 		updateScoreAfterTimeLimit(s)
 	}
 	if s.frameCount == 600 {
-
+		s.returnScene = sceneManagement.FishTank
 		/*	msg := "Press r to try again"
 			graphics.NewUpdateAbleTextGraphic(&msg, ScreenWidth/2, ScreenHeight/2+45)*/
 	}
