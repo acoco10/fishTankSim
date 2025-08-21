@@ -83,7 +83,7 @@ func LoadUISprites(spritesToLoad []entities.Label, environment *system.Environme
 			entity.Sprite.AbleToBeUnfocusedAutomatically = true
 			entity.AnimationMap = LoadPiggyBankAnimationMap(uSprite.X, uSprite.Y, float32(uSprite.Img.Bounds().Dy()))
 		case entities.Magazine:
-			entity.Draw = false
+			//entity.Draw = false
 		}
 
 		//lightingShader := shaders.LoadOnePointLightingNeutral()

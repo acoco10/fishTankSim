@@ -11,6 +11,7 @@ import (
 	"image"
 	"image/color"
 	"log"
+	"strings"
 )
 
 type PropState uint8
@@ -36,27 +37,44 @@ type StructureProp struct {
 	state    PropState
 	stateWas PropState
 	*sprite.Sprite
+	Sprite2      *sprite.Sprite
 	shadowPoint  image.Point
 	boundaries   image.Rectangle
 	StaticShadow bool
 	baseY        float32
+	tag          string
 }
 
 func (p *StructureProp) State() PropState {
 	return p.state
 }
 
-func NewStructureProp(x float32, y float32, img *ebiten.Image, normal *ebiten.Image, hub *tasks.EventHub, bounds image.Rectangle) *StructureProp {
+func NewStructureProp(x float32, y float32, img []*ebiten.Image, normal *ebiten.Image, hub *tasks.EventHub, bounds image.Rectangle, baseyOffSet float32, tag string) *StructureProp {
 
 	p := StructureProp{}
 
-	sp := &sprite.Sprite{Img: img, NormalMap: normal, X: x, Y: y, Z: 0}
+	sp := &sprite.Sprite{Img: img[0], NormalMap: normal, X: x, Y: y, Z: 1}
+
+	if len(img) > 1 {
+		log.Println("loading second image for structure prop as sprite")
+		sp2 := &sprite.Sprite{Img: img[1], NormalMap: normal, X: x, Y: y, Z: 2}
+		p.Sprite2 = sp2
+		p.Sprite2.Unfocusable = true
+		if normal != nil {
+			normalMapShader := registry.ShaderMap["NormalMap"]
+			sp.Shader = normalMapShader
+			sp.ShaderParams = make(map[string]any)
+			sp.ShaderParams["Cursor"] = []float64{0, 0}
+		} else {
+			p.Sprite.ShaderParams = make(map[string]any)
+		}
+	}
 
 	if normal != nil {
 		normalMapShader := registry.ShaderMap["NormalMap"]
 		sp.Shader = normalMapShader
 		sp.ShaderParams = make(map[string]any)
-		sp.ShaderParams["Cursor"] = []float64{440, 600}
+		sp.ShaderParams["Cursor"] = []float64{0, 0}
 	} else {
 		p.Sprite.ShaderParams = make(map[string]any)
 	}
@@ -67,7 +85,11 @@ func NewStructureProp(x float32, y float32, img *ebiten.Image, normal *ebiten.Im
 	sprite.LoadPulseOutlineShader(p.Sprite)
 	p.shadowPoint = image.Point{X: int(x), Y: int(y)}
 	p.boundaries = bounds
-
+	p.Y = float32(p.boundaries.Max.Y-p.Img.Bounds().Dy()) - 50
+	curseX, _ := util.GetScaledCursorPosition()
+	p.X = float32(curseX)
+	p.baseY = baseyOffSet
+	p.tag = tag
 	return &p
 }
 
@@ -80,6 +102,11 @@ func (p *StructureProp) Draw(screen *ebiten.Image) {
 	}
 
 	p.Sprite.Draw(screen)
+
+	if p.Sprite2 != nil {
+		p.Sprite2.Draw(screen)
+	}
+
 	if p.state == Moveable {
 		x := p.X + baseOffset
 		y := float32(p.boundaries.Max.Y - 35)
@@ -111,7 +138,15 @@ func (p *StructureProp) Draw(screen *ebiten.Image) {
 
 }
 
-func (p *StructureProp) Update() {
+func (e *Entity) UpdateProp() {
+	p := e.PropData
+
+	if p.Sprite2 != nil {
+		p.Sprite2.X = p.X
+		p.Sprite2.Y = p.Y
+		p.Sprite2.Update()
+	}
+	p.Sprite.Update()
 
 	if p.state == Moveable {
 		p.Y = float32(p.boundaries.Max.Y-p.Img.Bounds().Dy()) - 50
@@ -132,14 +167,17 @@ func (p *StructureProp) Update() {
 	}
 	if p.state == SettingInPlace {
 		p.Sprite.UnLoadShader()
+		p.Sprite.Shader = registry.ShaderMap["NormalMap"]
 		p.Y++
 	}
-	if p.Y >= float32(p.boundaries.Max.Y-p.Img.Bounds().Dy())-29 {
+	if p.Y >= float32(p.boundaries.Max.Y-p.Img.Bounds().Dy())-p.baseY {
+		if p.stateWas == SettingInPlace {
+			e.EventHub.Publish(events.NewProp{PropId: e.Id, Name: p.tag})
+		}
 		p.state = SetInPlace
 		p.Sprite.Unfocusable = true
 	}
 
-	p.Sprite.Update()
 	p.stateWas = p.state
 
 }
@@ -182,13 +220,15 @@ func DrawProps(queue PropQueue, screen *ebiten.Image) {
 	}
 }
 
-func LoadProp(propName string, tankBoundaries image.Rectangle, eventhub *tasks.EventHub) *StructureProp {
+func LoadProp(propName string, tankBoundaries map[string]image.Rectangle, eventhub *tasks.EventHub) *StructureProp {
 	var prop *StructureProp
 	switch propName {
 	case "Log":
 		logPropImg, err := util.LoadImageAssetAsEbitenImage("tankProps/logProp")
 		logNormal, err := util.LoadImageAssetAsEbitenImage("tankProps/logProp_n")
-		logProp := NewStructureProp(0, 0, logPropImg, logNormal, eventhub, tankBoundaries)
+
+		logPropimgs := []*ebiten.Image{logPropImg}
+		logProp := NewStructureProp(0, 0, logPropimgs, logNormal, eventhub, tankBoundaries["tankRect"], 10, "log")
 
 		if err != nil {
 			log.Fatal(err)
@@ -197,12 +237,31 @@ func LoadProp(propName string, tankBoundaries image.Rectangle, eventhub *tasks.E
 	case "Castle":
 
 		log.Println("returning castle prop from load prop call")
-		castleImg, err := util.LoadImageAssetAsEbitenImage("tankProps/castleProp")
-		castleNormal, err := util.LoadImageAssetAsEbitenImage("tankProps/castleProp_n")
+		castleImg, err := util.LoadImageAssetAsEbitenImage("tankProps/newCastle")
 		if err != nil {
 			log.Fatal(err)
 		}
-		castleProp := NewStructureProp(0, 0, castleImg, castleNormal, eventhub, tankBoundaries)
+		castleNormal, err := util.LoadImageAssetAsEbitenImage("tankProps/newCastle_n")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		castleRearLayer, err := util.LoadImageAssetAsEbitenImage("tankProps/newCastleLayer1")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		castleImgs := []*ebiten.Image{castleImg, castleRearLayer}
+
+		var castleCollisions []image.Rectangle
+		for key, collision := range tankBoundaries {
+			if strings.Contains(key, propName) {
+				castleCollisions = append(castleCollisions, collision)
+				println("collision found:", key)
+			}
+		}
+
+		castleProp := NewStructureProp(0, 0, castleImgs, castleNormal, eventhub, tankBoundaries["tankRect"], 23, propName)
 		prop = castleProp
 
 	case "Grass":
@@ -216,7 +275,9 @@ func LoadProp(propName string, tankBoundaries image.Rectangle, eventhub *tasks.E
 			log.Fatal(err)
 		}
 
-		grassProp := NewStructureProp(0, 0, grassImg, grassNormal, eventhub, tankBoundaries)
+		grassImgs := []*ebiten.Image{grassImg}
+
+		grassProp := NewStructureProp(0, 0, grassImgs, grassNormal, eventhub, tankBoundaries["tank"], 20, "grass")
 		prop = grassProp
 
 	case "Rock":

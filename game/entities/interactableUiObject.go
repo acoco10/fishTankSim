@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"fmt"
 	"github.com/acoco10/fishTankWebGame/game/drawables"
 	"github.com/acoco10/fishTankWebGame/game/entImportableLoaders"
 	"github.com/acoco10/fishTankWebGame/game/events"
@@ -18,6 +19,7 @@ import (
 	"image"
 	"math"
 	"strconv"
+	"strings"
 )
 
 type uiSpriteState uint8
@@ -528,7 +530,7 @@ func UiSpriteSubs(hub *tasks.EventHub, uis *Entity) {
 			var text string
 			var wbText string
 			if math.Abs(phev.Guess-uis.UiData.Environment.ModifiedPHLevel) < .1 {
-				text = "Right On!"
+				text = "Right On! Stash you bonus quarter in your piggy bank"
 				wbText = "PH: " + strconv.FormatFloat(phev.Guess, 'f', 2, 32)
 				mev := events.MoneyAvailable{Amount: .25}
 				hub.Publish(mev)
@@ -542,6 +544,10 @@ func UiSpriteSubs(hub *tasks.EventHub, uis *Entity) {
 			if uis.Sprite.LinkedSprite != nil {
 				uis.Sprite.SavePublishedGraphicID(AddTextGraphic(uis.Sprite.LinkedSprite, text))
 			}
+			fmt.Printf("Before replace: '%s'\n", wbText)
+			wbText = strings.ReplaceAll(wbText, ".", " . ")
+			fmt.Printf("After replace: '%s'\n", wbText)
+
 			ev := events.WriteToWhiteBoard{PreferredPosition: "bottomLeft", Msg: wbText}
 			hub.Publish(ev)
 		})

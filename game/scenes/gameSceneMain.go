@@ -1,6 +1,7 @@
 package scenes
 
 import (
+	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/graphics"
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
@@ -48,7 +49,7 @@ func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
 		ebiten.SetWindowSize(1920, 1080)
 		ebiten.SetFullscreen(false)
 		ConfigResolution()
-		ConfigZoom(2.0, image.Point{X: -300, Y: -300})
+
 		sceneMap := map[sceneManagement.SceneId]sceneManagement.Scene{
 			sceneManagement.StartScene:          NewStartScene(log),
 			sceneManagement.FishTank:            NewFishScene2(log),
@@ -174,7 +175,8 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 }
 
 func NewTestScene(TestSceneID sceneManagement.SceneId, log *sceneManagement.GameLog) *Game {
-
+	registry.Config.Set(registry.Debug, true)
+	ebiten.SetWindowSize(1920, 1080)
 	ConfigResolution()
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	activeSceneId := TestSceneID
@@ -185,6 +187,10 @@ func NewTestScene(TestSceneID sceneManagement.SceneId, log *sceneManagement.Game
 	case sceneManagement.MowingMiniGameScene:
 		sceneMap[TestSceneID] = NewMowingScene(log)
 		sceneMap[sceneManagement.Reset] = NewMowingScene(log)
+	case sceneManagement.FishTank:
+		log.Save.Fish = append(log.Save.Fish, entities.SavedFish{FishType: string(entities.MollyFish), Size: 1})
+		sceneMap[TestSceneID] = NewFishScene2(log)
+		//sceneMap[sceneManagement.Reset] = NewFishScene2(log)
 	}
 
 	sceneMap[TestSceneID].FirstLoad()
@@ -207,9 +213,10 @@ func ConfigResolution() {
 	registry.Config.Set(registry.ResolutionWidth, 1920)
 	registry.Config.Set(registry.ResolutionHeight, 1080)
 	scaling := ScaleScreenToResolution()
-
+	println("res scaling =", scaling)
 	//this one needs to be set last to get the correct y/x offset
 	registry.Config.Set(registry.ResolutionScaling, scaling)
+	ConfigZoom(2.0, image.Point{X: -300, Y: -300})
 }
 
 func ConfigZoom(zoomFactor float64, zoomOffset image.Point) {

@@ -1,1 +1,6 @@
-{"WaterEffect":{"Min":{"X":0,"Y":0},"Max":{"X":0,"Y":0}},"clickableFishFood":{"Min":{"X":0,"Y":0},"Max":{"X":0,"Y":0}},"tank":{"Min":{"X":197,"Y":188},"Max":{"X":581,"Y":373}}}
+{
+  "WaterEffect": {"Min":{"X":0,"Y":0},"Max":{"X":0,"Y":0}},
+  "clickableFishFood": {"Min":{"X":0,"Y":0},"Max":{"X":0,"Y":0}},
+  "tank": {"Min":{"X":197,"Y":188},"Max":{"X":581,"Y":373}},
+  "light": {"Min":{"X":297,"Y":157},"Max":{"X":581,"Y":373}}
+}

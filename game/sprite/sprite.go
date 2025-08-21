@@ -112,6 +112,10 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 
 	if s.Shader != nil {
 		shaderOpts := &ebiten.DrawRectShaderOptions{}
+		if s.ShaderParams == nil {
+			s.ShaderParams = make(map[string]any)
+		}
+
 		degrees, exists := s.DOptsUpdaterParams["degree"]
 		if exists {
 			shaderOpts.GeoM.Rotate(degrees)
@@ -125,6 +129,10 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 		}
 		shaderOpts.GeoM.Translate(float64(s.X), float64(s.Y))
 		shaderOpts.Images[0] = s.Img
+		if s.NormalMap != nil {
+			shaderOpts.Images[1] = s.NormalMap
+		}
+
 		shaderOpts.Uniforms = s.ShaderParams
 		b := s.Img.Bounds()
 		screen.DrawRectShader(b.Dx(), b.Dy(), s.Shader, shaderOpts)
@@ -154,6 +162,11 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 
 	screen.DrawImage(s.Img, dOpts)
 
+}
+
+func UpdateNormalCursorForDebuggin(s *Sprite) {
+	cx, cy := util.GetScaledCursorPosition()
+	s.ShaderParams["Cursor"] = []float64{float64(cx), float64(cy)}
 }
 
 func FlipSprite(sprite *Sprite, dopts any) {
@@ -298,7 +311,10 @@ func UpdateSpriteAnimation(as *Sprite) {
 	shaderOpts.GeoM.Translate(float64(as.X), float64(as.Y))
 
 	as.shaderOpts = shaderOpts
-
+	/*if as.ShaderParams != nil {
+		cx, cy := util.GetScaledCursorPosition()
+		as.ShaderParams["Cursor"] = []float64{float64(cx), float64(cy)}
+	}*/
 	drawOpts := &ebiten.DrawImageOptions{}
 
 	if as.Scale > 0 {

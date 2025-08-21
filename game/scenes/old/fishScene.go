@@ -123,15 +123,6 @@ func NewFishScene(gameLog *sceneManagement.GameLog) *FishScene {
 	//g.debugRect.RectState = geometry.Off
 
 	//nighlight parameters
-	tankRect := g.collisionMap["Tank"]
-
-	g.lightingShaderParams["LightPoint"] = [2]float64{ScreenWidth / 2, ScreenHeight / 5}
-	g.lightingShaderParams["LightWidth"] = 120.0
-	g.lightingShaderParams["TankRect"] = [4]float64{
-		float64(tankRect.Min.X),
-		float64(tankRect.Min.Y),
-		float64(tankRect.Max.X),
-		float64(tankRect.Max.Y)}
 
 	tankX := g.images.FishTank.Bounds().Dx()
 	tankY := g.images.FishTank.Bounds().Dy()

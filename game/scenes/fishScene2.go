@@ -3,7 +3,7 @@ package scenes
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/acoco10/fishTankWebGame/game/customCursor"
+	"github.com/acoco10/fishTankWebGame/game/daySystem"
 	"github.com/acoco10/fishTankWebGame/game/debug"
 	"github.com/acoco10/fishTankWebGame/game/drawables"
 	"github.com/acoco10/fishTankWebGame/game/entities"
@@ -20,16 +20,15 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/ui"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/ebitenui/ebitenui"
-	eInput "github.com/ebitenui/ebitenui/input"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"golang.org/x/image/colornames"
 	"image"
 	"log"
 	"math/rand"
 	"os"
+	"strings"
 	time2 "time"
 )
 
@@ -44,7 +43,7 @@ const (
 var backGroundImgShelfHeight = 150
 
 type FishScene2 struct {
-	zoomScree       *ebiten.Image
+	zoomScreen      *ebiten.Image
 	state           FishSceneState
 	loaded          bool
 	tankSize        image.Rectangle
@@ -54,19 +53,27 @@ type FishScene2 struct {
 	returnScene     sceneManagement.SceneId
 	tutorialManager *tutorial.Manager
 	//store                 *system.Store
-	collisionMap          map[string]image.Rectangle
-	environment           *system.Environment
-	playerState           *entities.Player
-	images                *loader.BackGroundImages
-	debug                 *debug.DebugData
-	currentTask           int
-	testProp              *entities.StructureProp
-	gameState             *entities.GameState
-	lightingState         lightingState
-	smallerResolution     *ebiten.Image
-	whiteBoardSprite      *entities.WhiteBoardSprite
-	taskRelatedEventQueue []tasks.Event
-	cachedEntity          uint32 //random place to stash an entity i want to refocus or keep track of
+	collisionMap            map[string]image.Rectangle
+	environment             *system.Environment
+	playerState             *entities.Player
+	images                  *loader.BackGroundImages
+	debug                   *debug.DebugData
+	currentTask             int
+	activatedCollisions     []Collision
+	testProp                *entities.StructureProp
+	gameState               *entities.GameState
+	lightingState           lightingState
+	globalLightingShaderMap map[lightingState]*ebiten.Shader
+	shaderParamsMap         map[lightingState]map[string]any
+	smallerResolution       *ebiten.Image
+	whiteBoardSprite        *entities.WhiteBoardSprite
+	taskRelatedEventQueue   []tasks.Event
+	cachedEntity            uint32 //random place to stash an entity i want to refocus or keep track of
+}
+
+type Collision struct {
+	image.Rectangle
+	z int
 }
 
 var creatureManager CreatureManager
@@ -76,21 +83,7 @@ type CreatureManager struct {
 }
 
 func NewFishScene2(gameLog *sceneManagement.GameLog) *FishScene2 {
-
-	roomImages, err := loader.LoadAllRoomBackGroundImages("assets/images/roomImagesSmaller")
-	if err != nil {
-		log.Fatal("error while loading fish tank room assets:", err)
-	}
-
-	println("initiating game in ebiten NewFishScene2()")
-
-	//render layers
 	g := &FishScene2{}
-	g.images = roomImages
-	g.images.OffScreen = ebiten.NewImage(ScreenWidth, ScreenHeight)
-	g.images.OffScreen2 = ebiten.NewImage(ScreenWidth, ScreenHeight)
-	g.smallerResolution = ebiten.NewImage(ScreenWidth, ScreenHeight)
-
 	collisionMap, err := util.LoadCollisions()
 	if err != nil {
 		log.Fatal(err)
@@ -104,7 +97,43 @@ func NewFishScene2(gameLog *sceneManagement.GameLog) *FishScene2 {
 
 	g.collisionMap = collisionMap
 
-	tankRect := g.collisionMap["Tank"]
+	roomImages, err := loader.LoadAllRoomBackGroundImages("assets/images/roomImagesSmaller")
+	if err != nil {
+		log.Fatal("error while loading fish tank room assets:", err)
+	}
+
+	println("initiating game in ebiten NewFishScene2()")
+
+	//render layers
+
+	g.images = roomImages
+	g.images.OffScreen = ebiten.NewImage(ScreenWidth, ScreenHeight)
+	g.images.OffScreen2 = ebiten.NewImage(ScreenWidth, ScreenHeight)
+	g.smallerResolution = ebiten.NewImage(ScreenWidth, ScreenHeight)
+
+	g.globalLightingShaderMap = make(map[lightingState]*ebiten.Shader)
+
+	g.globalLightingShaderMap[Day] = registry.ShaderMap["DayLight"]
+	g.globalLightingShaderMap[NightLight] = registry.ShaderMap["OnePointLighting"]
+
+	tankRect := g.collisionMap["tank"]
+
+	g.shaderParamsMap = make(map[lightingState]map[string]any)
+
+	nightLightParams := make(map[string]any)
+	nightLightParams["LightPoint"] = [2]float64{
+		float64(g.collisionMap["tank"].Min.X+194) * registry.Config.ResolutionScalingF,
+		float64(g.collisionMap["tank"].Min.Y-52) * registry.Config.ResolutionScalingF}
+	nightLightParams["LightWidth"] = 120.0 * registry.Config.ResolutionScalingF
+	nightLightParams["TankRect"] = [4]float64{
+		float64(tankRect.Min.X) * registry.Config.ResolutionScalingF,
+		float64(tankRect.Min.Y) * registry.Config.ResolutionScalingF,
+		float64(tankRect.Max.X) * registry.Config.ResolutionScalingF,
+		float64(tankRect.Max.Y) * registry.Config.ResolutionScalingF}
+
+	g.shaderParamsMap[NightLight] = nightLightParams
+
+	g.shaderParamsMap[Day] = make(map[string]any) //no params as of now
 
 	tankX := g.images.FishTank.Bounds().Dx()
 	tankY := g.images.FishTank.Bounds().Dy()
@@ -114,6 +143,7 @@ func NewFishScene2(gameLog *sceneManagement.GameLog) *FishScene2 {
 
 	tankRect = image.Rect(startingX, startingY, tankX+startingX, tankY+startingY)
 	g.tankSize = tankRect
+	g.collisionMap["tankRect"] = tankRect
 
 	fishtankSpriteFlags := loader.SpriteEntFlags{Unfocusable: true}
 	loader.MakeSpriteEntity(g.images.FishTank, float32(g.tankSize.Min.X), float32(g.tankSize.Min.Y), fishtankSpriteFlags)
@@ -168,7 +198,7 @@ func (g *FishScene2) FirstLoad() {
 		//g.gameLog.Save.Fish = []entities.SavedFish{entities.SavedFish{FishType: "fish", Size: 2}, entities.SavedFish{FishType: "fish", Size: 3}}
 
 	}
-	g.zoomScree = ebiten.NewImage(registry.Config.ScreenWidth, registry.Config.ScreenHeight)
+	g.zoomScreen = ebiten.NewImage(registry.Config.ScreenWidth, registry.Config.ScreenHeight)
 	//store := system.NewStore(g.gameLog.GlobalEventHub)
 	//g.store = store
 	g.LoadStuff()
@@ -196,13 +226,15 @@ func (g *FishScene2) FirstLoad() {
 	_, wbSprite := loader.LoadAllEntities(fishScene2UISprites, g.gameLog.Save.Fish, g.environment, g.gameLog.GlobalEventHub, g.collisionMap)
 	g.whiteBoardSprite = wbSprite
 	g.loaded = true
+
+	daySystem.LoadDaysTasks(g.gameLog)
 	log.Println("----fishScene2.firstLoad() finished----")
 
 }
 
 func (g *FishScene2) OnEnter() {
-	cu := customCursor.CreateCursorUpdater(g.gameLog.GlobalEventHub)
-	eInput.SetCursorUpdater(cu)
+	//cu := customCursor.CreateCursorUpdater(g.gameLog.GlobalEventHub)
+	//eInput.SetCursorUpdater(cu)
 	g.debug = &debug.DebugData{DebugRect: &util.Rect{
 		Rectangle: &image.Rectangle{Min: image.Point{}, Max: image.Point{}}},
 		DebugParameter: make(map[debug.DebugOption]bool)}
@@ -210,7 +242,7 @@ func (g *FishScene2) OnEnter() {
 	g.debug.DebugParameter[debug.Print] = false
 	g.debug.DebugParameter[debug.Position] = false
 
-	g.debug.DebugRect.Init("tank")
+	g.debug.DebugRect.Init("CastleCollisions", g.gameLog.GlobalEventHub)
 	log.Println("----FishScene2 OnEnter() called----")
 
 	mouseFlags := &input.MouseFlags{HandledClick: false, CursorOccupied: false}
@@ -225,6 +257,7 @@ func (g *FishScene2) OnEnter() {
 	println("made it to new day")
 	if g.gameLog.Day != g.state.lastDayEntered {
 		g.configureNewDay()
+		entities.UpdateCursorForEntitiesWNormals([]float64{0, 0})
 		log.Println("----FishScene2 OnEnter() finished----")
 		return
 	}
@@ -283,24 +316,21 @@ func (g *FishScene2) IsLoaded() bool {
 }
 
 func (g *FishScene2) Update() (sceneManagement.SceneId, error) {
+	g.ui.Update()
 	g.gameState.MouseFlags.HandledClick = false
 	g.tutorialManager.Update()
-	g.updateInput()
+
+	//g.updateInput()
+
 	entities.UpdateEntities(g.gameState)
 	g.whiteBoardSprite.Update()
 
 	g.gameLog.SongPlayer.Update()
 	g.gameLog.SoundPlayer.Update()
 
-	g.ui.Update()
 	g.updateTimers()
 
 	if g.debug.GameMode == debug.Debug {
-		if g.debug.DebugParameter[debug.Position] {
-			g.positionModeUpdate()
-			ev := events.ButtonClickedEvent{ButtonText: "Mode"}
-			g.gameLog.GlobalEventHub.Publish(ev)
-		}
 		err := g.debug.DebugRect.Update()
 		if err != nil {
 			//debug rect could error when saving collision location
@@ -341,13 +371,17 @@ func (g *FishScene2) DrawOffScreen() {
 
 	entities.DrawEntities(g.images.OffScreen)
 
+	sopts := &ebiten.DrawRectShaderOptions{}
+
 	if registry.Config.Zoom {
-		opts.GeoM.Scale(registry.Config.ZoomFactor, registry.Config.ZoomFactor)
-		opts.GeoM.Translate(registry.Config.ZoomOffSetX, registry.Config.ZoomOffSetY)
-		g.zoomScree.DrawImage(g.images.OffScreen, opts)
-
+		sopts.GeoM.Scale(registry.Config.ZoomFactor, registry.Config.ZoomFactor)
+		sopts.GeoM.Translate(registry.Config.ZoomOffSetX, registry.Config.ZoomOffSetY)
+		sopts.Images[0] = g.images.OffScreen
+		sopts.Uniforms = g.shaderParamsMap[g.lightingState]
+		b := g.images.OffScreen.Bounds()
+		g.zoomScreen.DrawRectShader(b.Dx(), b.Dy(), g.globalLightingShaderMap[g.lightingState], sopts)
+		//g.zoomScreen.DrawImage(g.images.OffScreen, opts)
 	}
-
 }
 
 func (g *FishScene2) Draw(screen *ebiten.Image) {
@@ -356,18 +390,20 @@ func (g *FishScene2) Draw(screen *ebiten.Image) {
 	g.DrawOffScreen()
 
 	dOpts := &ebiten.DrawImageOptions{}
-	g.smallerResolution.DrawImage(g.images.OffScreen, dOpts)
+	shaderOpts := &ebiten.DrawRectShaderOptions{}
+	shaderOpts.Images[0] = g.images.OffScreen
+	shaderOpts.Uniforms = g.shaderParamsMap[g.lightingState]
+	b := g.images.OffScreen.Bounds()
+	g.smallerResolution.DrawRectShader(b.Dx(), b.Dy(), g.globalLightingShaderMap[g.lightingState], shaderOpts)
 
 	//debug rect needs to be scaled to base resolution
-
 	//scale our draw opts to resolution
 
 	if g.debug.GameMode == debug.Debug {
 
-		//g.debug.DebugRect.Draw(g.smallerResolution)
-
-		for key, rect := range g.collisionMap {
-			util.StrokeRectFromImageRect(rect, g.smallerResolution, colornames.Orangered)
+		g.debug.DebugRect.Draw(g.smallerResolution)
+		/*for key, rect := range g.collisionMap {
+			util.StrokeRectFromImageRect(rect, g.smallerResolution, colornames.Orangered, false)
 			cs := ebiten.ColorScale{}
 			cs.SetB(0.0)
 			cs.SetG(0.0)
@@ -377,6 +413,10 @@ func (g *FishScene2) Draw(screen *ebiten.Image) {
 			tOpts.ColorScale = cs
 			tOpts.GeoM.Translate(float64(rect.Min.X+rect.Dx())/registry.Config.ResolutionScalingF, float64(rect.Min.Y)*registry.Config.ResolutionScalingF)
 			text.Draw(screen, key, face, tOpts)
+		}*/
+
+		for _, rect := range g.activatedCollisions {
+			util.StrokeRectFromImageRect(rect.Rectangle, g.smallerResolution, colornames.Greenyellow, false)
 		}
 	}
 
@@ -388,7 +428,7 @@ func (g *FishScene2) Draw(screen *ebiten.Image) {
 	dOpts.GeoM.Scale(registry.Config.ResolutionScalingF, registry.Config.ResolutionScalingF)
 
 	if registry.Config.Zoom {
-		screen.DrawImage(g.zoomScree, dOpts)
+		screen.DrawImage(g.zoomScreen, dOpts)
 		entities.DrawNonZoomedEntities(screen)
 		graphics.DrawScaledGraphicsOnMainScreen(screen)
 		graphics.DrawUnScaledGraphics(screen)
@@ -415,9 +455,6 @@ func (g *FishScene2) Draw(screen *ebiten.Image) {
 }
 
 func (g *FishScene2) positionModeUpdate() {
-	if ebiten.IsKeyPressed(ebiten.KeyM) {
-		g.debug.DebugRect.Init("WaterEffect")
-	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyS) {
 		g.saveUISpritePositions()
@@ -448,7 +485,7 @@ func (g *FishScene2) updateTimers() {
 		if key == "sceneTransition" && state == util.Done {
 			timer.TurnOff()
 			g.returnScene = sceneManagement.TransitionScene
-			g.lightingState = Night
+			//g.lightingState = Night
 			g.gameLog.GlobalEventHub.Publish(events.DayOverTransitionComplete{})
 		}
 
@@ -462,13 +499,6 @@ func (g *FishScene2) updateTimers() {
 			}
 		}
 
-		if key == "leaveScene" && state == util.Done {
-			/*	timer.TurnOff()
-				if g.gameLog.DayType == sceneManagement.Camp {
-					eff := loader.LoadStaticEffect("timeForCamp", 100, 85)
-					g.sprites[1] = append(g.sprites[1], eff)
-				}*/
-		}
 	}
 }
 
@@ -485,7 +515,7 @@ func (g *FishScene2) updateInput() {
 		}
 	}
 
-	g.debugInputCheck()
+	//g.debugInputCheck()
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		g.gameLog.GlobalEventHub.Publish(events.CloseWindow{})
@@ -535,6 +565,13 @@ func (g *FishScene2) debugInputCheck() {
 			g.debugModeParameterPrinterUpdater()
 		}
 	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyR) {
+		colMap, err := util.LoadCollisions()
+		if err != nil {
+			log.Fatal("error while trying to hot reload collisions", err)
+		}
+		g.collisionMap = colMap
+	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyX) {
 		testEvent := events.MoneyAvailable{Amount: 10.0}
@@ -551,6 +588,19 @@ func (g *FishScene2) debugInputCheck() {
 			g.debug.DebugParameter[debug.ShaderTest] = false
 		case false:
 			g.debug.DebugParameter[debug.ShaderTest] = true
+		}
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.Key9) {
+		e := entities.SavedFish{FishType: string(entities.Fish), Size: 3}
+		loader.InitFish(e, g.environment, g.gameLog.GlobalEventHub, g.collisionMap)
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyL) {
+		switch g.lightingState {
+		case NightLight:
+			g.lightingState = Day
+		case Day:
+			g.lightingState = NightLight
 		}
 	}
 
@@ -624,7 +674,7 @@ func (g *FishScene2) uiSubs() {
 			g.timers["sceneTransition"].TurnOn()
 			ev2 := events.DayOver{}
 			//change state to let the game know to draw unlit art
-			g.lightingState = Night
+			//g.lightingState = Night
 			//turn of normal maps:
 			g.gameLog.GlobalEventHub.Publish(ev2)
 			g.gameLog.Day++
@@ -647,11 +697,16 @@ func (g *FishScene2) uiSubs() {
 				ev2 := events.CloseWindow{OverRide: true}
 				g.gameLog.GlobalEventHub.Publish(ev2)
 				g.environment.AddTankModifier(propPicked)
-				p := entities.LoadProp(propPicked, g.tankSize, g.gameLog.GlobalEventHub)
+				p := entities.LoadProp(propPicked, g.collisionMap, g.gameLog.GlobalEventHub)
 				ent := &entities.Entity{PropData: p, Sprite: p.Sprite, EventHub: g.gameLog.GlobalEventHub}
-				ent.Sprite.Z = 0
-
+				ent.Sprite.Z = 1
 				entities.RegisterEntity(ent)
+				if p.Sprite2 != nil {
+					ent2 := &entities.Entity{PropData: p, Sprite: p.Sprite2, EventHub: g.gameLog.GlobalEventHub}
+					ent2.Sprite.Z = 0
+					entities.RegisterEntity(ent2)
+				}
+
 				println("castle or whatever added")
 			}
 		}
@@ -771,6 +826,17 @@ func (g *FishScene2) saveUISpritePositions() {
 	}
 }
 
+func positionCollisionBaseOnSprite(col image.Rectangle, prop *entities.Entity) image.Rectangle {
+	width := col.Dx()
+	height := col.Dy()
+	minPointX := int(prop.Sprite.X) + col.Min.X
+	minPointY := int(prop.Sprite.Y) + col.Min.Y
+	maxPointX := minPointX + width
+	maxPointY := minPointY + height
+	newPos := image.Rect(minPointX, minPointY, maxPointX, maxPointY)
+	return newPos
+}
+
 func (g *FishScene2) creatureSubs(colMap map[string]image.Rectangle) {
 	g.gameLog.GlobalEventHub.Subscribe(input.MouseButtonPressedUISpriteActivity{}, func(e tasks.Event) {
 		ev := e.(input.MouseButtonPressedUISpriteActivity)
@@ -782,6 +848,26 @@ func (g *FishScene2) creatureSubs(colMap map[string]image.Rectangle) {
 			pt.Y += 50
 			entities.NewParticle(pt, colMap["tank"], g.gameLog.GlobalEventHub)
 
+		}
+	})
+
+	g.gameLog.GlobalEventHub.Subscribe(events.NewProp{}, func(e tasks.Event) {
+		ev := e.(events.NewProp)
+		prop, exists := entities.GetEntity(ev.PropId)
+		if !exists {
+			log.Fatal("new prop event returning prop that doesnt exist ")
+		}
+
+		g.debug.DebugRect.GivePoint(image.Point{int(prop.Sprite.X), int(prop.Sprite.Y)})
+
+		println("got new prop event", ev.Name)
+		for key, col := range g.collisionMap {
+			if strings.Contains(key, ev.Name) {
+				log.Println("adding active collision:", key)
+				newPos := positionCollisionBaseOnSprite(col, prop)
+				collision := Collision{z: prop.Sprite.Z, Rectangle: newPos}
+				g.activatedCollisions = append(g.activatedCollisions, collision)
+			}
 		}
 	})
 

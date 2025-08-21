@@ -32,6 +32,7 @@ const (
 	GoToBed
 	Door
 	MagazineState
+	DebugText
 )
 
 type MainMenuData struct {
@@ -54,7 +55,7 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenu
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 	)
 
-	buttonContainer := widget.NewContainer(
+	/*buttonContainer := widget.NewContainer(
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(
 				widget.AnchorLayoutData{
@@ -68,37 +69,63 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenu
 				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
 				widget.RowLayoutOpts.Padding(widget.Insets{Right: 0, Left: 0, Top: 100, Bottom: 0}),
 			)),
-	)
+	)*/
 
-	fishStats, err := NewTextBlock(eHub, StatsMenu)
+	/*fishStats, err := NewTextBlock(eHub, StatsMenu)
 
 	if err != nil {
 		return nil, nil, err
+	}*/
+
+	//ishStats.text.GetWidget().Visibility = widget.Visibility_Hide
+	//buttonContainer.AddChild(fishStats)
+	//rootContainer.AddChild(buttonContainer)
+	/*debugInput, _ := MakeDebugTextInput("test", eHub)
+	rootContainer.AddChild(debugInput)*/
+	//textInput, _, _, _ := NewTextInput(eHub, "test")
+
+	img, err := loadTextInputImage()
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	fishStats.text.GetWidget().Visibility = widget.Visibility_Hide
+	textInput := widget.NewTextInput(
+		widget.TextInputOpts.Face(registry.FontMap["nk57"]),
+		widget.TextInputOpts.Image(img),
+		widget.TextInputOpts.ChangedHandler(func(args *widget.TextInputChangedEventArgs) {
+			log.Printf("INPUT RECEIVED: %s", args.InputText)
+		}),
+		widget.TextInputOpts.Color(&widget.TextInputColor{
+			Idle:          color.NRGBA{0, 0, 50, 255},
+			Disabled:      color.NRGBA{0, 0, 20, 100},
+			Caret:         color.NRGBA{0, 0, 50, 255},
+			DisabledCaret: color.NRGBA{R: 200, G: 200, B: 200, A: 255},
+		}),
 
-	//notePad, err := NewTextBlock(eHub, NotePad)
-	//if err != nil {
+		//Set how much padding there is between the edge of the input and the text
+		widget.TextInputOpts.Padding(widget.NewInsetsSimple(5)),
 
-	//notePad.text.SetText("To Do:")
+		//Set the font and width of the caret
+		widget.TextInputOpts.CaretOpts(
+			widget.CaretOpts.Size(registry.FontMap["nk57"], 2),
+		),
+	)
 
-	buttonContainer.AddChild(fishStats)
-	rootContainer.AddChild(buttonContainer)
+	rootContainer.AddChild(textInput)
 
 	// construct the UI
 	ui := ebitenui.UI{
 		Container: rootContainer,
 	}
 
-	mag, err := LoadMagazineUiMenu(eHub, gameWidth, gameHeight)
-	if err != nil {
+	//mag, err := LoadMagazineUiMenu(eHub, gameWidth, gameHeight)
+	/*	if err != nil {
 		return nil, nil, err
-	}
-	mainDat := &MainMenuData{eventHub: eHub}
-	MainMenuSubs(mainDat, mag, &ui, eHub)
+	}*/
+	//mainDat := &MainMenuData{eventHub: eHub}
+	//MainMenuSubs(mainDat, mag, &ui, eHub)
 
-	return &ui, fishStats, nil
+	return &ui, nil, nil
 }
 
 func MakePHmenu(hub *tasks.EventHub) (*widget.Container, *widget.TextInput) {
@@ -281,6 +308,180 @@ func MakePHmenu(hub *tasks.EventHub) (*widget.Container, *widget.TextInput) {
 	return rootContainer, textInput
 }
 
+func MakeDebugTextInput(lastText string, hub *tasks.EventHub) (*widget.Container, *widget.TextInput) {
+
+	face, err := util.LoadFont(32, "reglisseOutline") //white center text
+
+	face2, err := util.LoadFont(32, "reglisseOutlined") //black outline
+
+	rootContainer := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout(
+		//widget.AnchorLayoutOpts.Padding(widget.NewInsetsSimple(200)))))
+		)))
+
+	bImage, err := loadOptionsMenuInputImage()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	childContainer := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(bImage),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				StretchHorizontal:  true,
+				StretchVertical:    false,
+			}),
+		),
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Spacing(20),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(100)),
+		)))
+
+	buttonRow := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+				Stretch:  false,
+			}),
+		),
+		widget.ContainerOpts.Layout(widget.NewGridLayout(
+			//Define number of columns in the grid
+			widget.GridLayoutOpts.Columns(3),
+			//onlt one row so row spacing second input doesnt really matter
+			//widget.GridLayoutOpts.Spacing(),
+			// DefaultStretch values will be used when extra columns/rows are used
+			// out of the ones defined on the normal Stretch
+			widget.GridLayoutOpts.DefaultStretch(false, true),
+			//Define how to stretch the rows and columns.
+			widget.GridLayoutOpts.Stretch([]bool{true}, []bool{false}),
+		),
+		))
+
+	buttonRow2 := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+				Stretch:  false,
+			})),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()))
+
+	textContainer := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				StretchHorizontal:  false,
+				StretchVertical:    false,
+			}),
+		),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+	)
+
+	headContainer := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			}),
+		),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+	)
+
+	headerLbl := widget.NewText(
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			})),
+
+		widget.TextOpts.Text("Collision Name", face, color.RGBA{R: 255, G: 255, B: 255, A: 255}),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+		widget.TextOpts.Insets(widget.Insets{}),
+	)
+
+	headerLblOutline := widget.NewText(
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			})),
+
+		widget.TextOpts.Text("Collision Name", face2, color.RGBA{R: 0, G: 0, B: 0, A: 255}),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+		widget.TextOpts.Insets(widget.Insets{}),
+	)
+
+	//inputFace := registry.FontMap["nk57_24"]
+
+	//imig, _ := loadTextInputImage()
+
+	/*textInput := widget.NewTextInput(
+		widget.TextInputOpts.WidgetOpts(
+			//Set the layout information to center the textbox in the parent
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+
+			widget.WidgetOpts.MinSize(300, 10),
+		),
+		//Set the Idle and Disabled background image for the text input
+		//If the NineSlice image has a minimum size, the widget will use that or
+		// widget.WidgetOpts.MinSize; whichever is greater
+		widget.TextInputOpts.Image(img),
+
+		//Set the font face and size for the widget
+		widget.TextInputOpts.Face(inputFace),
+
+		//Set the colors for the text and caret
+		widget.TextInputOpts.Color(&widget.TextInputColor{
+			Idle:          color.NRGBA{0, 0, 50, 255},
+			Disabled:      color.NRGBA{0, 0, 20, 100},
+			Caret:         color.NRGBA{0, 0, 50, 255},
+			DisabledCaret: color.NRGBA{R: 200, G: 0, B: 0, A: 255},
+		}),
+
+		//Set how much padding there is between the edge of the input and the text
+		widget.TextInputOpts.Padding(widget.NewInsetsSimple(5)),
+
+		//Set the font and width of the caret
+		widget.TextInputOpts.CaretOpts(
+			widget.CaretOpts.Size(inputFace, 2),
+		),
+
+		//This text is displayed if the input is empty
+		widget.TextInputOpts.Placeholder(lastText),
+
+		//This is called when the user hits the "Enter" key.
+		//There are other options that can configure this behavior
+
+		//This is called whenever there is a change to the text
+		widget.TextInputOpts.ChangedHandler(func(args *widget.TextInputChangedEventArgs) {
+			fmt.Println("Text Changed: ", args.InputText)
+
+		}),
+		widget.TextInputOpts.SubmitHandler(func(args *widget.TextInputChangedEventArgs) {
+			hub.Publish(events.ButtonClickedEvent{ButtonText: "submit"})
+		}),
+	)*/
+
+	textInput, tarea, _, _ := NewTextInput(hub, lastText)
+
+	b3 := LoadOutlineTextButtonSubmitBg("Submit", hub, "")
+
+	textContainer.AddChild(textInput)
+
+	buttonRow.AddChild(textContainer)
+	buttonRow2.AddChild(b3)
+
+	headContainer.AddChild(headerLbl, headerLblOutline)
+
+	childContainer.AddChild(headContainer, buttonRow, buttonRow2)
+	rootContainer.AddChild(childContainer)
+
+	return rootContainer, tarea
+}
+
 func makeWindow(rtContainer *widget.Container, y int, width int, height int) *widget.Window {
 
 	windowWidth := 400
@@ -335,6 +536,14 @@ func triggerPHwindow(ui *ebitenui.UI, hub *tasks.EventHub) (widget.RemoveWindowF
 	window := makeWindow(cont, registry.Config.ResolutionHeight/2+100, 400, 130)
 	rfunc := ui.AddWindow(window)
 	return rfunc, txtInput
+}
+
+func triggerDebugTextInputWindow(lastInput string, ui *ebitenui.UI, hub *tasks.EventHub) {
+	cont, _ := MakeDebugTextInput(lastInput, hub)
+	//window := makeWindow(cont, registry.Config.ResolutionHeight/2+100, 400, 130)
+	//rfunc := ui.AddWindow(window)
+	ui.Container.AddChild(cont)
+	//return rfunc, txtInput
 }
 
 func TriggerNextDayWindow(ui *ebitenui.UI, hub *tasks.EventHub) widget.RemoveWindowFunc {
@@ -634,6 +843,12 @@ func buttonTextSubs(mainDat *MainMenuData, magazine *Magazine, ui *ebitenui.UI, 
 			if ev.ButtonText == "Vibe awhile Longer" {
 				mainDat.RemoveFunc([]string{})
 			}
+		case DebugText:
+			if ev.ButtonText == "Submit" {
+				mainDat.RemoveFunc([]string{})
+				sendEv := events.DebugTextEntered{InputText: mainDat.textInputReference.GetText()}
+				mainDat.eventHub.Publish(sendEv)
+			}
 		}
 	})
 }
@@ -672,6 +887,14 @@ func uiSpriteActionSubs(mainDat *MainMenuData, magazine *Magazine, ui *ebitenui.
 			mainDat.textInputReference = tarea
 			mainDat.addRemoveFunc(rfunc)
 		}
+	})
+	hub.Subscribe(events.DebugTextInput{}, func(e tasks.Event) {
+		ev := e.(events.DebugTextInput)
+		mainDat.windowOpen = DebugText
+		triggerDebugTextInputWindow(ev.LastText, ui, mainDat.eventHub)
+		//tarea.Focus(true)
+		//mainDat.textInputReference = tarea
+		//mainDat.addRemoveFunc(rfunc)
 	})
 }
 

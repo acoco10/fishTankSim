@@ -61,3 +61,19 @@ type PHGuess struct {
 func (P PHGuess) Type() string {
 	return "PHGuess"
 }
+
+type DebugTextInput struct {
+	LastText string
+}
+
+func (d DebugTextInput) Type() string {
+	return "DebugTextInput"
+}
+
+type DebugTextEntered struct {
+	InputText string
+}
+
+func (d DebugTextEntered) Type() string {
+	return "DebugTextEntered"
+}

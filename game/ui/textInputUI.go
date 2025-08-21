@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/entities"
+	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	eimage "github.com/ebitenui/ebitenui/image"
@@ -109,7 +110,10 @@ func NewTextInput(ehub *tasks.EventHub, placeholder string) (*widget.Container, 
 				Data:    args.InputText,
 			}
 
+			ev2 := events.ButtonClickedEvent{ButtonText: "Submit"}
+
 			ehub.Publish(ev)
+			ehub.Publish(ev2)
 		}),
 
 		//This is called whenever there is a change to the text

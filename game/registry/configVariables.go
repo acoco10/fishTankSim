@@ -21,6 +21,7 @@ const (
 	Zoom
 	ZoomFactor
 	ZoomOffset
+	Debug
 )
 
 type GameMode uint8
@@ -45,6 +46,7 @@ type ConfigManager struct {
 	ZoomFactor         float64
 	ZoomOffSetY        float64
 	ZoomOffSetX        float64
+	Debug              bool
 }
 
 func (c *ConfigManager) Set(value ConfigValue, input any) {
@@ -115,6 +117,12 @@ func (c *ConfigManager) Set(value ConfigValue, input any) {
 		}
 		Config.ZoomOffSetX = float64(i.X)
 		Config.ZoomOffSetY = float64(i.Y)
+	case Debug:
+		i, ok := input.(bool)
+		if !ok {
+			log.Fatal("Tried to set zoom to non bool value")
+		}
+		Config.Debug = i
 	}
 
 }

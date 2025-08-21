@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"fmt"
 	"github.com/acoco10/fishTankWebGame/game/graphics"
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
@@ -31,12 +32,22 @@ func MakeFishMenu(forFish uint32) {
 		float32(registry.Config.ResolutionHeight/4*3)-float32(menuBackGround.Bounds().Dy()))
 
 	cs := ebiten.ColorScale{}
-	clr := colornames.Gray
+	clr := colornames.Gold
 	cs.Scale(float32(clr.R), float32(clr.G), float32(clr.B), float32(clr.A))
 	name := "Lily"
-	nameId := graphics.NewNkTextGraphic(&name, 22, float64(bground.Sprite.X+(135*2))/2, float64(bground.Sprite.Y+34)/2, false, cs, 1, false)
 
-	bground.Sprite.PublishedGraphicId = append(bground.Sprite.PublishedGraphicId, nameId)
+	nameId := graphics.NewNkTextGraphic(&name, 16, float64(bground.Sprite.X+(264))/2, float64(bground.Sprite.Y+28)/2, false, cs, 1, false)
+
+	currrentLevel := fmt.Sprintf("Level: %d", fish.CreatureData.Size)
+	currlvlId := graphics.NewNkTextGraphic(&currrentLevel, 12, float64(bground.Sprite.X+(70))/2, float64(bground.Sprite.Y+50)/2, false, cs, 1, false)
+
+	ageString := "Age: 1 day"
+	ageId := graphics.NewNkTextGraphic(&ageString, 12, float64(bground.Sprite.X+(130))/2, float64(bground.Sprite.Y+50)/2, false, cs, 1, false)
+
+	msg := "Progress:"
+	factorsID := graphics.NewNkTextGraphic(&msg, 12, float64(bground.Sprite.X+(62*2))/2, (float64(bground.Sprite.Y)+float64((bground.Sprite.Img.Bounds().Dy()-52)*2))/2, false, cs, 1, false)
+
+	bground.Sprite.PublishedGraphicId = append(bground.Sprite.PublishedGraphicId, nameId, factorsID, currlvlId, ageId)
 
 	fish.LinkedID = bground.Id
 
@@ -59,9 +70,9 @@ func MakeFishMenu(forFish uint32) {
 	for i, label := range iconLabels {
 		iconSprite := &Entity{}
 		if i < 2 {
-			iconSprite = MakeSpriteEntity(imageMap[label], bground.Sprite.X+buffer+(float32(i+1)*spacing), bground.Sprite.Y+80)
+			iconSprite = MakeSpriteEntity(imageMap[label], bground.Sprite.X+buffer+(float32(i+1)*spacing), bground.Sprite.Y+64)
 		} else {
-			iconSprite = MakeSpriteEntity(imageMap[label], bground.Sprite.X+buffer+float32(i-1)*spacing, bground.Sprite.Y+spacing+40)
+			iconSprite = MakeSpriteEntity(imageMap[label], bground.Sprite.X+buffer+float32(i-1)*spacing, bground.Sprite.Y+spacing+20)
 		}
 		iconSprite.Sprite.Z = 5
 		switch label {
@@ -89,8 +100,20 @@ func MakeFishMenu(forFish uint32) {
 		} else {
 			lastSprite.LinkedID = iconSprite.Id
 		}
+
 		lastSprite = iconSprite
 	}
+
+	x0 := int(bground.Sprite.X + 92)
+	y0 := int(bground.Sprite.Y) + bground.Sprite.GetSpriteRect().Dy()*2 - 95
+	bar := image.Rect(x0, y0, x0+50, y0+12)
+	graphics.NewRectGraphic(bar, colornames.Red)
+	//todo abstract the stupid progress bar
+	width := int((fish.CreatureData.progress / fish.CreatureData.nextLevel) * 50)
+	println("rect inned width:", width)
+
+	innerBar := image.Rect(x0+2, y0+2, x0+2+width, y0+10)
+	graphics.NewFilledRectGraphicWithPointerWidth(innerBar, colornames.Green, &fish.CreatureData.progress, fish.CreatureData.nextLevel)
 
 	stomachId := InitStomachGraphic(bground, fish.Id)
 
@@ -133,8 +156,8 @@ func ChopUpIcons(inputImage *ebiten.Image, labels []string, size int) (map[strin
 
 func InitStomachGraphic(menuBackground *Entity, fishId uint32) uint32 {
 	stomachSprite := LoadStomachGraphic()
-	stomachSprite.X = menuBackground.Sprite.X + 40
-	stomachSprite.Y = menuBackground.Sprite.Y + 80
+	stomachSprite.X = menuBackground.Sprite.X + 86
+	stomachSprite.Y = menuBackground.Sprite.Y + 82
 	stomachSprite.Shader = registry.ShaderMap["Stomach"]
 	stomachSprite.ShaderParams = make(map[string]any)
 	stomachSprite.ShaderParams["Fullness"] = 0.0
@@ -155,8 +178,7 @@ func UpdateFullness(params map[string]any) map[string]any {
 		return params
 	}
 
-	params["Fullness"] = float64(targetedFish.CreatureData.Hunger) / float64(targetedFish.CreatureData.maxHunger)
-	println("fullness =", params["Fullness"].(float64))
+	params["Fullness"] = float64(targetedFish.CreatureData.Hunger) / float64(targetedFish.CreatureData.MaxHunger)
 
 	return params
 }

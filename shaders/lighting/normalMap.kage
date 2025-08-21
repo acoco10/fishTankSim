@@ -5,6 +5,7 @@ package main
 // Uniform variables.
 var Time float
 var Cursor vec2
+var TankDepthZ float
 
 // Fragment is the entry point of the fragment shader.
 // Fragment returns the color value for the current position.
@@ -18,13 +19,15 @@ func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 
 	srcNormal := imageSrc1UnsafeAt(srcPos)
     normal := normalize(vec3(srcNormal.r, 1.0 - srcNormal.g, srcNormal.b) - 0.5)
-	const ambient = 0.9
+	const ambient = 0.75
 	diffuse := 0.75 * max(0.0, dot(normal.xyz, lightdir))
 
 	// You can treat multiple source images by
 	// imageSrc[N]At or imageSrc[N]UnsafeAt.
 
         baseColor := imageSrc0UnsafeAt(srcPos)
+        baseColor.b *= 1+TankDepthZ
+        baseColor.rgb *= 1-TankDepthZ
         litRGB := baseColor.rgb * (ambient + diffuse)
         return vec4(litRGB, baseColor.a)
 

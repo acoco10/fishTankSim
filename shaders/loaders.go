@@ -99,7 +99,7 @@ func LoadNormalMapShader() *ebiten.Shader {
 	es := []byte(NormalMap)
 	s, err := ebiten.NewShader(es)
 	if err != nil {
-		log.Printf("Couldnt load normal map shader %q", err)
+		log.Fatal("Couldnt load normal map shader %q", err)
 	}
 
 	return s

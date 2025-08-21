@@ -34,9 +34,10 @@ import (
 const (
 	mapWidth      = 20
 	mapHeight     = 11
-	time          = 30
+	time          = 60
 	treePositionX = 0
 	treePositionY = 0
+	tileSize      = 16
 )
 
 type mowState uint32
@@ -59,6 +60,7 @@ type MowingScene struct {
 	isLoaded           bool
 	gameMap            [mapHeight][mapWidth]int
 	locationMap        [mapHeight][mapWidth]int
+	gridTexture        *ebiten.Image
 	colliders          []image.Rectangle
 	character          *entities.Entity
 	score              int
@@ -89,6 +91,7 @@ func NewMowingScene(gameLog *sceneManagement.GameLog) *MowingScene {
 	s.sprites = LoadMowSprites(s.images)
 	s.colliders = loadMapCollisions(s.gameMap)
 	s.mowedOverLay = ebiten.NewImage(ScreenWidth, ScreenHeight)
+	s.gridTexture = ebiten.NewImage(ScreenWidth, ScreenHeight)
 	s.brush = s.images["grassBrush"]
 	s.timers = make(map[string]*util.Timer)
 	s.timers["calcAllowance"] = util.NewTimer(0.3)
@@ -146,8 +149,19 @@ func GameMowingState(s *MowingScene) {
 	s.frameCount++
 	UpdateMowerCharacter(s.character)
 	updateTimeAndScore(s)
+
+	playerTileX := int(s.character.Sprite.X) / tileSize
+	playerTileY := int(s.character.Sprite.Y) / tileSize
+	if playerTileX >= 0 && playerTileX < mapWidth && playerTileY >= 0 && playerTileY < mapHeight {
+		s.locationMap[playerTileY][playerTileX] = 1 // Mark as visited
+	}
+
+	if s.frameCount%60 == 0 {
+		s.gameMap = scanMowedImage(s.mowedOverLay, s.gameMap)
+	}
 	if s.time <= 0 {
 		s.gameState.Transition(s)
+		s.gameMap = scanMowedImage(s.mowedOverLay, s.gameMap)
 	}
 }
 
@@ -262,7 +276,7 @@ func (s *MowingScene) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	drawSimpleTileMap(s.smallerResolution, s.images["map"], s.gameMap, 16)
+	drawSimpleTileMap(s.smallerResolution, s.images["map"], s.gameMap, tileSize)
 
 	for _, sp := range s.sprites {
 		sp.Draw(s.smallerResolution)
@@ -289,9 +303,14 @@ func (s *MowingScene) Draw(screen *ebiten.Image) {
 		s.mowedOverLay.DrawImage(s.brush, op)
 	}
 	op.GeoM.Reset()
+
 	// In draw function, draw mowed layer before character
 
 	s.smallerResolution.DrawImage(s.mowedOverLay, op)
+
+	drawOnlyMowedTiles(s.smallerResolution, s.images["map"], s.gameMap, tileSize)
+	DrawGridOverLay(s.gameMap, s.locationMap, s.gridTexture)
+	s.smallerResolution.DrawImage(s.gridTexture, op)
 	if s.character != nil && s.character.Sprite.Img != nil {
 		dopts := &ebiten.DrawImageOptions{}
 		dopts.GeoM.Translate(float64(-s.character.Sprite.SpriteWidth/2), -float64(s.character.Sprite.SpriteHeight/2))
@@ -400,7 +419,7 @@ func (s *MowingScene) subs(eventHub *tasks.EventHub) {
 		switch ev.ButtonText {
 		case "Continue":
 			println("switching back to fish tank ")
-			s.returnScene = sceneManagement.FishTank
+			//s.returnScene = sceneManagement.FishTank
 		case "Lets Mow!":
 			if s.removeWindowFunc != nil {
 				s.removeWindowFunc()
@@ -427,6 +446,34 @@ func loadMapCollisions(tileMap [mapHeight][mapWidth]int) []image.Rectangle {
 	}
 
 	return cols
+}
+
+func DrawGridOverLay(tileMap [mapHeight][mapWidth]int, locationMap [mapHeight][mapWidth]int, screen *ebiten.Image) {
+	for row := range mapHeight {
+		for column := range mapWidth {
+			if locationMap[row][column] == 1 {
+				x0 := column * 16
+				y0 := row * 16
+				Rect := image.Rect(x0, y0, x0+16, y0+16)
+				clr := colornames.Yellow
+				clr.A = 255
+				util.StrokeRectFromImageRect(Rect, screen, clr, false)
+			}
+		}
+	}
+
+	for row := range mapHeight {
+		for column := range mapWidth {
+			if tileMap[row][column] == 2 {
+				x0 := column * 16
+				y0 := row * 16
+				Rect := image.Rect(x0, y0, x0+16, y0+16)
+				clr := colornames.Darkblue
+				clr.A = 255
+				util.StrokeRectFromImageRect(Rect, screen, clr, false)
+			}
+		}
+	}
 }
 
 func DrawRectangleFromPoints(screen *ebiten.Image, corners *entities.TankCorners, strokeColor color.Color, strokeWidth float32) {
@@ -512,6 +559,39 @@ func drawCollisionMap(colMap map[image.Rectangle]bool, character *entities.TankC
 
 }
 
+func scanMowedImage(mowedImage *ebiten.Image, mapArr [mapHeight][mapWidth]int) [mapHeight][mapWidth]int {
+
+	for row := range mapHeight {
+		for col := range mapWidth {
+			if mapArr[row][col] == 1 {
+				x := tileSize * col
+				y := tileSize * row
+				rectBounds := image.Rect(x, y, x+tileSize, y+tileSize)
+				rectImg := mowedImage.SubImage(rectBounds)
+				if isRectFilled(rectImg, rectBounds) {
+					mapArr[row][col] = 2
+					fmt.Printf("Mowed tile at row=%d, col=%d (x=%d, y=%d)\n", row, col, x, y)
+				}
+			}
+		}
+	}
+	return mapArr
+
+}
+
+func isRectFilled(img image.Image, rect image.Rectangle) bool {
+	bounds := rect.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			_, _, _, a := img.At(x, y).RGBA()
+			if a == 0 {
+				return false // exit immediately on first unfilled pixel
+			}
+		}
+	}
+	return true
+}
+
 func updateScoreAfterTimeLimit(s *MowingScene) {
 	if s.allowance < float64(s.score/3)*0.05 {
 		s.allowance += 0.005
@@ -552,9 +632,8 @@ func drawSimpleTileMap(screen *ebiten.Image, mapImage *ebiten.Image, arr [mapHei
 			if id == 0 {
 				continue // Skip empty tiles
 			}
-			// Calculate source rectangle for the tile
-			srcX := (id - 1) * tileSize // Assuming tiles are arranged horizontally
-			srcY := 0                   // All tiles in first row
+			srcX := (id - 1) * tileSize
+			srcY := 0
 
 			// DEBUG: Check if source rectangle is within image bounds
 			if srcX+tileSize > bounds.Dx() {
@@ -564,6 +643,34 @@ func drawSimpleTileMap(screen *ebiten.Image, mapImage *ebiten.Image, arr [mapHei
 			srcRect := image.Rect(srcX, srcY, srcX+tileSize, srcY+tileSize)
 
 			// Create sub-image for this tile
+			tileImg := mapImage.SubImage(srcRect)
+
+			// Calculate destination position
+			opts := &ebiten.DrawImageOptions{}
+
+			opts.GeoM.Translate(float64(x*tileSize), float64(y*tileSize))
+			// Draw the tile
+			screen.DrawImage(tileImg.(*ebiten.Image), opts)
+		}
+	}
+}
+
+func drawOnlyMowedTiles(screen *ebiten.Image, mapImage *ebiten.Image, arr [mapHeight][mapWidth]int, tileSize int) {
+
+	for y, row := range arr {
+		for x, id := range row {
+
+			if id != 2 {
+				continue // Skip empty tiles
+			}
+
+			println("founded tile that was mowed to be drawn")
+			// Calculate source rectangle for the tile
+			srcX := (id - 1) * tileSize // Assuming tiles are arranged horizontally
+			srcY := 0                   // All tiles in first row
+
+			srcRect := image.Rect(srcX, srcY, srcX+tileSize, srcY+tileSize)
+
 			tileImg := mapImage.SubImage(srcRect)
 
 			// Calculate destination position
@@ -669,6 +776,7 @@ func LoadMap() [mapHeight][mapWidth]int {
 			}
 		}
 	}
+	arr[5][11] = 8
 	arr[3][7] = 8
 	return arr
 }

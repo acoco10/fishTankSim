@@ -16,16 +16,16 @@ func LoadSounds() {
 
 	volumeMap := map[resource.AudioID]float64{
 		BestAdventureEver: 0.5,
-		CardBoard:         0.7,
+		CardBoard:         1.0,
 		Coins1:            0.2,
 		Crash:             0.1,
 		DayTimeJazz:       -0.5,
-		FailedStart:       0.9,
+		FailedStart:       1.0,
 		IndieCafe:         0.0,
 		Kaching:           0.3,
 		MoneyCounter:      0.5,
 		MowerRunning:      -0.2,
-		PickUpOne:         0.0,
+		PickUpOne:         1.0,
 		PlopSound:         -0.3,
 		PouringFood:       0.0,
 		SelectSound:       -0.5,
@@ -33,18 +33,16 @@ func LoadSounds() {
 		TropicalHouse:     -0.5,
 		WaterBubbles:      0.0,
 		SelectSound2:      0.0,
-		WhiteBoardMarker1: 0.5,
-		WhiteBoardMarker2: 0.5,
+		WhiteBoardMarker1: 1.0,
+		WhiteBoardMarker2: 1.0,
 	}
 
 	soundDir, err := assets.SoundDir.ReadDir("soundFx/wavs")
-
 	if err != nil {
 		log.Fatal("Error reading sound files")
 	}
 
 	sort.Slice(soundDir, func(i, j int) bool {
-
 		return soundDir[i].Name()[0] < soundDir[j].Name()[0]
 	})
 
@@ -77,7 +75,16 @@ func LoadSounds() {
 	l := resource.NewLoader(audioContext)
 	l.AudioRegistry.Assign(audioRegMap)
 	l.OpenAssetFunc = func(path string) io.ReadCloser {
-		return io.NopCloser(bytes.NewReader(SoundData[path]))
+		data, exists := SoundData[path]
+		if !exists {
+			log.Printf("Sound file not found: %s", path)
+			return nil
+		}
+		if len(data) == 0 {
+			log.Printf("Empty sound file: %s", path)
+			return nil
+		}
+		return &ReadSeekCloser{bytes.NewReader(data)}
 	}
 	loadedSounds = l
 }

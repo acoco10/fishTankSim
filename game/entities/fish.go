@@ -6,6 +6,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"image"
+	"log"
 	"math/rand"
 )
 
@@ -75,7 +76,12 @@ func (e *Entity) FishUpdate() {
 	case Resting:
 		e.restingUpdate()
 	case Eating:
-		c.eatingUpdate()
+		if e.AnimationMap["eating"] != nil {
+			e.Sprite = e.AnimationMap["eating"]
+			e.Sprite.X = e.AnimationMap["swimming"].X
+			e.Sprite.Y = e.AnimationMap["swimming"].Y
+		}
+		e.eatingUpdate()
 	}
 
 	dopts := e.TranSlateFishOpts()
@@ -92,16 +98,23 @@ func (e *Entity) FishUpdate() {
 		e.Sprite.Unfocusable = true
 	}
 
-	e.publishStats("statsMenu")
+	//e.publishStats("statsMenu")
 
 }
 
 func (e *Entity) swimmingUpdate() {
+	if e.Sprite != e.AnimationMap["swimming"] {
+		e.Sprite = e.AnimationMap["swimming"]
+		e.Sprite.X = e.AnimationMap["eating"].X
+		e.Sprite.Y = e.AnimationMap["eating"].Y
+	}
+
 	e.Move()
 	c := e.CreatureData
 	tState := c.Timers[Swimming].Update()
 
 	if tState == util.Done {
+
 		c.Timers[Swimming].Duration = rand.Intn(40)
 		if c.energy > 0 {
 			c.State = Swimming
@@ -118,19 +131,29 @@ func (e *Entity) restingUpdate() {
 
 	if c.Timers[Resting].On == false {
 		c.Timers[Resting].TurnOn()
-		//c.ChangeAnimationSpeed(3)
 	}
 
 	tState := c.Timers[Resting].Update()
 	if tState == util.Done {
 		c.energy += 10
+		if c.energy > 15 {
+			c.State = Swimming
+		}
 	}
 }
 
-func (c *CreatureData) eatingUpdate() {
-	c.Timers[Eating].TurnOn()
+func (e *Entity) eatingUpdate() {
+	if e.CreatureData == nil {
+		log.Fatal("called a creature data func on a non creature some how")
+	}
+	c := e.CreatureData
+	if !c.Timers[Eating].On {
+		c.Timers[Eating].TurnOn()
+	}
+
 	tState := c.Timers[Eating].Update()
 	if tState == util.Done {
+		DoneEating(e)
 		c.State = Swimming
 		c.energy += 4
 	}

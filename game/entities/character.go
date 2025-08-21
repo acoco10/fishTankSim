@@ -13,6 +13,7 @@ const (
 	FrontLeft
 	RearRight
 	RearLeft
+	MidPoint
 )
 
 type SurfaceType int
@@ -101,29 +102,25 @@ func HandleCollision(character *Entity, collisions []Collision) {
 
 	var frontRight bool
 	var frontLeft bool
-	angle := movement.GetAngleInDegrees(character.MovementSystem.Params.Direction)
+	var frontMid bool
 
 	for _, collision := range collisions {
 		if collision.Corner == FrontRight {
 			frontRight = true
 			character.MovementSystem.Params.Acceleration = math.Max(character.MovementSystem.Params.Acceleration-0.2, 0)
-			if CompareSurfaceOfCrash(angle, collision, FrontRight) {
-				CrashFunc(character)
-				return
-			}
 		}
 		if collision.Corner == FrontLeft {
 			frontLeft = true
 			character.MovementSystem.Params.Acceleration = math.Max(character.MovementSystem.Params.Acceleration-0.2, 0)
-			if CompareSurfaceOfCrash(angle, collision, FrontLeft) {
-				CrashFunc(character)
-				return
-			}
+
 		}
 		if collision.Corner == RearRight || collision.Corner == RearLeft {
 			character.MovementState.VelX = 0
 			character.MovementState.VelY = 0
 			character.MovementSystem.Params.Acceleration = 0
+		}
+		if collision.Corner == MidPoint {
+			frontMid = true
 		}
 	}
 
@@ -135,8 +132,7 @@ func HandleCollision(character *Entity, collisions []Collision) {
 		HandleGlance(character, FrontLeft)
 	}
 
-	if frontLeft && frontRight {
-
+	if frontMid {
 		CrashFunc(character)
 		return
 	}
@@ -212,10 +208,11 @@ func CrashFunc(character *Entity) {
 }
 
 type TankCorners struct {
-	FrontLeft  image.Point //0
-	FrontRight image.Point //1
-	RearLeft   image.Point //2
-	RearRight  image.Point //3
+	FrontLeft     image.Point //0
+	FrontRight    image.Point //1
+	RearLeft      image.Point //2
+	RearRight     image.Point //3
+	FrontMidPoint image.Point
 }
 
 func GetCharCorners(character *Entity) *TankCorners {
@@ -256,10 +253,11 @@ func GetCharCorners(character *Entity) *TankCorners {
 	// Helper function to transform a local point to world coordinates
 
 	corners := &TankCorners{
-		FrontLeft:  transformPoint(localCorners.frontLeft[0], localCorners.frontLeft[1]),
-		FrontRight: transformPoint(localCorners.frontRight[0], localCorners.frontRight[1]),
-		RearLeft:   transformPoint(localCorners.rearLeft[0], localCorners.rearLeft[1]),
-		RearRight:  transformPoint(localCorners.rearRight[0], localCorners.rearRight[1]),
+		FrontLeft:     transformPoint(localCorners.frontLeft[0], localCorners.frontLeft[1]),
+		FrontRight:    transformPoint(localCorners.frontRight[0], localCorners.frontRight[1]),
+		RearLeft:      transformPoint(localCorners.rearLeft[0], localCorners.rearLeft[1]),
+		RearRight:     transformPoint(localCorners.rearRight[0], localCorners.rearRight[1]),
+		FrontMidPoint: transformPoint(0, -halfHeight),
 	}
 
 	return corners
@@ -357,31 +355,57 @@ func abs(i int) int {
 func CheckCollision(corners TankCorners, colliders []image.Rectangle) []Collision {
 	var collisions []Collision
 
+	shrinkPercent := float32(0.10)
+	dx := float32(corners.FrontRight.X - corners.FrontLeft.X)
+	dy := float32(corners.FrontRight.Y - corners.FrontLeft.Y)
+
+	xChange := int(dx * shrinkPercent)
+	yChange := int(dy * shrinkPercent)
+
+	x1 := corners.FrontRight.X
+	x2 := corners.FrontLeft.X
+	y1 := corners.FrontRight.Y
+	y2 := corners.FrontLeft.Y
+
+	lineMinX := min(x1, x2)
+	lineMaxX := max(x1, x2)
+	lineMinY := min(y1, y2)
+	lineMaxY := max(y1, y2)
+
+	lineBounds := image.Rect(lineMinX+xChange, lineMinY+yChange, lineMaxX-xChange, lineMaxY-yChange)
+
+	// Check if bounding boxes overlap
+
 	for _, col := range colliders {
 		if corners.FrontRight.In(col) {
 			collision := Collision{Corner: FrontRight, Object: col}
 			collisions = append(collisions, collision)
-			collision.Surface = GetSurface(corners.FrontRight, col)
 
 		}
 		if corners.FrontLeft.In(col) {
 			collision := Collision{Corner: FrontLeft, Object: col}
 			collisions = append(collisions, collision)
-			collision.Surface = GetSurface(corners.FrontLeft, col)
-
 		}
-
 		if corners.RearLeft.In(col) {
 			collision := Collision{Corner: RearLeft, Object: col}
 			collisions = append(collisions, collision)
-			collision.Surface = GetSurface(corners.RearLeft, col)
 
 		}
 		if corners.RearRight.In(col) {
 			collision := Collision{Corner: RearRight, Object: col}
 			collisions = append(collisions, collision)
-			collision.Surface = GetSurface(corners.RearRight, col)
 
+		}
+		if lineBounds.Overlaps(col) {
+
+			intersection := lineBounds.Intersect(col)
+			penetrationX := min(intersection.Dx(), lineBounds.Dx())
+			penetrationY := min(intersection.Dy(), lineBounds.Dy())
+			maxPenetration := max(penetrationX, penetrationY)
+			if maxPenetration > 7 {
+				collision := Collision{Corner: MidPoint, Object: col}
+				collisions = append(collisions, collision)
+			}
 		}
 	}
 	return collisions
@@ -445,37 +469,6 @@ func Glance(cor Corner) (dx float32, dy float32, direction float64) {
 	default:
 		return 0.0, 0.0, 0.0
 	}
-}
-
-func EnforceBoundaries(c *Entity, worldBounds image.Rectangle) {
-	// Get current tank bounds
-
-}
-
-func GetSurface(corner image.Point, rect image.Rectangle) SurfaceType {
-	// Calculate distances to each edge
-	distToTop := corner.Y - rect.Min.Y
-	distToBottom := rect.Max.Y - corner.Y
-	distToLeft := corner.X - rect.Min.X
-	distToRight := rect.Max.X - corner.X
-
-	// Find the minimum distance to determine which surface
-	minDist := distToTop
-	surface := TopSurface
-
-	if distToBottom < minDist {
-		minDist = distToBottom
-		surface = BottomSurface
-	}
-	if distToLeft < minDist {
-		minDist = distToLeft
-		surface = LeftSurface
-	}
-	if distToRight < minDist {
-		surface = RightSurface
-	}
-
-	return surface
 }
 
 type StateData struct {

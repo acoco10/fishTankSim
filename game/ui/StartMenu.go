@@ -12,7 +12,6 @@ import (
 	"github.com/ebitenui/ebitenui"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/hajimehoshi/ebiten/v2"
 	"golang.org/x/image/colornames"
 	"image"
 	"log"
@@ -165,8 +164,8 @@ func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64, resolutionSca
 		return err
 	}
 
-	goldFishImg := goldFish.GetFirstFrameAsStaticImage()
-	mFishImg := mollyFish.GetFirstFrameAsStaticImage()
+	goldFishImg := goldFish["swimming"].GetFirstFrameAsStaticImage()
+	mFishImg := mollyFish["swimming"].GetFirstFrameAsStaticImage()
 
 	b1, err := LoadStackSpriteSelectButton("Goldfish", goldFishImg, float64(12*resolutionScalar), startMenu.eventHub, 4.0)
 	if err != nil {
@@ -210,17 +209,8 @@ func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64, resolutionSca
 func (s *StartMenu) subs() {
 
 	s.eventHub.Subscribe(events.ButtonEvent{}, func(e tasks.Event) {
-		ev := e.(events.ButtonEvent)
-		if ev.EType == "cursor exited" {
-			if ev.ButtonText != "Select" {
-				if len(s.SelectSpritesToDraw) > 1 {
-					sp, ok := s.DrawOptions[ev.ButtonText].(*sprite.AnimatedSprite)
-					if ok {
-						sp.UnLoadShader()
-					}
-				}
-			}
-		}
+		//ev := e.(events.ButtonEvent)
+
 	})
 
 	s.eventHub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
@@ -306,29 +296,6 @@ func (s *StartMenu) ResetSpritePositions(imageWidth, height int, fishOptions map
 		fish.Y = float32(midpoint.Y - fish.Img.Bounds().Dy() - yOffset)
 		i++
 	}
-}
-
-func propSelectChild(eventHub *tasks.EventHub) ([]*widget.Container, error) {
-	// no prop icons yet
-	/*castleImg, err := loader.LoadImageAssetAsEbitenImage("tankProps/castleProp")
-	if err != nil {
-		return nil, err
-	}*/
-
-	b1, err := LoadStackSpriteSelectButtonWithToolTip("Castle", ebiten.NewImage(10, 10), 16, eventHub, []string{})
-
-	if err != nil {
-		return nil, err
-	}
-
-	b2, err := LoadStackSpriteSelectButtonWithToolTip("Log", ebiten.NewImage(10, 10), 16, eventHub, []string{})
-
-	if err != nil {
-		return nil, err
-	}
-	buttons := []*widget.Container{b1, b2}
-
-	return buttons, nil
 }
 
 func addPickSpriteContainer(nButtons int) *widget.Container {

@@ -2,7 +2,6 @@ package scenes
 
 import (
 	"fmt"
-	"github.com/acoco10/fishTankWebGame/game/daySystem"
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/graphics"
@@ -45,7 +44,6 @@ func NewStartScene(gameLog *sceneManagement.GameLog) *StartScene {
 		log.Fatal(fmt.Errorf("error initiating start menu: %s", err))
 	}
 
-	daySystem.LoadDaysTasks(gameLog)
 	s.ui = sUI
 	s.subs(gameLog)
 
@@ -105,19 +103,6 @@ func (s *StartScene) IsLoaded() bool {
 }
 
 func (s *StartScene) subs(gameLog *sceneManagement.GameLog) {
-	gameLog.GlobalEventHub.Subscribe(events.ButtonEvent{}, func(e tasks.Event) {
-
-		ev := e.(events.ButtonEvent)
-		if ev.EType == "cursor exited" {
-			if ev.ButtonText != "Select" {
-				if len(s.ui.SelectSpritesToDraw) > 1 {
-					//this filter logic doesnt follow from anything about the code
-					s.ui.DrawOptions[ev.ButtonText].(*sprite.AnimatedSprite).UnLoadShader()
-				}
-			}
-		}
-
-	})
 
 	gameLog.GlobalEventHub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
 		ev := e.(events.ButtonClickedEvent)
@@ -137,8 +122,6 @@ func (s *StartScene) subs(gameLog *sceneManagement.GameLog) {
 			s.gameLog.SoundPlayer.Play(soundFX.SelectSound)
 			//s.selectedFish.Name = s.ui.TextInput.GetText()
 			gameLog.Save.Fish = append(gameLog.Save.Fish, s.selectedFish)
-			gameLog.Save.TankObjects = append(gameLog.Save.TankObjects, s.selectedProp)
 		}
 	})
-
 }

@@ -121,11 +121,13 @@ func LoadFishSprites() ([12]*ebiten.Image, error) {
 	if err != nil {
 		return [12]*ebiten.Image{}, err
 	}
+	gf := goldFish["swimming"]
+	mf := mollyFish["swimming"]
 
 	fish[0] = kirbensis
 	fish[1] = guppy
-	fish[2] = goldFish.GetFirstFrameAsStaticImage()
-	fish[3] = mollyFish.GetFirstFrameAsStaticImage()
+	fish[2] = gf.GetFirstFrameAsStaticImage()
+	fish[3] = mf.GetFirstFrameAsStaticImage()
 
 	return fish, nil
 }

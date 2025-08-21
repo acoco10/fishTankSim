@@ -32,3 +32,12 @@ type WriteToWhiteBoard struct {
 func (w WriteToWhiteBoard) Type() string {
 	return "WriteToWhiteBoard"
 }
+
+type NewProp struct {
+	PropId uint32
+	Name   string
+}
+
+func (w NewProp) Type() string {
+	return "NewProp"
+}

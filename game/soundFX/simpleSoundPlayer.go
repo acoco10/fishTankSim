@@ -58,12 +58,13 @@ func (s *SoundPlayer) LoadPlayer(playerType string) {
 	}
 	if playerType == "music" {
 		for _, sound := range musicList {
-			s.sounds[sound] = loadedSounds.LoadWAV(sound).Player
+			s.sounds[sound] = loadedSounds.LoadOGG(sound).Player
 			s.sounds[sound].SetVolume(loadedSounds.LoadAudio(sound).Volume)
 			s.updateFuncs = make(map[resource.AudioID]func(id *audio.Player, targetVol float64, currentVol float64, time float64))
 			err := s.sounds[sound].Rewind()
 			if err != nil {
-				log.Fatal(err)
+
+				log.Fatal("error rewinding music", err)
 			}
 		}
 	}

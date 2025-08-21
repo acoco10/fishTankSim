@@ -10,6 +10,7 @@ import (
 	"image/color"
 	"math"
 	"math/rand"
+	"time"
 )
 
 var n int = 0
@@ -23,6 +24,9 @@ type Particle struct {
 	underWaterCounter int
 	remove            bool
 	eventHub          *tasks.EventHub
+	stop              bool
+	targX             float32
+	targY             float32
 	*sprite.Sprite
 }
 
@@ -40,7 +44,7 @@ func (p *Particle) float() {
 		dx = -0.01
 		p.underWaterCounter++
 		vy -= 2 * float64(p.underWaterCounter)
-		vy = max(vy, 0.15)
+		vy = max(vy, 0.07)
 	}
 
 	if p.counter%5 == 0 && p.underWater {
@@ -55,6 +59,10 @@ func (p *Particle) float() {
 }
 
 func (p *Particle) Update() {
+
+	if p.stop {
+		return
+	}
 	p.counter++
 
 	if !p.underWater && int(p.Point.Y) > p.waterLevel+10 {
@@ -85,7 +93,7 @@ func NewParticle(point *util.Point, rect image.Rectangle, hub *tasks.EventHub) *
 		counter:           0,
 		underWater:        false,
 		waterLevel:        rect.Min.Y,
-		floorLevel:        rect.Max.Y,
+		floorLevel:        rect.Max.Y - rand.Intn(10) - 10,
 		underWaterCounter: 0,
 		eventHub:          hub,
 		remove:            false,
@@ -93,7 +101,7 @@ func NewParticle(point *util.Point, rect image.Rectangle, hub *tasks.EventHub) *
 	}
 
 	//empty image so we can z sort, we should give entities position data for this
-	sp := &sprite.Sprite{Z: 0, Img: ebiten.NewImage(10, 10)}
+	sp := &sprite.Sprite{Z: 3, Img: ebiten.NewImage(10, 10)}
 	foodEntity := &Entity{ParticleData: p, Sprite: sp}
 	foodEntity.EventHub = hub
 	RegisterEntity(foodEntity)
@@ -109,7 +117,8 @@ func (p *Entity) subscribe() {
 	p.EventHub.Subscribe(CreatureReachedPoint{}, func(e tasks.Event) {
 		ev := e.(CreatureReachedPoint)
 		if ev.PointID == p.Id {
-			p.Draw = false
+			time.AfterFunc(300*time.Millisecond, func() { p.ParticleData.stop = true })
+			time.AfterFunc(600*time.Millisecond, func() { RemoveEntity(p.Id) })
 		}
 	})
 }

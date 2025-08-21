@@ -54,24 +54,28 @@ func RemoveEntity(id uint32) {
 }
 
 type Entity struct {
-	Id                 uint32
-	LinkedID           uint32 //sometimes we want to manipulate entities from a central update entity like ph strip and box of ph strips
-	Sprite             *sprite.Sprite
-	CreatureData       *CreatureData
-	UiData             *UiSpriteData
-	PropData           *StructureProp
-	ParticleData       *Particle
-	AnimationMap       map[string]*sprite.Sprite
-	TriggeredAnimation string
-	EventHub           *tasks.EventHub
-	Draw               bool
-	GraphicManager     *graphics.GraphicManager
-	UpdateFunc         func(entity *Entity)
-	Parameters         map[string]any
-	TankMovement       *TankCharacter
-	MovementState      *movement.State
-	MovementSystem     *movement.System
-	StateMachine       *StateMachine
+	Id                          uint32
+	LinkedID                    uint32  //sometimes we want to manipulate entities from a central update entity like ph strip and box of ph strips
+	X                           float64 //need to transition coordinates to here instead of inside sprite, will be very annoying but better for handling animations
+	Y                           float64
+	Sprite                      *sprite.Sprite
+	CreatureData                *CreatureData
+	UiData                      *UiSpriteData
+	PropData                    *StructureProp
+	ParticleData                *Particle
+	AnimationMap                map[string]*sprite.Sprite
+	TriggeredAnimation          string
+	EventHub                    *tasks.EventHub
+	Draw                        bool
+	GraphicManager              *graphics.GraphicManager
+	UpdateFunc                  func(entity *Entity)
+	Parameters                  map[string]any
+	TankMovement                *TankCharacter
+	MovementState               *movement.State
+	MovementSystem              *movement.System
+	StateMachine                *StateMachine
+	DeposeAfterNAnimationCycles int
+	AnimationCycles             int
 }
 
 type StateMachine struct {
@@ -127,6 +131,16 @@ func UpdateEntities(gs *GameState) {
 				RemoveEntity(ent.Id)
 				return
 			}
+			if ent.Sprite.Animation != nil && ent.DeposeAfterNAnimationCycles != 0 {
+				if ent.Sprite.Animation.Frame() == ent.Sprite.Animation.LastF {
+					if ent.Sprite.Animation.FrameCounter == 1 {
+						ent.AnimationCycles++
+					}
+				}
+				if ent.DeposeAfterNAnimationCycles == ent.AnimationCycles {
+					RemoveEntity(ent.Id)
+				}
+			}
 			ent.Sprite.Update()
 		}
 
@@ -138,8 +152,8 @@ func UpdateEntities(gs *GameState) {
 					ent.Sprite.Y = ent.UiData.baseY
 					ent.Sprite.Z = 0
 					ZSortEntities()
-					continue
 				}
+				continue
 			}
 			ent.UpdateUiSprite(gs)
 
@@ -149,7 +163,7 @@ func UpdateEntities(gs *GameState) {
 			ent.FishUpdate()
 		}
 		if ent.PropData != nil {
-			ent.PropData.Update()
+			ent.UpdateProp()
 		}
 		if ent.ParticleData != nil {
 			ent.ParticleData.Update()
@@ -273,6 +287,11 @@ func DeInitLinkedEnts(id uint32) {
 		return
 	}
 	for curEnt.LinkedID != 0 {
+		if curEnt.Sprite != nil {
+			if len(curEnt.Sprite.PublishedGraphicId) > 0 {
+				graphics.DeInitGraphics(curEnt.Sprite.PublishedGraphicId)
+			}
+		}
 		linkedId := curEnt.LinkedID
 		RemoveEntity(curEnt.Id)
 		curEnt, exists = GetEntity(linkedId)
@@ -360,6 +379,8 @@ func LoadFollowEffectAsEnt(eff string, targID uint32, hub *tasks.EventHub) {
 	effect.Z = 3.0
 	effect.Unfocusable = true
 	effEnt := &Entity{Sprite: effect, UpdateFunc: FollowEnt, LinkedID: targID}
+	effEnt.DeposeAfterNAnimationCycles = 10
+	effect.Animation.SpeedInTPS = 8
 	RegisterEntity(effEnt)
 	hub.Subscribe(events.UnFocus{}, func(e tasks.Event) {
 		RemoveEntity(effEnt.Id)

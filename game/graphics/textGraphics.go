@@ -88,7 +88,10 @@ func NewOutlineGraphicText(outputText *string, fontsize float64, x float64, y fl
 }
 
 func NewNkTextGraphic(outputText *string, fontsize float64, x float64, y float64, pulse bool, color ebiten.ColorScale, spriteSize float64, fade bool) int {
-	face := registry.FontMap["nk57"]
+	face, err := util.LoadFont(fontsize, "nk57")
+	if err != nil {
+		log.Fatal("font dont exist or something")
+	}
 	return NewGraphicText(face, nil, outputText, x, y, pulse, color, spriteSize, fade)
 }
 
