@@ -7,6 +7,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"image"
+	"log"
 )
 
 func LoadFont(size float64, fontName string) (text.Face, error) {
@@ -19,7 +21,7 @@ func LoadFont(size float64, fontName string) (text.Face, error) {
 		}
 		font = loadedFont
 	case "rockSalt":
-		loadedFont, err := assets.FontsDir.ReadFile("fonts/RockSalt.ttf")
+		loadedFont, err := assets.FontsDir.ReadFile("fonts/PressStart2P.ttf")
 		if err != nil {
 			return nil, err
 		}
@@ -48,6 +50,24 @@ func LoadFont(size float64, fontName string) (text.Face, error) {
 			return nil, err
 		}
 		font = loadedFont
+	case "childhood":
+		loadedFont, err := assets.FontsDir.ReadFile("fonts/Childhood.otf")
+		if err != nil {
+			return nil, err
+		}
+		font = loadedFont
+	case "miniPixel":
+		loadedFont, err := assets.FontsDir.ReadFile("fonts/monogram.ttf")
+		if err != nil {
+			return nil, err
+		}
+		font = loadedFont
+	case "ganon":
+		loadedFont, err := assets.FontsDir.ReadFile("fonts/mini_pixel-7.ttf")
+		if err != nil {
+			return nil, err
+		}
+		font = loadedFont
 	}
 	s, err := text.NewGoTextFaceSource(bytes.NewReader(font))
 	if err != nil {
@@ -67,4 +87,47 @@ func LoadImageAssetAsEbitenImage(assetName string) (*ebiten.Image, error) {
 		return &ebiten.Image{}, err
 	}
 	return img, nil
+}
+
+func LoadDirectoryImages(directory string) map[string]*ebiten.Image {
+
+	dir, err := assets.ImagesDir.ReadDir(directory)
+
+	if err != nil {
+		log.Printf("Error reading directory: %v", err)
+		return nil
+	}
+
+	imageMap := make(map[string]*ebiten.Image)
+
+	for _, file := range dir {
+		if file.IsDir() {
+			continue // Skip subdirectories
+		}
+
+		// Read the file
+		data, err := assets.ImagesDir.ReadFile(directory + "/" + file.Name())
+		if err != nil {
+			log.Printf("Error reading file %s: %v", file.Name(), err)
+			continue // Skip files that can't be read
+		}
+
+		// Decode the image
+		img, _, err := image.Decode(bytes.NewReader(data))
+		if err != nil {
+			log.Printf("Error decoding image %s: %v", file.Name(), err)
+			continue // Skip files that can't be decoded as images
+		}
+
+		// Convert to ebiten image
+		ebitenImg := ebiten.NewImageFromImage(img)
+
+		// Use filename as key (you might want to remove extension)
+		fileName := file.Name()[:len(file.Name())-4]
+		log.Printf("Successfully loaded image: %s from directory %s", fileName, directory)
+
+		imageMap[fileName] = ebitenImg
+	}
+
+	return imageMap
 }

@@ -64,6 +64,7 @@ func (P PHGuess) Type() string {
 
 type DebugTextInput struct {
 	LastText string
+	For      string
 }
 
 func (d DebugTextInput) Type() string {
@@ -72,8 +73,17 @@ func (d DebugTextInput) Type() string {
 
 type DebugTextEntered struct {
 	InputText string
+	For       string
 }
 
 func (d DebugTextEntered) Type() string {
 	return "DebugTextEntered"
+}
+
+type CursorSpeedChanged struct {
+	NewSpeed float64
+}
+
+func (c CursorSpeedChanged) Type() string {
+	return "CursorSpeedChanged"
 }

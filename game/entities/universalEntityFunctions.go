@@ -25,14 +25,20 @@ func ClosestHoveredEntityToCursor(cursorX int, cursorY int, entSlice []*Entity) 
 			continue
 		}
 
-		if !ent.Sprite.SpriteHovered() {
+		if !ent.Sprite.SpriteHovered() && ent.UiData == nil {
+			continue
+		}
+		if !ent.Sprite.SpriteHoveredWithBuffer(20) {
 			continue
 		}
 
 		if ent.Sprite.Unfocusable {
 			continue
 		}
-
+		if ent.UiData != nil && ent.UiData.state == Disabled {
+			continue
+		}
+		
 		s := ent.Sprite
 
 		entPt := image.Point{X: int(s.X), Y: int(s.Y)}
@@ -125,18 +131,26 @@ func FocusOnClickedEntity(gs *GameState) {
 	if gs.MouseFlags.WindowOpen {
 		return
 	}
+
 	xAtClick, yAtClick := util.GetScaledCursorPosition()
 	closestToCursor, distance := ClosestHoveredEntityToCursor(xAtClick, yAtClick, LiveList)
+
 	if closestToCursor == nil {
 		log.Println("|||function for finding closest entity is returning nil|||")
 		return
 	}
 
 	println("closest to cursor = entity ID", closestToCursor.Id, "distance =", distance)
+
 	if gs.FocusedEntity == closestToCursor {
 		return //if the focused entity is the one we would switch to just return
 	}
-	if gs.FocusedEntity != nil && gs.FocusedEntity.Sprite.AbleToBeUnfocusedAutomatically {
+	if gs.FocusedEntity == nil {
+		if closestToCursor.Sprite != nil {
+			Focus(closestToCursor.Id)
+			gs.FocusedEntity = closestToCursor
+		}
+	} else if gs.FocusedEntity.Sprite.AbleToBeUnfocusedAutomatically {
 		// if we made it past the entity not being the currently focused one, unfocus whatever the focused one is
 		println("unfocusing entity that is able to be auto unfocused")
 		if gs.FocusedEntity.Sprite != nil {
@@ -144,15 +158,7 @@ func FocusOnClickedEntity(gs *GameState) {
 			gs.FocusedEntity = nil
 		}
 	}
-	if !gs.MouseFlags.WindowOpen {
-		//if a sprite is focused they can do focused stuff in update rather then have input detection in each sprite
-		if gs.FocusedEntity == nil {
-			if closestToCursor.Sprite != nil {
-				Focus(closestToCursor.Id)
-				gs.FocusedEntity = closestToCursor
-			}
-		}
-	}
+
 }
 
 func UpdateCursorForEntitiesWNormals(cursor []float64) {

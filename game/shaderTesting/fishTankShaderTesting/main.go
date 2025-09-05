@@ -64,7 +64,7 @@ func newGame() *Game {
 
 	g.shader = shaders.LoadOnePointLightingBlue()
 
-	fishSprite, err := loader.LoadFishSprite(entities.Fish, 2)
+	fishSprite, err := loader.LoadFishSprite(entities.GoldFish, 2)
 	if err != nil {
 		log.Fatal(err)
 	}

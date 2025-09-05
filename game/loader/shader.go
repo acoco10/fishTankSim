@@ -42,6 +42,7 @@ func LoadShaderRegistry() {
 	registry.ShaderMap["HandWriting"] = hwr
 	registry.ShaderMap["NormalMap"] = normalMap
 	registry.ShaderMap["OnePointLighting"] = opl
+	registry.ShaderMap["OnePointLighting2"] = shaders.LoadOnePointLightingBlueLayer2()
 	registry.ShaderMap["TurnOff"] = turnOff
 	registry.ShaderMap["DayLight"] = dayLight
 	registry.ShaderMap["Water"] = water

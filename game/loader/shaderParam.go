@@ -31,7 +31,7 @@ func LoadRotatingHighlightOutline(sprite *sprite.Sprite) {
 }
 
 func LoadRotatingHighlightOutlineAnimated(sprite *sprite.AnimatedSprite) {
-	subImgRect := sprite.Rect(0)
+	subImgRect := sprite.GetAnimation().Rect(0)
 	b := subImgRect.Bounds()
 	scale := sprite.Scale
 	if scale == 0 {

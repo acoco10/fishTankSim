@@ -22,6 +22,8 @@ const (
 	ZoomFactor
 	ZoomOffset
 	Debug
+	CursorSpeed
+	CursorPoint
 )
 
 type GameMode uint8
@@ -47,6 +49,8 @@ type ConfigManager struct {
 	ZoomOffSetY        float64
 	ZoomOffSetX        float64
 	Debug              bool
+	CursorSpeed        float64
+	CursorPosition     image.Point
 }
 
 func (c *ConfigManager) Set(value ConfigValue, input any) {
@@ -123,6 +127,18 @@ func (c *ConfigManager) Set(value ConfigValue, input any) {
 			log.Fatal("Tried to set zoom to non bool value")
 		}
 		Config.Debug = i
+	case CursorSpeed:
+		i, ok := input.(float64)
+		if !ok {
+			log.Fatal("Tried to set cursor speed to non float")
+		}
+		Config.CursorSpeed = i
+	case CursorPoint:
+		i, ok := input.(image.Point)
+		if !ok {
+			log.Fatal("Tried to set cursor speed to non float")
+		}
+		Config.CursorPosition = i
 	}
 
 }

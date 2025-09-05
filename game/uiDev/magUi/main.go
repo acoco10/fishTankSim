@@ -1,8 +1,10 @@
 package main
 
 import (
+	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/ui"
+	"github.com/ebitenui/ebitenui"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image/color"
 	"log"
@@ -14,7 +16,7 @@ const (
 )
 
 type Game struct {
-	ui  *ui.Magazine
+	ui  *ebitenui.UI
 	hub *tasks.EventHub
 }
 
@@ -22,11 +24,12 @@ func newGame() *Game {
 	g := Game{}
 	hub := tasks.NewEventHub()
 	g.hub = hub
-	magUi, err := ui.LoadMagazineUiMenu(hub, 1000, 1000)
+
+	gameui, err := ui.LoadMainFishMenu(screenWidth, screenHeight, hub)
 	if err != nil {
 		log.Fatal(err)
 	}
-	g.ui = magUi
+	g.ui = gameui
 	return &g
 
 }
@@ -34,7 +37,7 @@ func newGame() *Game {
 func (g *Game) Update() error {
 	g.ui.Update()
 	if ebiten.IsKeyPressed(ebiten.KeySpace) {
-		g.ui.Trigger()
+		g.hub.Publish(events.UISpriteAction{UiSprite: "Magazine"})
 	}
 	return nil
 }

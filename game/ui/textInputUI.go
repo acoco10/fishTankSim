@@ -10,7 +10,7 @@ import (
 	"image/color"
 )
 
-func NewTextInput(ehub *tasks.EventHub, placeholder string) (*widget.Container, *widget.TextInput, *widget.Container, error) {
+func NewTextInput(ehub *tasks.EventHub, placeholder string) (*widget.Container, *widget.TextInput, *widget.Button, error) {
 
 	img, err := loadTextInputImage()
 
@@ -47,7 +47,7 @@ func NewTextInput(ehub *tasks.EventHub, placeholder string) (*widget.Container, 
 		),
 		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.MinSize(100, 50)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout(widget.AnchorLayoutOpts.Padding(
-			widget.Insets{Right: 0, Left: 0, Top: 8, Bottom: 0},
+			&widget.Insets{Right: 0, Left: 0, Top: 8, Bottom: 0},
 		))),
 	)
 
@@ -81,7 +81,7 @@ func NewTextInput(ehub *tasks.EventHub, placeholder string) (*widget.Container, 
 		widget.TextInputOpts.Image(img),
 
 		//Set the font face and size for the widget
-		widget.TextInputOpts.Face(face),
+		widget.TextInputOpts.Face(&face),
 
 		//Set the colors for the text and caret
 		widget.TextInputOpts.Color(&widget.TextInputColor{
@@ -95,9 +95,6 @@ func NewTextInput(ehub *tasks.EventHub, placeholder string) (*widget.Container, 
 		widget.TextInputOpts.Padding(widget.NewInsetsSimple(5)),
 
 		//Set the font and width of the caret
-		widget.TextInputOpts.CaretOpts(
-			widget.CaretOpts.Size(face, 2),
-		),
 
 		//This text is displayed if the input is empty
 		widget.TextInputOpts.Placeholder(placeholder),
@@ -121,7 +118,7 @@ func NewTextInput(ehub *tasks.EventHub, placeholder string) (*widget.Container, 
 		}),
 	)
 
-	b3 := LoadOutlineTextButtonSubmitBg("Submit", ehub, "")
+	b3 := LoadSubmitButton("Submit", ehub, "")
 
 	textContainer.AddChild(textInput)
 	btnContainer.AddChild(b3)

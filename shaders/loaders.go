@@ -59,6 +59,15 @@ func LoadOnePointLightingBlue() *ebiten.Shader {
 	return s
 }
 
+func LoadOnePointLightingBlueLayer2() *ebiten.Shader {
+	opl := []byte(OnePointLightingBlueSecondLayer)
+	s, err := ebiten.NewShader(opl)
+	if err != nil {
+		log.Fatal("Couldnt load one point shader", err)
+	}
+	return s
+}
+
 func LoadOnePointLightingNeutral() *ebiten.Shader {
 	opl := []byte(OnePointLightingNeutral)
 	s, err := ebiten.NewShader(opl)

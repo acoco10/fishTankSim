@@ -1,8 +1,6 @@
 package sprite
 
 import (
-	"github.com/acoco10/QuickDrawAdventure/animations"
-	"github.com/acoco10/QuickDrawAdventure/spriteSheet"
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/acoco10/fishTankWebGame/shaders"
@@ -13,6 +11,7 @@ import (
 )
 
 type Sprite struct {
+	AnimationMap                   map[string]*Animation
 	LayerIndex                     int
 	Img                            *ebiten.Image
 	NormalMap                      *ebiten.Image
@@ -20,28 +19,55 @@ type Sprite struct {
 	LinkedSprite                   *Sprite
 	Scale                          float64
 	X, Y                           float32 //these could really be 64
-	Z                              int     //not used yet, layer based not math based haha
 	Dy, Dx                         float32 //these could really be 64
 	Shader                         *ebiten.Shader
 	ShaderParams                   map[string]any
 	CPUShaderParams                map[string]any
 	UpdateShaderParams             func(map[string]any) map[string]any
 	UpdateBothParams               func(map[string]any, map[string]any) (map[string]any, map[string]any)
-	Remove                         bool //stop drawing this sprite
-	UpdateFunc                     func(s *Sprite)
+	Remove                         bool            //remove the entity that has this sprite
+	UpdateFunc                     func(s *Sprite) //quicky script
 	PublishedGraphicId             []int
 	Focused                        bool
 	Unfocusable                    bool
 	AbleToBeUnfocusedAutomatically bool
 	highlight                      bool
-	DOptsUpdaterTag                string //for animating with external function
+	DOptsUpdaterTag                string //for animating with external function at draw call
 	DOptsUpdaterParams             map[string]float64
+	CurrentAnimation               string
 	*XYUpdater
-	*animations.Animation
-	*spritesheet.SpriteSheet
 	frameImg   *ebiten.Image
 	drawOpts   *ebiten.DrawImageOptions
-	shaderOpts *ebiten.DrawRectShaderOptions //flexible interface for animation checks needed at draw or update time
+	shaderOpts *ebiten.DrawRectShaderOptions
+}
+
+func (s *Sprite) GetAnimation() *Animation {
+	if s.CurrentAnimation == "" {
+		return nil
+	}
+	if s.AnimationMap[s.CurrentAnimation] == nil {
+		log.Fatal("nil animation being checked error name:", s.CurrentAnimation)
+	}
+	if s.AnimationMap[s.CurrentAnimation].Img == nil {
+		log.Fatal("select animation exists but image is nil:", s.CurrentAnimation)
+	}
+	return s.AnimationMap[s.CurrentAnimation]
+}
+
+func (s *Sprite) SpriteWidth() int {
+	if s.GetAnimation() != nil {
+		return s.GetAnimation().SpriteWidth
+	} else {
+		return s.Img.Bounds().Dx()
+	}
+}
+
+func (s *Sprite) SpriteHeight() int {
+	if s.GetAnimation() != nil {
+		return s.GetAnimation().SpriteHeight
+	} else {
+		return s.Img.Bounds().Dy()
+	}
 }
 
 func (s *Sprite) SavePublishedGraphicID(id int) {
@@ -54,7 +80,7 @@ func (s *Sprite) Update() {
 	if s.LinkedSprite != nil {
 		s.LinkedSprite.Update()
 	}
-	if s.Animation != nil {
+	if s.CurrentAnimation != "" {
 		UpdateSpriteAnimation(s)
 	}
 	if s.DOptsUpdaterParams == nil {
@@ -100,13 +126,24 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 	if s.LinkedSprite != nil {
 		s.LinkedSprite.Draw(screen)
 	}
-	if s.Animation != nil {
+
+	if s.CurrentAnimation != "" {
 		DrawAnimation(s, screen)
 		return
 	}
 
 	if s.Img == nil {
 		log.Println("sprite with no img trying to draw")
+		return
+	}
+
+	if s.DOptsUpdaterTag == "sway" {
+		DrawSwayAnimation(s, screen)
+		return
+	}
+
+	if s.DOptsUpdaterTag == "swirl" {
+		DrawSwirlSprite(s, screen)
 		return
 	}
 
@@ -123,10 +160,12 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 		if s.Scale != 0.0 {
 			//shaderOpts.GeoM.Scale(s.Scale, s.Scale)
 		}
+
 		if s.DOptsUpdaterTag == "flip" {
 			shaderOpts.GeoM.Scale(-1, 1) // flip horizontally
 			shaderOpts.GeoM.Translate(float64(s.Img.Bounds().Dx()), 0)
 		}
+
 		shaderOpts.GeoM.Translate(float64(s.X), float64(s.Y))
 		shaderOpts.Images[0] = s.Img
 		if s.NormalMap != nil {
@@ -160,6 +199,9 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 
 	dOpts.GeoM.Translate(float64(s.X), float64(s.Y))
 
+	if s.DOptsUpdaterParams != nil {
+		dOpts.GeoM.Translate(s.DOptsUpdaterParams["offSetX"], s.DOptsUpdaterParams["offSetY"])
+	}
 	screen.DrawImage(s.Img, dOpts)
 
 }
@@ -173,17 +215,18 @@ func FlipSprite(sprite *Sprite, dopts any) {
 	opts, ok := dopts.(ebiten.DrawImageOptions)
 	if !ok {
 		sopts, _ := dopts.(ebiten.DrawRectShaderOptions)
-		sopts.GeoM.Scale(-1, 1) // flip horizontally
-		if sprite.SpriteSheet != nil {
-			sopts.GeoM.Translate(float64(sprite.SpriteWidth), 0)
+		if sprite.AnimationMap[sprite.CurrentAnimation] != nil {
+			sopts.GeoM.Scale(-1, 1) // flip horizontally
+			sopts.GeoM.Translate(float64(sprite.AnimationMap[sprite.CurrentAnimation].SpriteWidth), 0)
 		} else {
 			sopts.GeoM.Translate(float64(sprite.Img.Bounds().Dx()), 0)
+
 		}
 		return
 	}
 	opts.GeoM.Scale(-1, 1) // flip horizontally
-	if sprite.SpriteSheet != nil {
-		opts.GeoM.Translate(float64(sprite.SpriteWidth), 0)
+	if sprite.AnimationMap[sprite.CurrentAnimation] != nil {
+		opts.GeoM.Translate(float64(sprite.AnimationMap[sprite.CurrentAnimation].SpriteWidth), 0)
 	} else {
 		opts.GeoM.Translate(float64(sprite.Img.Bounds().Dx()), 0)
 	}
@@ -239,20 +282,10 @@ func (s *Sprite) SpriteHovered() bool {
 }
 
 func (s *Sprite) GetSpriteRect() image.Rectangle {
-	b := s.Img.Bounds()
-	width := b.Dx()
-	height := b.Dy()
-	rect := image.Rect(int(s.X), int(s.Y), int(s.X)+width, int(s.Y)+height)
 
-	if s.Animation != nil && s.frameImg != nil {
-		b = s.frameImg.Bounds()
-		width = b.Dx()
-		height = b.Dy()
-		rect = image.Rect(int(s.X), int(s.Y), int(s.X)+width, int(s.Y)+height)
-		if s.Flip {
-			rect = image.Rect(int(s.X)-width, int(s.Y), int(s.X), int(s.Y)+height)
-		}
-	}
+	width := s.SpriteWidth()
+	height := s.SpriteHeight()
+	rect := image.Rect(int(s.X), int(s.Y), int(s.X)+width, int(s.Y)+height)
 
 	return rect
 }
@@ -261,10 +294,19 @@ func (s *Sprite) SpriteHoveredWithBuffer(buffer int) bool {
 	x, y := util.GetScaledCursorPosition()
 	point := image.Point{X: x, Y: y}
 
-	bounds := s.Img.Bounds()
+	var bounds image.Rectangle
+	if s.Img == nil {
+		//prevent crash if sprite has no image, or get rect from animation img
+		if s.CurrentAnimation != "" {
+			bounds = s.GetSpriteRect().Bounds()
+		} else {
+			return false
+		}
+	} else {
+		bounds = s.Img.Bounds()
+	}
 	width := bounds.Dx()
 	height := bounds.Dy()
-
 	rect := image.Rect(
 		int(s.X)-buffer,
 		int(s.Y)-buffer,
@@ -302,13 +344,14 @@ func (s *Sprite) CheckOverlap(sprite Sprite) bool {
 
 func UpdateSpriteAnimation(as *Sprite) {
 
+	ani := as.GetAnimation()
 	shaderOpts := &ebiten.DrawRectShaderOptions{}
 
 	if as.Scale > 0 {
 		shaderOpts.GeoM.Scale(as.Scale, as.Scale)
 	}
 
-	shaderOpts.GeoM.Translate(float64(as.X), float64(as.Y))
+	shaderOpts.GeoM.Translate(float64(as.X), float64(as.Y-ani.OffSetY))
 
 	as.shaderOpts = shaderOpts
 	/*if as.ShaderParams != nil {
@@ -321,45 +364,72 @@ func UpdateSpriteAnimation(as *Sprite) {
 		drawOpts.GeoM.Scale(as.Scale, as.Scale)
 	}
 
-	drawOpts.GeoM.Translate(float64(as.X), float64(as.Y))
+	drawOpts.GeoM.Translate(float64(as.X), float64(as.Y-ani.OffSetY))
 	as.drawOpts = drawOpts
 	as.UpdateShader()
-	as.Animation.Update()
+
+	as.GetAnimation().Update()
+
 	UpdateSpriteFrameImg(as)
 }
 
+func (s *Sprite) SetAnimation(Ani string) {
+	s.CurrentAnimation = Ani
+	_, exists := s.AnimationMap[Ani]
+	if !exists {
+		log.Fatal("set a sprite animation that doesnt exist")
+	}
+	UpdateSpriteAnimation(s)
+}
+
 func UpdateSpriteFrameImg(as *Sprite) {
-	frame := as.Frame()
-	frameRect := as.SpriteSheet.Rect(frame)
-	img := as.Img.SubImage(frameRect).(*ebiten.Image)
+
+	ani := as.GetAnimation()
+	if ani == nil {
+		log.Fatal("Why is animation being checked in sprite with current animation empty")
+	}
+	frame := ani.Frame()
+	frameRect := ani.Rect(frame)
+	if ani.Img == nil {
+		log.Fatal(as.CurrentAnimation, "this animation returns a nil image")
+	}
+	img := ani.Img.SubImage(frameRect).(*ebiten.Image)
 	as.frameImg = img
 }
 
-func (as *Sprite) GetFirstFrameAsStaticImage() *ebiten.Image {
-	frameRect := as.SpriteSheet.Rect(1)
-	img := as.Img.SubImage(frameRect).(*ebiten.Image)
+func (a *Animation) GetFirstFrameAsStaticImage() *ebiten.Image {
+	frameRect := a.SpriteSheet.Rect(1)
+	img := a.Img.SubImage(frameRect).(*ebiten.Image)
+	return img
+}
+
+func (a *Animation) GetLastFrameAsStaticImage() *ebiten.Image {
+	frameRect := a.SpriteSheet.Rect(a.LastF)
+	img := a.Img.SubImage(frameRect).(*ebiten.Image)
+	return img
+}
+
+func (a *Animation) GetLastFrameNormalAsStaticImage() *ebiten.Image {
+	frameRect := a.SpriteSheet.Rect(a.LastF)
+	img := a.NormalImg.SubImage(frameRect).(*ebiten.Image)
 	return img
 }
 
 func DrawAnimation(as *Sprite, screen *ebiten.Image) {
-	frame := as.Frame()
-	frameRect := as.SpriteSheet.Rect(frame)
-	img := as.Img.SubImage(frameRect).(*ebiten.Image)
-	if as.frameImg != nil {
-		// for debugging cursor hovered
-		/*	rect := as.GetSpriteRect()
-			if as.SpriteHovered() {
-				vector.StrokeRect(screen, float32(rect.Min.X), float32(rect.Min.Y), float32(rect.Dx()), float32(rect.Dy()), 2.0, colornames.Teal, false)
-			} else {
-				vector.StrokeRect(screen, float32(rect.Min.X), float32(rect.Min.Y), float32(rect.Dx()), float32(rect.Dy()), 2.0, colornames.Crimson, false)
-			}*/
-	}
-	if as.NormalMap != nil {
+	ani := as.GetAnimation()
+	frame := as.AnimationMap[as.CurrentAnimation].Frame()
+	frameRect := as.AnimationMap[as.CurrentAnimation].Rect(frame)
+	img := ani.Img.SubImage(frameRect).(*ebiten.Image)
+
+	if ani.NormalImg != nil {
 		DrawNormal(as, screen)
 		return
 	}
 
 	if as.Shader != nil {
+		if as.shaderOpts == nil {
+			as.shaderOpts = &ebiten.DrawRectShaderOptions{}
+		}
 		as.shaderOpts.Images[0] = img
 		as.shaderOpts.Uniforms = as.ShaderParams
 		b := img.Bounds()
@@ -368,14 +438,13 @@ func DrawAnimation(as *Sprite, screen *ebiten.Image) {
 	}
 	if as.drawOpts == nil {
 		as.drawOpts = &ebiten.DrawImageOptions{}
-		as.drawOpts.GeoM.Translate(float64(as.X), float64(as.Y))
 	}
 
 	screen.DrawImage(img, as.drawOpts)
 }
 
 func DrawNormal(as *Sprite, screen *ebiten.Image) {
-
+	ani := as.GetAnimation()
 	if as.shaderOpts == nil {
 		log.Printf("nil shader opts")
 		as.shaderOpts = &ebiten.DrawRectShaderOptions{}
@@ -387,16 +456,16 @@ func DrawNormal(as *Sprite, screen *ebiten.Image) {
 		as.Shader = shader
 	}
 
-	frame := as.Frame()
+	frame := ani.Frame()
 
-	frameRect := as.SpriteSheet.Rect(frame)
+	frameRect := ani.Rect(frame)
 
-	diffuseImg := as.Img.SubImage(frameRect).(*ebiten.Image)
+	diffuseImg := ani.Img.SubImage(frameRect).(*ebiten.Image)
 	if diffuseImg == nil {
 		log.Fatal("normal map sub rect is disposed")
 	}
 
-	normalImg := as.NormalMap.SubImage(frameRect).(*ebiten.Image)
+	normalImg := ani.NormalImg.SubImage(frameRect).(*ebiten.Image)
 	if normalImg == nil {
 		log.Fatal("normal map sub rect is disposed")
 	}
@@ -425,8 +494,8 @@ func (as *Sprite) UpdateOpts(options any) {
 }
 
 func (s *Sprite) ChangeAnimationSpeed(newSpeed float32) {
-	if s.Animation != nil {
-		s.Animation.SpeedInTPS = newSpeed
+	if s.AnimationMap[s.CurrentAnimation] != nil {
+		s.AnimationMap[s.CurrentAnimation].SpeedInTPS = newSpeed
 	}
 }
 
@@ -436,4 +505,85 @@ func LoadPulseOutlineShader(us *Sprite) {
 	us.ShaderParams["Opacity"] = float32(0.0)
 	us.ShaderParams["OutlineColor"] = [4]float32{0.2, 0.7, 0.2, 1.0}
 	us.UpdateShaderParams = shaders.UpdatePulseWithText
+}
+
+func InitSwayAnimation(sp *Sprite, baseAmp float64) {
+	sp.DOptsUpdaterTag = "sway"
+	sp.DOptsUpdaterParams["time"] = 0
+	sp.DOptsUpdaterParams["amp"] = baseAmp
+}
+
+func DrawSwayAnimation(sp *Sprite, screen *ebiten.Image) {
+	sp.DOptsUpdaterParams["time"] += 0.016
+	time := sp.DOptsUpdaterParams["time"]
+	amp := sp.DOptsUpdaterParams["amp"]
+
+	imgBounds := sp.Img.Bounds()
+	imgHeight := imgBounds.Dy()
+	sliceHeight := 2 // smaller slices = smoother sway
+
+	ani := sp.AnimationMap["StartUp"]
+	frameRect := ani.SpriteSheet.Rect(ani.LastF)
+	amp = util.Lerp64(amp, 5, time/100)
+
+	// sway amplitude
+	baseSway := math.Sin(sp.DOptsUpdaterParams["time"]) * amp
+	sp.DOptsUpdaterParams["amp"] = amp
+	for y := 0; y < imgHeight; y += sliceHeight {
+		// Factor goes from 0.0 at bottom to 1.0 at top
+		// flip it so bottom = 0 sway, top = full sway
+		progress := float64(imgHeight-y) / float64(imgHeight)
+
+		// slice sway decreases smoothly toward the base
+		sliceSway := baseSway * progress
+
+		// slice rectangle (careful with slice bottom clamp)
+		sliceBottom := y + sliceHeight
+		if sliceBottom > imgHeight {
+			sliceBottom = imgHeight
+		}
+
+		sliceRect := image.Rect(frameRect.Min.X, y, frameRect.Max.X, sliceBottom)
+		subImg := ani.Img.SubImage(sliceRect).(*ebiten.Image)
+
+		if ani.NormalImg != nil {
+			shaderOpts := &ebiten.DrawRectShaderOptions{}
+			normalSub := ani.NormalImg.SubImage(sliceRect).(*ebiten.Image)
+			shaderOpts.GeoM.Translate(float64(sp.X)+sliceSway, float64(sp.Y)+float64(y))
+			shaderOpts.Uniforms = sp.ShaderParams
+			shaderOpts.Images[0] = subImg
+			shaderOpts.Images[1] = normalSub
+			b := subImg.Bounds()
+			screen.DrawRectShader(b.Dx(), b.Dy(), sp.Shader, shaderOpts)
+			continue
+		}
+		// draw slice
+		dOpts := &ebiten.DrawImageOptions{}
+		dOpts.GeoM.Translate(float64(sp.X)+sliceSway, float64(sp.Y)+float64(y))
+		screen.DrawImage(subImg, dOpts)
+
+	}
+}
+
+func DrawSwirlSprite(sp *Sprite, screen *ebiten.Image) {
+	sp.DOptsUpdaterParams["time"] += 0.2 // Slower time increment
+	//maxAngle := 5.0 * (math.Pi / 180)    // 3 degrees in radians
+
+	if sp.Shader != nil {
+		sopts := &ebiten.DrawRectShaderOptions{}
+		sopts.GeoM.Translate(math.Sin(sp.DOptsUpdaterParams["time"])*2, math.Sin(sp.DOptsUpdaterParams["time"]))
+		sopts.GeoM.Translate(float64(sp.X), float64(sp.Y))
+
+		sopts.Images[0] = sp.Img
+		sopts.Uniforms = sp.ShaderParams
+		b := sp.Img.Bounds()
+		screen.DrawRectShader(b.Dx(), b.Dy(), sp.Shader, sopts)
+		return
+	}
+
+	dopts := &ebiten.DrawImageOptions{}
+	dopts.GeoM.Translate(math.Sin(sp.DOptsUpdaterParams["time"])*2, math.Sin(sp.DOptsUpdaterParams["time"]))
+	dopts.GeoM.Translate(float64(sp.X), float64(sp.Y))
+	screen.DrawImage(sp.Img, dopts)
+
 }

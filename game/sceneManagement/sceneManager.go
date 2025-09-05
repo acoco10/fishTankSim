@@ -8,6 +8,7 @@ import (
 )
 
 type GameLog struct {
+	TaskManager        *tasks.TaskManager
 	PlayerLoginId      string
 	PreviousScene      SceneId
 	Save               *entities.SaveGameState
@@ -17,7 +18,6 @@ type GameLog struct {
 	SongPlayer         *soundFX.SoundPlayer
 	SoundPlayer        *soundFX.SoundPlayer
 	Day                int
-	Tasks              []*tasks.Task
 	DayType            DayType
 }
 
@@ -35,6 +35,9 @@ func NewGameLog(state entities.SaveGameState, flag string) *GameLog {
 	g.Save = &state
 	eHub := tasks.NewEventHub()
 	g.GlobalEventHub = eHub
+
+	g.TaskManager = &tasks.TaskManager{EventHub: eHub}
+	g.TaskManager.Subscribe()
 
 	if flag == "w" {
 		soundFX.LoadOggs()
@@ -58,9 +61,6 @@ func NewGameLog(state entities.SaveGameState, flag string) *GameLog {
 	}
 
 	g.Day = 1
-	var gTasks []*tasks.Task
-	g.Tasks = gTasks
-
 	return &g
 }
 

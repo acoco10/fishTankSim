@@ -3,8 +3,7 @@
 package main
 
 // Uniform variables.
-var Time float
-var Cursor vec2
+var Cursor vec3
 var TankDepthZ float
 
 // Fragment is the entry point of the fragment shader.
@@ -13,8 +12,7 @@ func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 	// You can define variables with a short variable declaration like Go.
 	pos := dstPos.xy - imageDstOrigin()
 
-	lightpos := vec3(Cursor, 50)
-	lightdir := normalize(lightpos - vec3(pos, 0))
+	lightdir := normalize(Cursor - vec3(pos, 0))
 
 
 	srcNormal := imageSrc1UnsafeAt(srcPos)
@@ -26,8 +24,13 @@ func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 	// imageSrc[N]At or imageSrc[N]UnsafeAt.
 
         baseColor := imageSrc0UnsafeAt(srcPos)
-        baseColor.b *= 1+TankDepthZ
-        baseColor.rgb *= 1-TankDepthZ
+      depthFactor := TankDepthZ / 12.0  // 0=back, 1=front
+
+      // Water absorbs red first, then green, blue last
+      baseColor.r *= (1.0 - depthFactor * 0.7) // Lose red quickly
+      baseColor.g *= (1.0 - depthFactor * 0.4)  // Lose some green
+      baseColor.b *= (1.0 - depthFactor * 0.1)
+
         litRGB := baseColor.rgb * (ambient + diffuse)
         return vec4(litRGB, baseColor.a)
 

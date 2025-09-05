@@ -2,8 +2,6 @@ package loader
 
 import (
 	"encoding/json"
-	"github.com/acoco10/QuickDrawAdventure/animations"
-	"github.com/acoco10/QuickDrawAdventure/spriteSheet"
 	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/acoco10/fishTankWebGame/game/drawables"
 	"github.com/acoco10/fishTankWebGame/game/entities"
@@ -16,7 +14,7 @@ import (
 	"log"
 )
 
-func loadUiSpritesImgs(label entities.Label) ([]*ebiten.Image, error) {
+func LoadUiSpritesImgs(label entities.Label) ([]*ebiten.Image, error) {
 	var imgs []*ebiten.Image
 	tags := []string{"Main", "Outline", "Alt"}
 
@@ -43,26 +41,29 @@ func LoadUISprites(spritesToLoad []entities.Label, environment *system.Environme
 
 	for i, elem := range spritesToLoad {
 
+		var spritePosition drawables.SavePositionData
 		if spritePositions[string(elem)] == nil {
-			log.Fatal("No position data for sprite", elem)
+			spritePosition = *spritePositions[string(entities.WhiteBoard)]
+		} else {
+			spritePosition = *spritePositions[string(elem)]
 		}
 
-		x := spritePositions[string(elem)].X
-		y := spritePositions[string(elem)].Y
+		x := spritePosition.X
+		y := spritePosition.Y
 
-		imgs, err2 := loadUiSpritesImgs(elem)
+		imgs, err2 := LoadUiSpritesImgs(elem)
 		if err2 != nil {
 			return uiEntities, wbSprite, err
 		}
 
 		uSprite := entities.NewUiSprite(environment, imgs, hub, x, y, string(elem))
-
+		uSprite.Sprite.DOptsUpdaterParams = make(map[string]float64)
 		uSprite.ActivationRect = image.Rect(tankBounds.Min.X, tankBounds.Min.Y+50, tankBounds.Max.X, tankBounds.Min.Y-200)
 
 		entity := &entities.Entity{UiData: uSprite, Sprite: uSprite.Sprite}
 
-		uSprite.LayerIndex = i //well just order by the order we load these cus we lazy af
 		entity.EventHub = hub
+		entity.LayerIndex = i
 		entities.RegisterEntity(entity)
 		entities.UiSpriteSubs(hub, entity)
 		switch elem {
@@ -75,15 +76,28 @@ func LoadUISprites(spritesToLoad []entities.Label, environment *system.Environme
 
 		case entities.FishFood:
 			uSprite.ActivationRect = image.Rect(tankBounds.Min.X, tankBounds.Min.Y-50, tankBounds.Max.X, tankBounds.Min.Y-200)
+		case entities.Skimmer:
+			sm := entities.InitStateMachine(entities.UpdateSkimmer, entities.AddUiSpriteXYUpdater, nil)
+			//phys := physics.NewNetBody(float64(uSprite.Sprite.X), float64(int(uSprite.Sprite.Y)+uSprite.Sprite.GetSpriteRect().Dy()), 40, -math.Pi/2, math.Pi/2)
+			entity.StateMachine = sm
 		case entities.Pillow, entities.Door:
 			entity.Draw = false
+			uSprite.Unfocusable = true
 		case entities.Phreader:
 			entity.Sprite.AbleToBeUnfocusedAutomatically = true
 		case entities.PiggyBank:
 			entity.Sprite.AbleToBeUnfocusedAutomatically = true
-			entity.AnimationMap = LoadPiggyBankAnimationMap(uSprite.X, uSprite.Y, float32(uSprite.Img.Bounds().Dy()))
-		case entities.Magazine:
-			//entity.Draw = false
+			b := uSprite.Img.Bounds()
+			entity.Sprite.AnimationMap = LoadPiggyBankAnimationMap(b.Dy(), b.Dx())
+			sm := entities.InitPiggyBankStateMachine()
+			entity.StateMachine = sm
+		case entities.Magazine, entities.GrandpasJournal:
+			uSprite.Unfocusable = true
+		//entity.Draw = false
+		case entities.Thermometer:
+			sm := entities.InitStateMachine(entities.AltImageWhenClickedUpdater, nil, nil)
+			entity.StateMachine = sm
+			uSprite.Unfocusable = true
 		}
 
 		//lightingShader := shaders.LoadOnePointLightingNeutral()
@@ -108,27 +122,19 @@ func LoadSpritePositionData() (map[string]*drawables.SavePositionData, error) {
 	return positions, nil
 }
 
-func LoadPiggyBankAnimationMap(x, y, srcImageHeight float32) map[string]*sprite.Sprite {
+func LoadPiggyBankAnimationMap(srcImgHeight int, srcImgWidth int) map[string]*sprite.Animation {
 
-	aniMap := make(map[string]*sprite.Sprite)
+	aniMap := make(map[string]*sprite.Animation)
 	img, err := util.LoadImageAssetAsEbitenImage("uiSprites/allowanceCollectedAni")
 	if err != nil {
 		log.Fatal(err, "cant load piggy bank animation thing")
 	}
-	animation := animations.NewAnimation(0, 7, 1, 5)
-	spriteSheet := spritesheet.NewSpritesheet(8, 1, 149, 202)
-
-	animatedSprite := sprite.Sprite{}
-	animatedSprite.Img = img
-	animatedSprite.Animation = animation
-	animatedSprite.SpriteSheet = spriteSheet
-	animatedSprite.ShaderParams = make(map[string]any)
-
-	animatedSprite.X = x
-	yOffSet := float32(animatedSprite.Img.Bounds().Dy()) - srcImageHeight
-	animatedSprite.Y = y - yOffSet
-
-	aniMap["allowance"] = &animatedSprite
+	spriteSheet := sprite.NewSpriteSheet(8, 1, 149, 202)
+	animation := sprite.NewAnimation(spriteSheet, 0, 7, 1, 5)
+	animation.Img = img
+	animation.OffSetY = float32(img.Bounds().Dy() - srcImgHeight)
+	animation.OffSetX = float32(img.Bounds().Dx()/animation.LastF + 1 - srcImgWidth)
+	aniMap["allowance"] = animation
 	return aniMap
 }
 

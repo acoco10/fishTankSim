@@ -17,14 +17,12 @@ func MakeOutlineText(txt string) *widget.Container {
 		log.Fatal(err)
 	}
 	headerLbl := widget.NewText(
-		widget.TextOpts.Text(txt, face, colornames.Aliceblue),
+		widget.TextOpts.Text(txt, &face, colornames.Aliceblue),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
-		widget.TextOpts.Insets(widget.Insets{Top: 0, Left: 2}))
-
+	)
 	headerLblOutline := widget.NewText(
-		widget.TextOpts.Text(txt, face2, colornames.Black),
+		widget.TextOpts.Text(txt, &face2, colornames.Black),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
-		widget.TextOpts.Insets(widget.Insets{Top: 0, Left: 2}),
 	)
 	headerContainer := widget.NewContainer(
 		widget.ContainerOpts.WidgetOpts(

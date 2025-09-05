@@ -24,7 +24,7 @@ const (
 type Rect struct {
 	*image.Rectangle
 	RectState
-	tag                string
+	Tag                string
 	cursorMarkerRadius float32
 	interPoints        []image.Point
 	StateMachine
@@ -54,7 +54,7 @@ func (r *Rect) GivePoint(pt image.Point) {
 	r.interPoints = append(r.interPoints, pt)
 }
 
-func (r *Rect) Init(tag string, hub *tasks.EventHub) {
+func (r *Rect) Init(Tag string, hub *tasks.EventHub) {
 
 	state1 := StateHandler{Updater: updateRectInitState, TransitionTo: Initiated, TransitionFunc: transitionFromIntToDraw}
 	state2 := StateHandler{Updater: updateRectInitiated, TransitionTo: Drawn}
@@ -66,7 +66,7 @@ func (r *Rect) Init(tag string, hub *tasks.EventHub) {
 		Drawn:     state3,
 	}
 
-	r.tag = tag
+	r.Tag = Tag
 	sm := StateMachine{States: states}
 	r.eventHub = hub
 	r.StateMachine = sm
@@ -77,7 +77,7 @@ func (r *Rect) Init(tag string, hub *tasks.EventHub) {
 
 func updateRectInitState(rect *Rect) {
 	if inpututil.IsKeyJustPressed(ebiten.KeyN) {
-		rect.eventHub.Publish(events.DebugTextInput{LastText: rect.tag})
+		rect.eventHub.Publish(events.DebugTextInput{LastText: rect.Tag})
 	}
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && rect.drawMeDaddy {
 		rect.Transition(rect)
@@ -116,7 +116,9 @@ func updateRectDrawn(rect *Rect) {
 
 func (r *Rect) Draw(screen *ebiten.Image) {
 	if r.CurrentState == Initiated || r.CurrentState == Drawn {
-		StrokeRectFromImageRect(*r.Rectangle, screen, colornames.Darkmagenta, false)
+		if r.Rectangle != nil {
+			StrokeRectFromImageRect(*r.Rectangle, screen, colornames.Darkmagenta, false)
+		}
 	}
 }
 
@@ -128,8 +130,10 @@ func (r *Rect) Update() error {
 func (r *Rect) subscribe() {
 	r.eventHub.Subscribe(events.DebugTextEntered{}, func(e tasks.Event) {
 		ev := e.(events.DebugTextEntered)
-		r.drawMeDaddy = true
-		r.tag = ev.InputText
+		if ev.For == "Rect" {
+			r.drawMeDaddy = true
+			r.Tag = ev.InputText
+		}
 	})
 }
 
@@ -158,10 +162,10 @@ func (r *Rect) Save() error {
 
 	datMap := make(map[string]image.Rectangle)
 
-	datMap[r.tag] = *r.Rectangle
+	datMap[r.Tag] = *r.Rectangle
 
 	for key, value := range existingPos {
-		if key != r.tag {
+		if key != r.Tag {
 			datMap[key] = value
 		}
 	}

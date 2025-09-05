@@ -1,6 +1,7 @@
 package loader
 
 import (
+	"fmt"
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/system"
@@ -32,35 +33,31 @@ func LoadAllEntities(uiSpritesToLoad []entities.Label, fishList []entities.Saved
 }
 
 func InitFish(fishName entities.SavedFish, environment *system.Environment, hub *tasks.EventHub, collisions map[string]image.Rectangle) *entities.Entity {
-	fish := entities.NewFishData(environment, hub, collisions["tank"], fishName)
-	aniMap, err := entities.LoadFishSprite(fish.FishType, fish.Size)
 
-	sprite := aniMap["swimming"]
+	z := rand.Intn(11) + 1
+	zLayer := fmt.Sprintf("z%d", z)
 
-	sprite.Z = 1
-	sprite.Unfocusable = true
-
-	fp := getFirstPoint(collisions["tank"])
-
-	sprite.X = float32(fp.X)
-	sprite.Y = float32(fp.Y)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-	newFishEntity := &entities.Entity{CreatureData: fish, Sprite: sprite}
+	fish := entities.NewFishData(environment, hub, collisions[zLayer], fishName)
+	newFishEntity := &entities.Entity{CreatureData: fish}
 	println("loaded fish entity:", fishName.FishType)
 
-	firstPoint := newFishEntity.RandomTarget()
+	//mutates entity to have sprite and animations loaded
+	entities.LoadFishSprite(newFishEntity)
+
+	fp := getFirstPoint(collisions[zLayer])
+
+	newFishEntity.Sprite.X = float32(fp.X)
+	newFishEntity.Sprite.Y = float32(fp.Y)
+
+	firstPoint := newFishEntity.RandomTarget(newFishEntity.CreatureData.MovementFlags)
 	newFishEntity.MakeTargetPoint(firstPoint)
 	newFishEntity.EventHub = hub
-	newFishEntity.AnimationMap = aniMap
-	entities.CreatureEventSubscriptions(newFishEntity)
 
+	entities.CreatureEventSubscriptions(newFishEntity)
 	entities.RegisterEntity(newFishEntity)
 
 	if registry.Config.Debug {
-		//newFishEntity.CreatureData.MaxHunger = 20
+		newFishEntity.CreatureData.MaxHunger = 20
 	}
 
 	return newFishEntity
@@ -76,10 +73,6 @@ func getFirstPoint(bounds image.Rectangle) image.Point {
 	firstPointX := forgivingRect.Min.X + 5 + rand.Intn(bounds.Max.X-5-bounds.Min.X+5)
 	firstPointY := forgivingRect.Min.Y + 5 + rand.Intn(bounds.Max.X-5-bounds.Min.Y+5)
 	pt := image.Point{firstPointX, firstPointY}
-
-	if !pt.In(forgivingRect) {
-		pt = getFirstPoint(bounds)
-	}
 
 	return pt
 }

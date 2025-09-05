@@ -51,3 +51,28 @@ type FishEvent struct {
 func (f FishEvent) Type() string {
 	return "FishEvent"
 }
+
+type TurnOnBubbles struct {
+}
+
+func (f TurnOnBubbles) Type() string {
+	return "TurnOnBubbles"
+}
+
+type TurnOffBubbles struct {
+}
+
+func (f TurnOffBubbles) Type() string {
+	return "TurnOffBubbles"
+}
+
+type PlacementPicked struct {
+	PlacementFor string
+	X            float32
+	Y            float32
+	Z            int
+}
+
+func (p PlacementPicked) Type() string {
+	return "PlacementPicked"
+}

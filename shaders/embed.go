@@ -23,6 +23,9 @@ var SolidColor string
 //go:embed lighting/onePointLightingBlue.kage
 var OnePointLightingBlue string
 
+//go:embed lighting/onePointLightingBlueSecondLayer.kage
+var OnePointLightingBlueSecondLayer string
+
 //go:embed lighting/onePointLightingNeutral.kage
 var OnePointLightingNeutral string
 

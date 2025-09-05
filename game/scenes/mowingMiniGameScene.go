@@ -137,7 +137,7 @@ func mowTransition(s *MowingScene) {
 
 func UpdateMowerCharacter(ent *entities.Entity) {
 	if ent.StateMachine != nil {
-		ent.StateMachine.States[ent.StateMachine.CurrentState].Updater(ent)
+		ent.StateMachine.States[ent.StateMachine.CurrentState].Updater(ent, entities.GameState{})
 	}
 }
 
@@ -211,7 +211,7 @@ func (s *MowingScene) Update() (sceneManagement.SceneId, error) {
 	return s.returnScene, nil
 }
 
-func Crash(character *entities.Entity) {
+func Crash(character *entities.Entity, gs entities.GameState) {
 	SoundPlayer.Pause()
 	SoundPlayer.Play(soundFX.Crash)
 	time2.AfterFunc(1*time2.Second, func() { SoundPlayer.Pause() })
@@ -225,35 +225,33 @@ func Crash(character *entities.Entity) {
 	time2.AfterFunc(1*time2.Second, func() { graphics.DeInitGraphicId(id2) })
 
 	character.Sprite.PublishedGraphicId = append(character.Sprite.PublishedGraphicId, id, id2)
-	character.StateMachine.Transition()
+	character.StateMachine.Transition(character)
 }
 
-func Mowing(character *entities.Entity) {
+func Mowing(character *entities.Entity, gs entities.GameState) {
 	character.Update(character.TankMovement.WorldBoundaries)
 }
 
-func JustStarted(character *entities.Entity) {
+func JustStarted(character *entities.Entity, gs entities.GameState) {
 
-	if character.Sprite != character.AnimationMap["StartUp"] {
-		character.Sprite = character.AnimationMap["StartUp"]
-		character.Sprite.X = character.AnimationMap["Moving"].X
-		character.Sprite.Y = character.AnimationMap["Moving"].Y
+	if character.Sprite.CurrentAnimation != "StartUp" {
+		character.Sprite.CurrentAnimation = "StartUp"
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeySpace) && ebiten.IsKeyPressed(ebiten.KeyU) {
 		SoundPlayer.Play(soundFX.FailedStart)
 		character.Sprite.Update()
-	} else if character.Sprite.Frame() != 0 {
+	} else if character.Sprite.GetAnimation().Frame() != 0 {
 		SoundPlayer.Pause()
-		character.Sprite.Animation.Reset()
+		character.Sprite.GetAnimation().Reset()
 	}
-	if character.Sprite.Frame() == character.Sprite.LastF {
+	if character.Sprite.GetAnimation().Frame() == character.Sprite.GetAnimation().LastF {
 		SoundPlayer.Pause()
 		SoundPlayer.Play(soundFX.MowerRunning)
-		character.Sprite.Animation.Reset()
+		character.Sprite.GetAnimation().Reset()
 		//transferState
-		character.Sprite = character.AnimationMap["Moving"]
-		character.StateMachine.Transition()
+		character.Sprite.CurrentAnimation = "Moving"
+		character.StateMachine.Transition(character)
 	}
 }
 
@@ -313,7 +311,7 @@ func (s *MowingScene) Draw(screen *ebiten.Image) {
 	s.smallerResolution.DrawImage(s.gridTexture, op)
 	if s.character != nil && s.character.Sprite.Img != nil {
 		dopts := &ebiten.DrawImageOptions{}
-		dopts.GeoM.Translate(float64(-s.character.Sprite.SpriteWidth/2), -float64(s.character.Sprite.SpriteHeight/2))
+		dopts.GeoM.Translate(float64(-s.character.Sprite.SpriteWidth()/2), -float64(s.character.Sprite.SpriteHeight()/2))
 		dopts.GeoM.Rotate(s.character.MovementSystem.Params.Direction)
 		dopts.GeoM.Translate(float64(s.character.Sprite.X), float64(s.character.Sprite.Y))
 		s.character.Sprite.UpdateOpts(dopts)
@@ -693,27 +691,25 @@ func LoadChar(s *MowingScene) {
 		log.Print("ERROR: TankCharacter sprite image not loaded in map")
 	}
 
-	charAnimation, charSpriteSheet, err := entImportableLoaders.LoadAnimation("data/animationData/lawnMowingCharacterSprite.json")
+	charAnimation, err := entImportableLoaders.LoadAnimation("data/animationData/lawnMowingCharacterSprite.json")
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	asp := &sprite.Sprite{Img: s.images["characterSpriteSheet"], X: characterOrignX, Y: characterOriginY, SpriteSheet: charSpriteSheet, Animation: charAnimation}
-
-	startUpAnimation2, startUpSpriteSheet2, err := entImportableLoaders.LoadAnimation("data/animationData/lawnMowerStartAnimation.json")
-	startUpAnimation2.SpeedInTPS = 15
-
+	startUpAnimation, err := entImportableLoaders.LoadAnimation("data/animationData/lawnMowerStartAnimation.json")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	asp2 := &sprite.Sprite{Img: s.images["lawnMowerStartSpriteSheet"], X: characterOrignX, Y: characterOriginY, SpriteSheet: startUpSpriteSheet2, Animation: startUpAnimation2}
+	startUpAnimation.Img = s.images["lawnMowerStartSpriteSheet"]
+	startUpAnimation.SpeedInTPS = 15
+	charAnimation.Img = s.images["characterSpriteSheet"]
 
-	animationMap := make(map[string]*sprite.Sprite)
+	animationMap := make(map[string]*sprite.Animation)
 
-	animationMap["StartUp"] = asp2
-	animationMap["Moving"] = asp
+	animationMap["StartUp"] = startUpAnimation
+	animationMap["Moving"] = charAnimation
 
 	movementParams := movement.Params{
 		MaxSpeed:     1.9, // Slower for a mowing game
@@ -724,11 +720,14 @@ func LoadChar(s *MowingScene) {
 	movementS := movement.NewMovementSystem(movementParams, &movement.WASDInputHandler{})
 
 	tankMove := entities.TankCharacter{}
-	character := &entities.Entity{MovementSystem: movementS, Sprite: asp2, AnimationMap: animationMap, MovementState: &movement.State{}, TankMovement: &tankMove}
-	character.TankMovement.WorldBoundaries = image.Rect(16, -8, (mapWidth+2)*16, (mapHeight+2)*16)
-	character.MovementSystem = movementS
+
+	mainSprite := &sprite.Sprite{Img: startUpAnimation.Img, X: characterOrignX, Y: characterOriginY, CurrentAnimation: "StartUp", AnimationMap: animationMap}
+
+	character := &entities.Entity{MovementSystem: movementS, Sprite: mainSprite, MovementState: &movement.State{}, TankMovement: &tankMove}
 	character.TankMovement.Corners = entities.GetCharCorners(character)
+
 	s.character = character
+
 	mowerState1 := entities.StateHandler{Updater: JustStarted, TransitionTo: 2}
 	mowerState2 := entities.StateHandler{Updater: Mowing, TransitionTo: 3}
 	mowerState3 := entities.StateHandler{Updater: Crash, TransitionTo: 1}

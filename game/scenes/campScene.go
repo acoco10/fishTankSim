@@ -1,7 +1,6 @@
 package scenes
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/daySystem"
 	"github.com/acoco10/fishTankWebGame/game/graphics"
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
@@ -80,8 +79,6 @@ func (s *CampScene) OnEnter() {
 	s.dotTimer.TurnOn()
 	s.msgTime.TurnOn()
 	s.graphid = graphics.NewFadeInTextGraphic("You had a great day at camp!", 200.0, 100.0)
-	daySystem.LoadDaysTasks(s.gameLog)
-
 }
 
 func (s *CampScene) OnExit() {

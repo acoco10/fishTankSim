@@ -71,7 +71,7 @@ func LoadStartMenu(hub *tasks.EventHub, resolutionScaling float64) (*StartMenu, 
 
 func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64, resolutionScalar float64) error {
 
-	headerText := "Pick Your Starter Fish!"
+	headerText := "Pick Your Starter GoldFish!"
 
 	face, err := util.LoadFont(headerFontSize, "reglisseOutline") //white center text
 
@@ -96,7 +96,7 @@ func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64, resolutionSca
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,
 				StretchHorizontal:  false,
 				StretchVertical:    true,
-				Padding: widget.Insets{
+				Padding: &widget.Insets{
 					Top:    int(float64(registry.Config.ResolutionHeight) * resolutionScalar / 10),
 					Bottom: int(float64(registry.Config.ResolutionHeight) * resolutionScalar / 10),
 					Left:   int(float64(registry.Config.ResolutionWidth) * resolutionScalar / 10),
@@ -140,26 +140,24 @@ func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64, resolutionSca
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()))
 
 	headerLbl := widget.NewText(
-		widget.TextOpts.Text(headerText, face, colornames.Aliceblue),
+		widget.TextOpts.Text(headerText, &face, colornames.Aliceblue),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
-		widget.TextOpts.Insets(widget.Insets{50, 50, 50, 50}),
 	)
 
 	headerLblOutline := widget.NewText(
-		widget.TextOpts.Text(headerText, face2, colornames.Black),
+		widget.TextOpts.Text(headerText, &face2, colornames.Black),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
-		widget.TextOpts.Insets(widget.Insets{50, 50, 50, 50}),
 	)
 
 	headerContainer.AddChild(headerLbl)
 	headerContainer.AddChild(headerLblOutline)
 
-	goldFish, err := entities.LoadFishSprite(entities.Fish, 2)
+	goldFish, err := entities.LoadFishAnimations(entities.GoldFish, 2)
 	if err != nil {
 		return err
 	}
 
-	mollyFish, err := entities.LoadFishSprite(entities.MollyFish, 2)
+	mollyFish, err := entities.LoadFishAnimations(entities.MollyFish, 2)
 	if err != nil {
 		return err
 	}
@@ -167,12 +165,17 @@ func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64, resolutionSca
 	goldFishImg := goldFish["swimming"].GetFirstFrameAsStaticImage()
 	mFishImg := mollyFish["swimming"].GetFirstFrameAsStaticImage()
 
-	b1, err := LoadStackSpriteSelectButton("Goldfish", goldFishImg, float64(12*resolutionScalar), startMenu.eventHub, 4.0)
+	params := make(map[string]any)
+
+	params["minWidth"] = 250
+	params["minHeight"] = 250
+	params["imageScale"] = 4
+	b1, err := LoadStackSpriteSelectButton("Goldfish", goldFishImg, startMenu.eventHub, params)
 	if err != nil {
 		return err
 	}
 
-	b2, err := LoadStackSpriteSelectButton("Common Molly", mFishImg, float64(12*resolutionScalar), startMenu.eventHub, 4.0)
+	b2, err := LoadStackSpriteSelectButton("Common Molly", mFishImg, startMenu.eventHub, params)
 	if err != nil {
 		return err
 	}
@@ -220,17 +223,6 @@ func (s *StartMenu) subs() {
 		}
 	})
 
-	s.eventHub.Subscribe(events.ButtonEvent{}, func(e tasks.Event) {
-		ev := e.(events.ButtonEvent)
-		if ev.EType == "cursor entered" {
-			if ev.ButtonText != "Select" {
-				sp, ok := s.DrawOptions[ev.ButtonText].(*sprite.AnimatedSprite)
-				if ok {
-					sp.LoadShader(registry.ShaderMap["Outline"])
-				}
-			}
-		}
-	})
 }
 
 func (s *StartMenu) SpriteSelected(tx string) {
@@ -247,6 +239,7 @@ func (s *StartMenu) SpriteSelected(tx string) {
 		log.Fatal("text input dun fucked up", err)
 	}
 
+	s.TextInput = textInput
 	s.TextInputContainer = textinputContainer
 	s.root.AddChild(textinputContainer)
 	textInput.Focus(true)

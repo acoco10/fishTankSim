@@ -12,6 +12,7 @@ type MouseFlags struct {
 	HandledClick   bool
 	CursorOccupied bool
 	WindowOpen     bool
+	DebugMode      bool
 }
 
 type InputManager struct {

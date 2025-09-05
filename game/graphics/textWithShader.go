@@ -37,7 +37,7 @@ func NewTextWithMarkerShader(text string, buff *ebiten.Image, insets [2]float64,
 	ts.updateFunc = shaders.UpdateCounterOneShot
 	ts.shader = registry.ShaderMap["HandWriting"]
 	ts.clr = clr
-	length, _ := util.MeasureText(text, 16, "RockSalt")
+	length, _ := util.MeasureText(text, 24, "nk57")
 
 	ts.shaderParams = make(map[string]any)
 	ts.shaderParams["Counter"] = 0 ///dumb way to not have to fix the logic of this shader

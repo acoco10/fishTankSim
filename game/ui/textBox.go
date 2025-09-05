@@ -9,8 +9,10 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	text2 "github.com/hajimehoshi/ebiten/v2/text/v2"
+	"golang.org/x/image/colornames"
 	"image/color"
 	"log"
 )
@@ -160,12 +162,12 @@ func NewTextBlockContainer(hub *tasks.EventHub, backGroundImg *widget.ScrollCont
 		),
 
 		widget.ContainerOpts.Layout(
-			widget.NewAnchorLayout(widget.AnchorLayoutOpts.Padding(padding))),
+			widget.NewAnchorLayout(widget.AnchorLayoutOpts.Padding(&padding))),
 		// the container will use an anchor layout to layout its single child widget
 	)
 
 	text := []string{"fish stats go here"}
-
+	img := eimage.NewAdvancedNineSliceImage(ebiten.NewImage(10, 10), eimage.NewBorder(1, 1, 1, 1, colornames.Darkblue))
 	// construct a textarea
 	textarea := widget.NewTextArea(
 		widget.TextAreaOpts.ContainerOpts(
@@ -181,34 +183,17 @@ func NewTextBlockContainer(hub *tasks.EventHub, backGroundImg *widget.ScrollCont
 		widget.TextAreaOpts.ControlWidgetSpacing(2),
 		widget.TextAreaOpts.ProcessBBCode(true),
 		widget.TextAreaOpts.FontColor(textClr),
-		widget.TextAreaOpts.FontFace(face),
+		widget.TextAreaOpts.FontFace(&face),
 
 		widget.TextAreaOpts.Text(text[0]),
 		//Tell the TextArea to show the vertical scrollbar
 		//Set padding between edge of the widget and where the text is drawn
 		widget.TextAreaOpts.TextPadding(textPadding),
 		//This sets the background images for the scroll container
-		widget.TextAreaOpts.ScrollContainerOpts(
-			widget.ScrollContainerOpts.Image(backGroundImg),
-			widget.ScrollContainerOpts.Padding(
-				widget.Insets{Top: 10, Bottom: 10}),
-		),
+
 		//This sets the images to use for the sliders
-		widget.TextAreaOpts.SliderOpts(
-			widget.SliderOpts.Images(
-				// Set the track images
-				&widget.SliderTrackImage{
-					Idle:  eimage.NewNineSliceColor(color.NRGBA{200, 200, 200, 255}),
-					Hover: eimage.NewNineSliceColor(color.NRGBA{200, 200, 200, 255}),
-				},
-				// Set the handle images
-				&widget.ButtonImage{
-					Idle:    eimage.NewNineSliceColor(color.NRGBA{255, 100, 100, 255}),
-					Hover:   eimage.NewNineSliceColor(color.NRGBA{255, 100, 100, 255}),
-					Pressed: eimage.NewNineSliceColor(color.NRGBA{255, 100, 100, 255}),
-				},
-			),
-		),
+
+		widget.TextAreaOpts.ScrollContainerImage(&widget.ScrollContainerImage{Idle: img, Mask: img}),
 	)
 
 	t.text = textarea

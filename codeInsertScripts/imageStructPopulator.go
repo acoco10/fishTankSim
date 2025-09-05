@@ -22,11 +22,13 @@ func main() {
 		"offScreen2",
 		"roomBackground",
 		"fishTank",
+		"fishTankDayLight",
 		"fishTank_n",
 		"fishTankFrontLayerDayLight",
 		"fishTankNight",
 		"fishTankFrontLayerNoLightSmaller",
 		"laptopRoomBackground",
+		"roomBackGroundNight",
 		// Add more as needed
 	}
 

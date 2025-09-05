@@ -1,8 +1,6 @@
 package tasks
 
-import (
-	"github.com/acoco10/fishTankWebGame/game/events"
-)
+import "github.com/acoco10/fishTankWebGame/game/events"
 
 type EventCondition func(Event) bool
 
@@ -12,8 +10,31 @@ const (
 	FishFed TaskType = iota
 )
 
-var taskId int
-var completedTaskQueue []Event
+type TaskManager struct {
+	EventHub           *EventHub
+	completedTaskQueue []Event
+	Tasks              []*Task
+	currentTask        int
+}
+
+func (tm *TaskManager) Subscribe() {
+	tm.EventHub.Subscribe(events.DayOver{}, func(e Event) {
+		for _, task := range tm.Tasks {
+			tm.EventHub.Unsubscribe(task.EventType, task.Index)
+		}
+		tm.Tasks = []*Task{}
+		tm.completedTaskQueue = []Event{}
+	})
+
+	tm.EventHub.Subscribe(TaskCompleted{}, func(e Event) {
+		tm.currentTask++
+	})
+
+	tm.EventHub.Subscribe(events.NewDay{}, func(e Event) {
+		tm.currentTask = 0
+	})
+
+}
 
 type Task struct {
 	LinkedTask *Task
@@ -36,16 +57,16 @@ type SubTask struct {
 	Completed bool
 }
 
-func NewTask(EventType Event, text string, condition EventCondition, hub *EventHub) *Task {
-	println("creating task id:", taskId)
+func (tm *TaskManager) NewTask(EventType Event, text string, condition EventCondition) *Task {
+
 	task := &Task{
 		Text:       text,
 		EventType:  EventType,
 		Condition1: condition,
-		Index:      taskId,
 	}
-	task.QueueCondition(hub)
-	taskId++
+
+	tm.Tasks = append(tm.Tasks, task)
+	tm.QueueCondition(tm.EventHub, *task)
 	return task
 }
 
@@ -58,9 +79,9 @@ func (t *Task) PublishIfCompleted(hub *EventHub) {
 	}
 }
 
-func (t *Task) QueueCondition(hub *EventHub) {
-	hub.Subscribe(t.EventType, func(e Event) {
-		completedTaskQueue = append(completedTaskQueue, e)
+func (t *TaskManager) QueueCondition(hub *EventHub, task Task) {
+	hub.Subscribe(task.EventType, func(e Event) {
+		t.completedTaskQueue = append(t.completedTaskQueue, e)
 	})
 }
 
@@ -68,35 +89,33 @@ func (t *Task) Publish(hub *EventHub) {
 	ev := TaskCreated{
 		Task: t,
 	}
-
 	hub.Publish(ev)
 
 }
-func (t *Task) Activate(eventHub *EventHub) {
-	println("publishing task:", t.Text)
-	t.activated = true
-	t.Subscribe(eventHub)
-	t.Publish(eventHub)
 
-	if CheckCompletedEventQueue(t) {
+func (t *TaskManager) Activate() {
+	task := t.Tasks[t.currentTask]
+	println("publishing task:", task.Text)
+	task.activated = true
+	id := task.Subscribe(t.EventHub)
+	task.Index = id
+	task.Publish(t.EventHub)
+
+	if t.CheckCompletedEventQueue(*task) {
 		ev := TaskRequirementsCompleted{
-			Task: *t,
+			Task: *task,
 		}
-		eventHub.Publish(ev)
-	}
-
-	for _, sub := range t.SubTasks {
-		sub.Subscribe(eventHub)
+		t.EventHub.Publish(ev)
 	}
 
 	println("publishing task completed after creation after checking queue")
 
 }
 
-func CheckCompletedEventQueue(t *Task) bool {
-	for _, event := range completedTaskQueue {
-		if event.Type() == t.EventType.Type() {
-			if t.Condition1(event) {
+func (tm *TaskManager) CheckCompletedEventQueue(task Task) bool {
+	for _, event := range tm.completedTaskQueue {
+		if event.Type() == task.EventType.Type() {
+			if task.Condition1(event) {
 				return true
 			}
 		}
@@ -108,15 +127,9 @@ func (t *Task) Activated() bool {
 	return t.activated
 }
 
-func (t *Task) Subscribe(hub *EventHub) {
-	hub.Subscribe(t.EventType, func(e Event) {
-
+func (t *Task) Subscribe(hub *EventHub) int {
+	id := hub.Subscribe(t.EventType, func(e Event) {
 		if t.Condition1 == nil || t.Condition1(e) {
-			for _, subT := range t.SubTasks {
-				if !subT.Completed {
-					return
-				}
-			}
 			t.PublishIfCompleted(hub)
 		}
 	})
@@ -129,25 +142,6 @@ func (t *Task) Subscribe(hub *EventHub) {
 		}
 
 	})
-	hub.Subscribe(events.NewDay{}, func(e Event) {
-		ev := e.(events.NewDay)
-		if ev.Day > 1 {
-			completedTaskQueue = []Event{}
-		}
-	})
-}
 
-func (st *SubTask) Subscribe(hub *EventHub) {
-
-	for _, completedTask := range completedTaskQueue {
-		if completedTask.Type() == st.EventType.Type() {
-			st.Completed = true
-		}
-	}
-
-	hub.Subscribe(st.EventType, func(e Event) {
-		if st.Condition(e) {
-			st.Completed = true
-		}
-	})
+	return id
 }

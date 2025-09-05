@@ -38,7 +38,7 @@ func newGame() *Game {
 	registry.Config.ResolutionHeight = 800
 	registry.Config.ResolutionWidth = 480 * 2
 
-	fish := entities.SavedFish{FishType: string(entities.Fish), Size: 1}
+	fish := entities.SavedFish{FishType: string(entities.GoldFish), Size: 1}
 
 	colMap := make(map[string]image.Rectangle)
 	colMap["tank"] = image.Rect(100, 100, 400, 400)

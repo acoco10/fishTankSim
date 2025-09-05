@@ -14,16 +14,20 @@ func getAnimationPath(s string) string {
 func LoadEffect(eff string) *sprite.Sprite {
 
 	path := getAnimationPath(eff)
-	ani, ss, err := LoadAnimation(path)
-	if err != nil {
-		log.Fatal("cant load animation", err)
-	}
+
 	image, err := util.LoadImageAssetAsEbitenImage(fmt.Sprintf("effectSpriteSheets/%sSpriteSheet", eff))
 	if err != nil {
 		log.Fatal(err)
 	}
-	se := &sprite.Sprite{Img: image, SpriteSheet: ss, Animation: ani}
 
+	ani, err := LoadAnimation(path)
+	if err != nil {
+		log.Fatal("cant load animation", err)
+	}
+	ani.Img = image
+
+	se := &sprite.Sprite{CurrentAnimation: "Default", AnimationMap: map[string]*sprite.Animation{"Default": ani}}
+	se.Unfocusable = true
 	return se
 }
 

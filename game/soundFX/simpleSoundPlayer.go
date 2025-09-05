@@ -41,6 +41,7 @@ func (s *SoundPlayer) LoadPlayer(playerType string) {
 		DayTimeJazz,
 		TropicalHouse,
 		IndieCafe,
+		ElectricBuzz,
 	}
 
 	if playerType == "sound" {

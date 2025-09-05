@@ -9,6 +9,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
+	"image"
 	"log"
 	"math"
 	"math/rand"
@@ -44,7 +45,7 @@ func CreatureEventSubscriptions(c *Entity) {
 	c.EventHub.Subscribe(CreatureReachedPoint{}, func(e tasks.Event) {
 		ev := e.(CreatureReachedPoint)
 		delete(c.CreatureData.ParticlePointQueue, ev.PointID)
-		if c.CreatureData.Hunger < c.CreatureData.MaxHunger {
+		if c.CreatureData.Hunger < c.CreatureData.MaxHunger && ev.CreatureID != c.Id {
 			c.goToFood()
 		}
 	})
@@ -64,11 +65,13 @@ func CreatureEventSubscriptions(c *Entity) {
 			log.Fatal("some weird shit happened when fish was attracted to a new structure")
 		}
 
-		TargetPoint := &util.Point{X: prop.PropData.X + 20, Y: prop.PropData.Y + float32(prop.Sprite.GetSpriteRect().Dy()/2), PType: util.Structure}
+		TargetPoint := &util.Point{X: float32(prop.Sprite.X) + 20, Y: float32(prop.Sprite.Y) + float32(prop.Sprite.GetSpriteRect().Dy()/2), PType: util.Structure}
 		println("making creature target point new prop")
 		c.CreatureData.TargetParticleId = ev.PropId
 		c.CreatureData.ParticlePointQueue[ev.PropId] = TargetPoint
 		c.MakeTargetPoint(TargetPoint)
+
+		c.CreatureData.TargetZ = min(prop.Z+1, 12)
 	})
 
 	c.CreatureData.EventHub.Subscribe(events.NewDay{}, func(e tasks.Event) {
@@ -121,7 +124,7 @@ func DoneEating(c *Entity) {
 	if c.CreatureData.Hunger < c.CreatureData.MaxHunger {
 		c.goToFood()
 	} else {
-		c.MakeTargetPoint(c.RandomTarget())
+		c.MakeTargetPoint(c.RandomTarget(c.CreatureData.MovementFlags))
 	}
 }
 
@@ -137,19 +140,17 @@ func (e *Entity) otherFishPoint(point *util.Point) {
 }
 
 func (c *Entity) goToFood() {
-	c.calcSpeed()
 	if c.CreatureData.Hunger < c.CreatureData.MaxHunger {
 		newTargid := ClosestParticle(c.Sprite.X, c.Sprite.Y, c.CreatureData.ParticlePointQueue)
-
 		c.CreatureData.TargetParticleId = newTargid
 		if newTargid == 0 {
-			c.MakeTargetPoint(c.RandomTarget())
+			c.MakeTargetPoint(c.RandomTarget(c.CreatureData.MovementFlags))
 		} else {
 			targPoint := c.CreatureData.ParticlePointQueue[newTargid]
 			c.MakeTargetPoint(targPoint)
 		}
 	} else {
-		c.MakeTargetPoint(c.RandomTarget())
+		c.MakeTargetPoint(c.RandomTarget(c.CreatureData.MovementFlags))
 	}
 }
 
@@ -159,11 +160,14 @@ func (e *Entity) calcSpeed() {
 		return
 	}
 	c := e.CreatureData
-
-	if len(c.ParticlePointQueue) < 0 {
-		c.speed = c.maxSpeed
+	const minSpeed = 0.5 // farthest fish still move at 20% speed
+	ratio := minSpeed + (float32(e.Z)-1.0)/11.0*(1.0-minSpeed)
+	if len(c.ParticlePointQueue) > 1 {
+		// has destination
+		c.speed = c.maxSpeed * ratio
 	} else {
-		c.speed = float32(math.Min(rand.Float64()*float64(c.maxSpeed)+float64(c.avgSpeed), float64(c.maxSpeed)))
+		c.speed = (float32(rand.NormFloat64())*c.stdDevSpeed + c.avgSpeed) * ratio
+
 	}
 
 	fmt.Printf("random speed generated = %f\n", c.speed)
@@ -196,18 +200,20 @@ func ClosestParticle(x, y float32, points map[uint32]*util.Point) uint32 {
 	return pointToReturnID
 }
 
-func (e *Entity) Move() {
+func (e *Entity) Move(collisions []FishCollision) {
 	if e.CreatureData == nil {
 		return
 	}
-	e.AddRandomMovement()
+	e.AddRandomMovement(collisions)
 
 	e.Sprite.X += e.Sprite.Dx
 	e.Sprite.Y += e.Sprite.Dy
 
+	e.CreatureData.distanceTraveled += 1
+
 	e.EnforceBoundaries()
 
-	e.UpdateToNextPoint()
+	e.CheckPointReached()
 
 }
 
@@ -221,7 +227,7 @@ func (c *Entity) EnforceBoundaries() {
 	s.Y = min(float32(bounds.Max.Y), s.Y)
 }
 
-func (e *Entity) UpdateToNextPoint() {
+func (e *Entity) CheckPointReached() {
 	if e.CreatureData == nil {
 		return
 	}
@@ -230,21 +236,18 @@ func (e *Entity) UpdateToNextPoint() {
 	s := e.Sprite
 
 	if c.TargetParticleId != 0 {
-		x := c.TargetPoint.X - 3 - s.X
-		y := c.TargetPoint.Y + 3 - s.Y
-		if c.Flip {
-			x = c.TargetPoint.X + 3 - s.X
-		}
+		xdist := c.TargetPoint.X - e.Sprite.X
+		ydist := c.TargetPoint.Y - e.Sprite.Y
 
-		dist := math.Hypot(float64(x), float64(y))
+		dist := math.Hypot(float64(xdist), float64(ydist))
 
-		if dist <= 3 {
-			s.X -= 4
-			if !s.Flip {
-				s.X += 8
+		if dist < 5 {
+			e.Sprite.X -= 4
+			if e.Sprite.Flip {
+				e.Sprite.X += 4
 			}
-			s.Y -= 3
-			e.PointReached()
+			e.Sprite.Y = c.TargetPoint.Y + float32(e.Sprite.GetSpriteRect().Dy()/4)
+			e.PointReached(e.CreatureData.MovementFlags)
 			c.energy = c.energy - 0.5
 			if c.energy < 0 {
 				c.energy = 0
@@ -255,7 +258,7 @@ func (e *Entity) UpdateToNextPoint() {
 		y := c.TargetPoint.Y - s.Y
 		dist := math.Hypot(float64(x), float64(y))
 		if dist < 5 {
-			e.PointReached()
+			e.PointReached(e.CreatureData.MovementFlags)
 			c.energy = c.energy - 0.5
 			if c.energy < 0 {
 				c.energy = 0
@@ -273,7 +276,7 @@ func (e *Entity) CheckAndLevelUp() {
 		c.nextLevel *= 1.2
 		c.progress = 0
 		c.defaultMaxHunger += c.defaultMaxHunger / 3
-		LoadLevelUpSprite(e)
+		LoadFishSprite(e)
 	}
 }
 
@@ -281,30 +284,53 @@ func randomBool() bool {
 	return rand.Intn(2) == 0
 }
 
-func (e *Entity) RandomTarget() *util.Point {
+func (e *Entity) RandomTarget(flags [10]uint32) *util.Point {
 
 	c := e.CreatureData
 	s := e.Sprite
 
 	//didn't like having fish swim back and forth across the whole screen so i divide by 4 for smaller destination points
 	// a carry direction thing could be set up to make each smaller point be in the same direction or something
-	nextX := s.X + float32(rand.NormFloat64()*float64(c.TankBoundaries.Max.X/4))
-	randomTargetX := max(float32(c.TankBoundaries.Min.X+s.SpriteWidth), nextX)
 
-	if randomTargetX > float32(c.TankBoundaries.Max.X-s.SpriteWidth) {
-		randomTargetX = float32(c.TankBoundaries.Max.X - s.SpriteWidth)
+	randomTargetX := randomX(s.X, s.SpriteWidth(), c.TankBoundaries)
+
+	if flags[0] == 1 {
+		// When hitting collision, pick a target that's definitely in the opposite direction
+		if e.Sprite.Dx > 5 {
+			e.Sprite.X -= 1 + float32(e.Sprite.GetSpriteRect().Dx())
+			// Was moving right, now go left
+			randomTargetX = s.X - float32(rand.Intn(100)+50) // 50-150 pixels left
+		} else {
+			e.Sprite.X += 1 + float32(e.Sprite.GetSpriteRect().Dx())
+			randomTargetX = s.X + float32(rand.Intn(100)+50) // 50-150 pixels right
+		}
+		c.MovementFlags[0] = 0
+		// Clamp to tank boundaries
+		randomTargetX = max(float32(c.TankBoundaries.Min.X+s.SpriteWidth()+5), randomTargetX)
+		randomTargetX = min(float32(c.TankBoundaries.Max.X-s.SpriteWidth()-5), randomTargetX)
+	}
+
+	randZ := rand.Intn(12)
+	if randZ > 8 && randZ < 10 {
+		if c.TargetZ-1 >= 1 {
+			c.TargetZ -= 1
+		}
+	} else if randZ > 10 {
+		if c.TargetZ+1 <= 12 {
+			c.TargetZ += 1
+		}
 	}
 
 	//normally distributed y based on avg depth stat
 	//standard dev = entire tank?
 	// lowest point (highest y) - (a randomly, normally distributed number * std dev(50) +
 	//then we subtract the mean depth of our species and the height since were dealing with a left corner of sprite)
-	offsetFromBottom := float32(rand.NormFloat64())*20 + c.avgDepth + float32(s.SpriteHeight)
+	offsetFromBottom := float32(rand.NormFloat64())*20 + c.avgDepth + float32(s.SpriteHeight())
 	println("fish offset =", offsetFromBottom)
 	sample := float32(c.TankBoundaries.Max.Y) - offsetFromBottom
 	//clamp below highest possible point
-	randomTargetY := max(float32(c.TankBoundaries.Min.Y+s.SpriteHeight), sample)
-	randomTargetY = min(float32(c.TankBoundaries.Max.Y-s.SpriteHeight), randomTargetY)
+	randomTargetY := max(float32(c.TankBoundaries.Min.Y+s.SpriteHeight()), sample)
+	randomTargetY = min(float32(c.TankBoundaries.Max.Y-s.SpriteHeight()), randomTargetY)
 
 	targetX := randomTargetX
 	targetY := randomTargetY
@@ -314,15 +340,24 @@ func (e *Entity) RandomTarget() *util.Point {
 	newPoint := util.Point{X: targetX, Y: targetY}
 	return &newPoint
 }
-func (e *Entity) AddRandomMovement() {
+
+func randomX(currentX float32, spriteWidth int, TankBoundaries image.Rectangle) float32 {
+	nextX := currentX + float32(rand.NormFloat64()*float64(TankBoundaries.Max.X/4)) //norm float 64 is between -1, 1
+	randomTargetX := max(float32(TankBoundaries.Min.X+spriteWidth+5), nextX)
+
+	if randomTargetX > float32(TankBoundaries.Max.X-spriteWidth) {
+		randomTargetX = float32(TankBoundaries.Max.X - spriteWidth - 5)
+	}
+
+	return randomTargetX
+}
+
+func (e *Entity) AddRandomMovement(collisions []FishCollision) {
 	c := e.CreatureData
 	s := e.Sprite
 	// Calculate the desired direction
 	desiredDx := c.TargetPoint.X - s.X
 	desiredDy := c.TargetPoint.Y - s.Y
-	if c.TargetPoint.PType == util.Food {
-		desiredDy = c.TargetPoint.Y + 4 - s.Y
-	}
 
 	// Calculate distance BEFORE normalizing
 	dist := math.Hypot(float64(desiredDx), float64(desiredDy))
@@ -339,25 +374,54 @@ func (e *Entity) AddRandomMovement() {
 	if dist < arrivalRadius {
 		// Scale speed based on distance - closer = slower
 		targetSpeed := c.speed * float32(dist/arrivalRadius)
-		targetSpeed = max(targetSpeed, c.speed*0.1) // Minimum speed
+		targetSpeed = max(targetSpeed, c.speed*0.4) // Minimum speed
 		desiredDx *= targetSpeed
 		desiredDy *= targetSpeed
 	} else {
 		desiredDx *= c.speed
 		desiredDy *= c.speed
 	}
+
 	steeringFactor := float32(0.05) // tweak for responsiveness
 
 	s.Dx += (desiredDx - s.Dx) * steeringFactor
 	s.Dy += (desiredDy - s.Dy) * steeringFactor
 
+	if !TestNewPos(collisions, *s) {
+		e.CreatureData.MovementFlags[0] = 1
+		e.PointReached(e.CreatureData.MovementFlags)
+	}
+
 	s.ChangeAnimationSpeed(10 - (desiredDx * 3))
 	if c.speed < 0.2 {
 		s.ChangeAnimationSpeed(30)
 	}
+
 }
 
-func (c *Entity) PointReached() {
+func TestNewPos(collisions []FishCollision, sp sprite.Sprite) bool {
+	x := sp.X
+	y := sp.Y
+
+	x += sp.Dx
+	y += sp.Dy
+
+	rect := sp.GetSpriteRect()
+	for _, col := range collisions {
+		if rect.Overlaps(col.Rectangle) {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *Entity) PointReached(flags [10]uint32) {
+	c.Z = c.CreatureData.TargetZ
+	c.CreatureData.distanceTraveled = 0
+	if flags[0] == 1 {
+		c.MakeTargetPoint(c.RandomTarget(flags))
+	}
+
 	if c.CreatureData.TargetParticleId != 0 {
 		if c.CreatureData.TargetPoint.PType == util.Food {
 			c.CreatureData.Hunger++
@@ -371,11 +435,12 @@ func (c *Entity) PointReached() {
 		}
 		c.CreatureData.EventHub.Publish(ev)
 		c.CreatureData.TargetParticleId = 0
+		return
 	} else if c.CreatureData.TargetPoint.PType == util.Structure {
-		c.CreatureData.State = Resting
 		c.CreatureData.TargetParticleId = 0
+		c.MakeTargetPoint(c.RandomTarget(flags))
 	} else {
-		c.MakeTargetPoint(c.RandomTarget())
+		c.MakeTargetPoint(c.RandomTarget(flags))
 	}
 	//reorg target point and q
 
@@ -392,7 +457,7 @@ func (e *Entity) TranSlateFishShaderOpts() *ebiten.DrawRectShaderOptions {
 	if c.Flip {
 		e.Sprite.Flip = true
 		opts.GeoM.Scale(-1, 1) // flip horizontally
-		opts.GeoM.Translate(float64(e.Sprite.SpriteWidth), 0)
+		opts.GeoM.Translate(float64(e.Sprite.SpriteWidth()), 0)
 	} else {
 		e.Sprite.Flip = false
 	}
@@ -414,11 +479,11 @@ func (e *Entity) TranSlateFishShaderOpts() *ebiten.DrawRectShaderOptions {
 		b := c.Img.Bounds()
 		midpoint := float32(b.Dy() / 2)*/
 
-	y := float64(e.Sprite.Y - float32(e.Sprite.SpriteHeight/2))
+	y := float64(e.Sprite.Y - float32(e.Sprite.SpriteHeight()/2))
 	x := float64(e.Sprite.X)
 
 	if c.Flip {
-		x = x - float64(e.Sprite.SpriteWidth)
+		x = x - float64(e.Sprite.SpriteWidth())
 	}
 	opts.GeoM.Translate(x, y)
 
@@ -455,7 +520,7 @@ func (e *Entity) TranSlateFishOpts() *ebiten.DrawImageOptions {
 		}
 	}
 	if c.Flip {
-		opts.GeoM.Translate(float64(s.X-float32(s.SpriteWidth)), float64(s.Y))
+		opts.GeoM.Translate(float64(s.X-float32(s.SpriteWidth())), float64(s.Y))
 	} else {
 		opts.GeoM.Translate(float64(s.X), float64(s.Y))
 	}
@@ -467,6 +532,7 @@ func (e *Entity) MakeTargetPoint(point *util.Point) {
 	if e.CreatureData == nil {
 		return
 	}
+
 	if point == nil {
 		log.Fatal("Nil point sent to fish to make target point")
 	}
@@ -483,6 +549,12 @@ func (e *Entity) MakeTargetPoint(point *util.Point) {
 	}
 
 	c.TargetPoint = point
+	if c.TargetPoint.PType == util.Food {
+		if c.TargetPoint.Z != 0 {
+			c.TargetZ = c.TargetPoint.Z
+		}
+	}
+	e.calcSpeed()
 }
 
 func (e *Entity) publishStats(sendTo string) {
@@ -526,13 +598,15 @@ func (e *Entity) publishStats(sendTo string) {
 	stateString := fmt.Sprintf("State: %s\n", state)
 	healthStateString := fmt.Sprintf("Health State: %s\n", healthState)
 	stressString := ""
+	targetZ := fmt.Sprintf("target Z: %d\n", e.CreatureData.TargetZ)
+	currentZ := fmt.Sprintf("current Z: %d\n", e.Z)
 
 	for i, fact := range e.CreatureData.stressContributors {
-		stressString += fmt.Sprintf("%d. %s", i+1, fact)
+		stressString += fmt.Sprintf("%d. %s\n", i+1, fact)
 	}
 
 	ev.Data = nameString + stateString + SizeString + hungerString +
-		experienceString + healthStateString + stressString
+		experienceString + healthStateString + stressString + targetZ + currentZ
 
 	/*	if TargetPoint != "" {
 		ev.Data += TargetPoint
@@ -565,6 +639,7 @@ type FishStats struct {
 	energy           float32
 	maxSpeed         float32
 	avgSpeed         float32
+	stdDevSpeed      float32
 	avgDepth         float32
 	speed            float32
 	Size             int
@@ -582,15 +657,15 @@ type FishStats struct {
 func GenFishStats(fType FishList, name string) (*FishStats, error) {
 	switch fType {
 	case MollyFish:
-		println("loading molly Fish")
+		println("loading molly GoldFish")
 		fs, err := GenMollyFishStats()
 		fs.name = name
 		if err != nil {
 			return fs, err
 		}
 		return fs, nil
-	case Fish:
-		println("loading gold Fish")
+	case GoldFish:
+		println("loading gold GoldFish")
 		fs, err := GenGoldFishStats()
 		fs.name = name
 		if err != nil {
@@ -630,7 +705,8 @@ func GenMollyFishStats() (*FishStats, error) {
 
 	fs.Size = 1
 	fs.maxSpeed = rand.Float32() + 0.7
-	fs.avgSpeed = 1.0
+	fs.avgSpeed = 1.2
+	fs.stdDevSpeed = 0.1
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
 	fs.FishType = MollyFish
 	fs.maxEnergy = 25
@@ -660,10 +736,11 @@ func GenGoldFishStats() (*FishStats, error) {
 	fs.idealTemperature = 70
 	fs.idealPH = 6.5
 	fs.avgDepth = 40.0
-	fs.avgSpeed = 1.2
+	fs.avgSpeed = 1.0
+	fs.stdDevSpeed = 0.2
 	fs.maxSpeed = rand.Float32()*0.5 + 0.2
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
-	fs.FishType = Fish
+	fs.FishType = GoldFish
 	fs.maxEnergy = 25
 	fs.energy = fs.maxEnergy / 2
 	fs.Hunger = 0
@@ -687,7 +764,8 @@ func GenGuppyFishStats() (*FishStats, error) {
 	fs := &FishStats{}
 	fs.Size = 1
 	fs.avgDepth = 150
-	fs.avgSpeed = 1.6
+	fs.avgSpeed = 1.1
+	fs.stdDevSpeed = 0.1
 	fs.maxSpeed = rand.Float32()*0.5 + 0.2
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
 	fs.FishType = Guppy
@@ -715,7 +793,8 @@ func GenKirbensisFishStats() (*FishStats, error) {
 	fs := &FishStats{}
 	fs.Size = 1
 	fs.avgDepth = 100
-	fs.avgSpeed = 1.3
+	fs.avgSpeed = 0.9
+	fs.stdDevSpeed = 0.25
 	fs.maxSpeed = rand.Float32()*0.5 + 0.2
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
 	fs.FishType = Guppy

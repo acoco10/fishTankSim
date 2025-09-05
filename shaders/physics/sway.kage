@@ -1,0 +1,29 @@
+/kage:unit pixels
+package main
+
+var SwayTime float
+var SwayStrength float
+var ImageSize vec2
+
+func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
+    // Calculate height ratio (0 at top, 1 at bottom)
+    
+    heightRatio := (ImageSize.y - texCoord.y * ImageSize.y) / ImageSize.y
+
+    // Calculate horizontal offset based on sway
+    swayOffset := sin(SwayTime) * SwayStrength * heightRatio * heightRatio
+
+    // Convert pixel offset to texture coordinate offset
+    texOffsetX := swayOffset / ImageSize.x
+
+    // Apply the sway by sampling from offset coordinates
+    swayedTexCoord := vec2(texCoord.x - texOffsetX, texCoord.y)
+
+    // Check if we're sampling outside the texture bounds
+    if swayedTexCoord.x < 0.0 || swayedTexCoord.x > 1.0 {
+        return vec4(0, 0, 0, 0) // Transparent
+    }
+
+    // Sample the color from the swayed position
+    return imageSrc0UnsafeAt(swayedTexCoord)
+}

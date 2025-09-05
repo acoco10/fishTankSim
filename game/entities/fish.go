@@ -21,7 +21,7 @@ const (
 type FishList string
 
 const (
-	Fish      FishList = "fish"
+	GoldFish  FishList = "goldFish"
 	MollyFish FishList = "mollyFish"
 	Guppy     FishList = "guppy"
 	Kirbensis FishList = "kirbensis"
@@ -29,7 +29,7 @@ const (
 
 func IsValidFishType(fishType string) bool {
 	switch FishList(fishType) {
-	case MollyFish, Fish, Guppy, Kirbensis:
+	case MollyFish, GoldFish, Guppy, Kirbensis:
 		return true
 	default:
 		return false
@@ -52,6 +52,8 @@ const (
 
 type CreatureData struct {
 	TargetPoint        *util.Point
+	distanceTraveled   float64
+	TargetZ            int
 	TargetParticleId   uint32
 	ParticlePointQueue map[uint32]*util.Point
 	EventHub           *tasks.EventHub
@@ -61,31 +63,29 @@ type CreatureData struct {
 	TickClicked        bool
 	Environment        *system.Environment
 	stressContributors []string
+	MovementFlags      [10]uint32
 	*FishStats
 	Flip bool
 }
 
-func (e *Entity) FishUpdate() {
+func (e *Entity) FishUpdate(state *GameState) {
 	c := e.CreatureData
 
 	c.TickClicked = false
 	switch c.State {
 
 	case Swimming:
-		e.swimmingUpdate()
+		e.swimmingUpdate(state.ActiveCollisions)
 	case Resting:
-		e.restingUpdate()
+		e.restingUpdate(state.ActiveCollisions)
 	case Eating:
-		if e.AnimationMap["eating"] != nil {
-			e.Sprite = e.AnimationMap["eating"]
-			e.Sprite.X = e.AnimationMap["swimming"].X
-			e.Sprite.Y = e.AnimationMap["swimming"].Y
-		}
+
 		e.eatingUpdate()
 	}
 
 	dopts := e.TranSlateFishOpts()
 	sopts := e.TranSlateFishShaderOpts()
+
 	e.Sprite.UpdateOpts(sopts)
 	e.Sprite.UpdateOpts(dopts)
 
@@ -98,18 +98,46 @@ func (e *Entity) FishUpdate() {
 		e.Sprite.Unfocusable = true
 	}
 
-	//e.publishStats("statsMenu")
+	e.updateAnimation()
+
+	if state.FocusedEntity == e {
+		e.publishStats("statsMenu")
+	}
 
 }
 
-func (e *Entity) swimmingUpdate() {
-	if e.Sprite != e.AnimationMap["swimming"] {
-		e.Sprite = e.AnimationMap["swimming"]
-		e.Sprite.X = e.AnimationMap["eating"].X
-		e.Sprite.Y = e.AnimationMap["eating"].Y
+func (e *Entity) updateAnimation() {
+
+	switch e.CreatureData.State {
+	case Swimming:
+
+		e.Sprite.CurrentAnimation = "swimming"
+
+		if e.CreatureData.TargetZ < e.Z {
+			e.Sprite.CurrentAnimation = "backwards"
+		}
+		if e.CreatureData.TargetZ > e.Z {
+			e.Sprite.CurrentAnimation = "forward"
+		}
+		/*if e.CreatureData.TargetZ == e.Z && e.Z < 4 {
+			if registry.Config.Zoom {
+				e.Sprite.CurrentAnimation = "depth"
+			}
+		}*/
+	case Eating:
+
+		e.Sprite.CurrentAnimation = "eating"
+
+	case Resting:
+		// Use swimming animation for resting or create a resting animation
+		e.Sprite.CurrentAnimation = "swimming"
 	}
 
-	e.Move()
+}
+
+func (e *Entity) swimmingUpdate(collisions []FishCollision) {
+
+	e.Move(collisions)
 	c := e.CreatureData
 	tState := c.Timers[Swimming].Update()
 
@@ -124,10 +152,10 @@ func (e *Entity) swimmingUpdate() {
 	}
 }
 
-func (e *Entity) restingUpdate() {
+func (e *Entity) restingUpdate(collisions []FishCollision) {
 	c := e.CreatureData
 	c.speed = 0.4
-	e.Move()
+	e.Move(collisions)
 
 	if c.Timers[Resting].On == false {
 		c.Timers[Resting].TurnOn()
@@ -143,6 +171,7 @@ func (e *Entity) restingUpdate() {
 }
 
 func (e *Entity) eatingUpdate() {
+
 	if e.CreatureData == nil {
 		log.Fatal("called a creature data func on a non creature some how")
 	}
@@ -153,8 +182,8 @@ func (e *Entity) eatingUpdate() {
 
 	tState := c.Timers[Eating].Update()
 	if tState == util.Done {
-		DoneEating(e)
 		c.State = Swimming
 		c.energy += 4
+		DoneEating(e)
 	}
 }

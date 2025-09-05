@@ -75,14 +75,13 @@ func LoadNextOptionsMenuUI(headerText string, buttonText []string, hub *tasks.Ev
 				Position: widget.RowLayoutPositionCenter,
 			})),
 
-		widget.TextOpts.Text(headerText, face, color.RGBA{R: 250, G: 160, B: 0, A: 255}),
+		widget.TextOpts.Text(headerText, &face, color.RGBA{R: 250, G: 160, B: 0, A: 255}),
 		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionStart),
-		widget.TextOpts.Insets(widget.Insets{}),
 	)
 
 	//headerContainer.AddChild(headerLbl)
 	for _, button := range buttonText {
-		b := LoadSubmitButton(button, hub, 12, headerText+": "+button)
+		b := LoadSubmitButton(button, hub, headerText+": "+button)
 		ButtonContainer.AddChild(
 			b,
 		)

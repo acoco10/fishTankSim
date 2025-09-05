@@ -2,9 +2,7 @@ package entities
 
 import (
 	"fmt"
-	"github.com/acoco10/QuickDrawAdventure/animations"
 	"github.com/acoco10/fishTankWebGame/game/entImportableLoaders"
-	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/system"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
@@ -13,13 +11,16 @@ import (
 	"image"
 	"log"
 	"math/rand"
+	"strings"
 )
+
+var animationPaths []string
 
 func LoadFishImg(fType FishList, level int, tag string) (*ebiten.Image, error) {
 	var fishImgName string
 	switch fType {
-	case Fish:
-		fishImgName = fmt.Sprintf("fish%d%sSpriteSheet", level, tag)
+	case GoldFish:
+		fishImgName = fmt.Sprintf("goldFish%d%sSpriteSheet", level, tag)
 	case MollyFish:
 		fishImgName = fmt.Sprintf("mollyFish%d%sSpriteSheet", level, tag)
 	case Guppy:
@@ -43,91 +44,65 @@ func LoadFishNormal(fType FishList, level int, tag string) (*ebiten.Image, error
 	return img, nil
 }
 
-func LoadFishSprite(creatureType FishList, creatureLvl int) (map[string]*sprite.Sprite, error) {
+func LoadFishAnimations(creatureType FishList, creatureLvl int) (map[string]*sprite.Animation, error) {
 
-	var c *sprite.Sprite
+	AnimationMap := make(map[string]*sprite.Animation)
 
-	c = &sprite.Sprite{}
-	eatingC := &sprite.Sprite{}
-	c.Scale = 1
-
-	img, err := LoadFishImg(creatureType, creatureLvl, "")
-	if err != nil {
-		return nil, err
-	}
-
-	normalImg, err := LoadFishNormal(creatureType, creatureLvl, "")
-	if err != nil {
-		return nil, err
-	}
-	c.Img = img
-
-	tag := "Eating"
-	eatingImg, err := LoadFishImg(creatureType, creatureLvl, tag)
-	if err != nil {
-		eatingImg, err = LoadFishImg(MollyFish, 1, tag)
+	tags := []string{"", "Eating", "Forward", "Backwards", "Depth"}
+	for _, tag := range tags {
+		nimg, err := LoadFishNormal(creatureType, creatureLvl, "")
 		if err != nil {
-			log.Fatal("this is the you fucked up path", err)
+			log.Println("normal map not found for fish:", creatureType, "ERROR:", err)
 		}
-	}
+		img := loadFishAnimationImg(creatureType, creatureLvl, tag)
+		animation := loadFishAnimationData(creatureType, creatureLvl, tag)
+		animation.Img = img
+		animation.NormalImg = nimg
 
-	eatingNormalImg, _ := LoadFishNormal(creatureType, creatureLvl, tag)
-
-	c.Img = img
-	eatingC.Img = eatingImg
-
-	path := fmt.Sprintf("data/animationData/%s%dAnimation.json", string(creatureType), creatureLvl)
-	fmt.Printf("Animation path = %s\n", path)
-
-	eatingPath := fmt.Sprintf("data/animationData/%s%d%sAnimation.json", string(creatureType), creatureLvl, tag)
-	fmt.Printf("Animation path = %s\n", path)
-
-	eani, esps, err := entImportableLoaders.LoadAnimation(eatingPath)
-	if err != nil {
-		log.Printf("wrong animation path or misnamed file")
-		eani, esps, err = entImportableLoaders.LoadAnimation("data/animationData/mollyFish1EatingAnimation.json")
-		if err != nil {
-			log.Fatal("Even the backup doesnt work", err)
+		if tag == "" {
+			AnimationMap["swimming"] = animation
+			continue
 		}
+
+		name := strings.ToLower(tag)
+		AnimationMap[name] = animation
 	}
-
-	ani, sps, err := entImportableLoaders.LoadAnimation(path)
-	if err != nil {
-		log.Printf("wrong animation path or misnamed file")
-		return nil, err
-	}
-	c.Animation = ani
-	c.SpriteSheet = sps
-
-	eatingC.SpriteSheet = esps
-	eatingC.Animation = eani
-	eatingC.NormalMap = eatingNormalImg
-	eatingC.ShaderParams = make(map[string]any)
-
-	if normalImg != nil {
-		c.NormalMap = normalImg
-		c.ShaderParams = make(map[string]any)
-		c.ShaderParams["Cursor"] = [2]float64{400, 50}
-		c.ShaderParams["TankDepthZ"] = rand.Float64() * 0.5
-		c.Shader = registry.ShaderMap["NormalMap"]
-	}
-
-	AnimationMap := make(map[string]*sprite.Sprite)
-	AnimationMap["swimming"] = c
-	AnimationMap["eating"] = eatingC
-
-	c.AbleToBeUnfocusedAutomatically = true
 
 	return AnimationMap, nil
 }
 
-func LoadFishSpriteAltAnimations(fType FishList) (*sprite.AnimatedSprite, error) {
-	c := sprite.AnimatedSprite{}
-	c.Sprite = &sprite.Sprite{}
+func PopulateAnimationDirectory(tags []string) {
 
-	c.Animation = animations.NewAnimation(0, 3, 1, 15)
+}
 
-	return &c, nil
+func loadFishAnimationData(creatureType FishList, creatureLvl int, tag string) *sprite.Animation {
+	path := fmt.Sprintf("data/animationData/%s%d%sAnimation.json", string(creatureType), creatureLvl, tag)
+	fmt.Printf("Animation path = %s\n", path)
+
+	fallBackPath := fmt.Sprintf("data/animationData/%s%d%sAnimation.json", string(GoldFish), 1, tag)
+	fmt.Printf("Animation path = %s\n", path)
+
+	ani, err := entImportableLoaders.LoadAnimation(path)
+	if err != nil {
+		log.Printf("wrong animation path or misnamed file")
+		ani, err = entImportableLoaders.LoadAnimation(fallBackPath)
+		if err != nil {
+			log.Fatal("Even the backup doesnt work", err)
+		}
+	}
+	return ani
+}
+
+func loadFishAnimationImg(creatureType FishList, creatureLvl int, tag string) *ebiten.Image {
+	img, err := LoadFishImg(creatureType, creatureLvl, tag)
+	if err != nil {
+		log.Println("Trying to load fish with level-1")
+		img, err = LoadFishImg(GoldFish, 1, tag)
+		if err != nil {
+			log.Fatal("this is the you fucked up path", err)
+		}
+	}
+	return img
 }
 
 func NewFishData(environment *system.Environment, hub *tasks.EventHub, tankSize image.Rectangle, saveData SavedFish) *CreatureData {
@@ -143,7 +118,7 @@ func NewFishData(environment *system.Environment, hub *tasks.EventHub, tankSize 
 		log.Fatal("fish stats", err)
 	}
 	if fs == nil {
-		println("Fish stats returning empty pointer")
+		println("GoldFish stats returning empty pointer")
 	}
 
 	fs.Size = saveData.Size
@@ -169,15 +144,17 @@ func NewFishData(environment *system.Environment, hub *tasks.EventHub, tankSize 
 	return &c
 }
 
-func LoadLevelUpSprite(creature *Entity) {
+func LoadFishSprite(creature *Entity) {
 	if creature.CreatureData.Size < 4 {
-		levelUpSprite, err := LoadFishSprite(creature.CreatureData.FishType, creature.CreatureData.Size)
+		//no level 4+ sprites yet
+		Sprite, err := LoadFishAnimations(creature.CreatureData.FishType, creature.CreatureData.Size)
 		if err != nil {
 			//just load goldfish img as default level up sprite
-			levelUpSprite, _ = LoadFishSprite("Fish", creature.CreatureData.Size)
+			Sprite, _ = LoadFishAnimations("GoldFish", creature.CreatureData.Size)
 		}
-		ms := levelUpSprite["swimming"]
-		creature.Sprite = ms
-		creature.AnimationMap = levelUpSprite
+		creature.Sprite = &sprite.Sprite{CurrentAnimation: "swimming", Scale: 1, AbleToBeUnfocusedAutomatically: true, ShaderParams: make(map[string]any)}
+		creature.Sprite.ShaderParams["Cursor"] = []float64{0, 0, 100}
+		creature.Sprite.ShaderParams["TankDepthZ"] = creature.Z
+		creature.Sprite.AnimationMap = Sprite
 	}
 }

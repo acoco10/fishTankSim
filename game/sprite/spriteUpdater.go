@@ -9,6 +9,15 @@ type XYUpdater struct {
 	offSetY float32
 }
 
+func (x *XYUpdater) SetCustomOffset(X, Y int) {
+	if X != 0 {
+		x.offSetX = float32(X)
+	}
+	if Y != 0 {
+		x.offSetY = float32(Y)
+	}
+}
+
 func NewUpdater(sprite *Sprite) *XYUpdater {
 	x, y := util.GetScaledCursorPosition()
 	difX := float32(x) - sprite.X

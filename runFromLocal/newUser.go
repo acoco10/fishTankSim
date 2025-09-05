@@ -8,6 +8,8 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/scenes"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 )
 
 type GameState struct {
@@ -16,6 +18,12 @@ type GameState struct {
 }
 
 func main() {
+
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
+	// Your game code here
 
 	var data GameState
 
@@ -45,8 +53,7 @@ func main() {
 	}
 
 	gameLog := sceneManagement.NewGameLog(state, "")
-	//p := profile.Start(profile.MemProfile, profile.ProfilePath("."), profile.NoShutdownHook)
-	//defer p.Stop()
+	
 	g := scenes.NewGame(gameLog, scenes.NewUser)
 	err = ebiten.RunGame(g)
 	if err != nil {

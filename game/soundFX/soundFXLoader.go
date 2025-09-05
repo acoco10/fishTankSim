@@ -17,6 +17,7 @@ func LoadSounds() {
 	volumeMap := map[resource.AudioID]float64{
 		BestAdventureEver: 0.5,
 		CardBoard:         1.0,
+		ElectricBuzz:      -0.7,
 		Coins1:            0.2,
 		Crash:             0.1,
 		DayTimeJazz:       -0.5,

@@ -14,6 +14,7 @@ const (
 	Coins1            resource.AudioID = iota
 	Crash             resource.AudioID = iota
 	DayTimeJazz       resource.AudioID = iota
+	ElectricBuzz      resource.AudioID = iota
 	FailedStart       resource.AudioID = iota
 	IndieCafe         resource.AudioID = iota
 	Kaching           resource.AudioID = iota

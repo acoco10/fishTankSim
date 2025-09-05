@@ -12,28 +12,49 @@ type Event interface {
 	Type() string
 }
 
+type HandlerInfo struct {
+	Id      int
+	Handler Handler
+}
+
 type Handler func(Event)
 
 type EventHub struct {
-	subscribers map[string][]Handler
+	subscribers map[string][]HandlerInfo
 }
 
 func NewEventHub() *EventHub {
 	return &EventHub{
-		subscribers: make(map[string][]Handler),
+		subscribers: make(map[string][]HandlerInfo),
 	}
 }
 
-func (h *EventHub) Subscribe(eventType Event, handler Handler) {
-	fmt.Printf("Subscribed to event: %T\n", eventType)
+func (h *EventHub) Subscribe(eventType Event, handler Handler) int {
+	eventId++
 	t := reflect.TypeOf(eventType).String()
-	h.subscribers[t] = append(h.subscribers[t], handler)
+	h.subscribers[t] = append(h.subscribers[t], HandlerInfo{
+		Id:      eventId,
+		Handler: handler,
+	})
+	return eventId
 }
 
 func (h *EventHub) Publish(event Event) {
 	fmt.Printf("Publishg: %T\n", event)
 	t := reflect.TypeOf(event).String()
-	for _, handler := range h.subscribers[t] {
-		handler(event)
+	for _, handlerInfo := range h.subscribers[t] {
+		handlerInfo.Handler(event)
+	}
+}
+
+func (h *EventHub) Unsubscribe(eventType Event, id int) {
+	t := reflect.TypeOf(eventType).String()
+	handlers := h.subscribers[t]
+
+	for i, info := range handlers {
+		if info.Id == id {
+			h.subscribers[t] = append(handlers[:i], handlers[i+1:]...)
+			return
+		}
 	}
 }

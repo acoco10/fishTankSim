@@ -114,13 +114,13 @@ func (s *StartScene) subs(gameLog *sceneManagement.GameLog) {
 
 		case "Goldfish":
 			gameLog.SoundPlayer.Play(soundFX.SelectSound2)
-			saveFish := entities.SavedFish{FishType: "fish", Progress: 0, Size: 1}
+			saveFish := entities.SavedFish{FishType: "goldFish", Progress: 0, Size: 1}
 			s.selectedFish = saveFish
 
 		case "Submit":
 			s.nextSceneTrigger.TurnOn()
 			s.gameLog.SoundPlayer.Play(soundFX.SelectSound)
-			//s.selectedFish.Name = s.ui.TextInput.GetText()
+			s.selectedFish.Name = s.ui.TextInput.GetText()
 			gameLog.Save.Fish = append(gameLog.Save.Fish, s.selectedFish)
 		}
 	})

@@ -8,7 +8,6 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"image"
 )
 
@@ -72,37 +71,11 @@ func FishFoodUpdate(ent *Entity) {
 		s.Scale = 1.0
 		// change from "pouring state" to holding state
 		s.Img = ff.MainImg
-		if s.Z == 0 {
+		if ent.Z == 0 {
 			UpdateEntityZAndReSortEntitySlice(ent.Id, 2)
 		}
 	}
 
-}
-
-func (ff *FishFoodSprite) updateState() {
-	if !ff.SpriteHovered() {
-		ff.state = Idle
-	}
-
-	if ff.SpriteHovered() && (ff.state != ClickedWhileBeingSelected && ff.state != Selected) {
-		ff.state = HoveredOver
-	}
-
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && ff.state == HoveredOver {
-		ff.state = Selected
-	}
-
-	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && ff.state == Selected && ff.stateWas == Selected {
-		xCheck := ff.X > float32(ff.activationRect.Min.X)+100 && ff.X < float32(ff.activationRect.Max.X)
-		yCheck := float32(ff.activationRect.Max.Y) > ff.Y
-		if xCheck && yCheck {
-			ff.state = ClickedWhileBeingSelected
-		}
-	}
-
-	if ff.state == ClickedWhileBeingSelected && inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
-		ff.state = Selected
-	}
 }
 
 func (ff *FishFoodSprite) Subscribe() {

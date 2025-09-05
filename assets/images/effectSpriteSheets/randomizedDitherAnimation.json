@@ -1,0 +1,82 @@
+{ "frames": [
+   {
+    "filename": "randomizedDither 0.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 382, "h": 196 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 382, "h": 196 },
+    "sourceSize": { "w": 382, "h": 196 },
+    "duration": 100
+   },
+   {
+    "filename": "randomizedDither 1.aseprite",
+    "frame": { "x": 382, "y": 0, "w": 382, "h": 196 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 382, "h": 196 },
+    "sourceSize": { "w": 382, "h": 196 },
+    "duration": 100
+   },
+   {
+    "filename": "randomizedDither 2.aseprite",
+    "frame": { "x": 764, "y": 0, "w": 382, "h": 196 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 382, "h": 196 },
+    "sourceSize": { "w": 382, "h": 196 },
+    "duration": 100
+   },
+   {
+    "filename": "randomizedDither 3.aseprite",
+    "frame": { "x": 1146, "y": 0, "w": 382, "h": 196 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 382, "h": 196 },
+    "sourceSize": { "w": 382, "h": 196 },
+    "duration": 100
+   },
+   {
+    "filename": "randomizedDither 4.aseprite",
+    "frame": { "x": 1528, "y": 0, "w": 382, "h": 196 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 382, "h": 196 },
+    "sourceSize": { "w": 382, "h": 196 },
+    "duration": 100
+   },
+   {
+    "filename": "randomizedDither 5.aseprite",
+    "frame": { "x": 1910, "y": 0, "w": 382, "h": 196 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 382, "h": 196 },
+    "sourceSize": { "w": 382, "h": 196 },
+    "duration": 100
+   },
+   {
+    "filename": "randomizedDither 6.aseprite",
+    "frame": { "x": 2292, "y": 0, "w": 382, "h": 196 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 382, "h": 196 },
+    "sourceSize": { "w": 382, "h": 196 },
+    "duration": 100
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.3.9.2-arm64",
+  "image": "randomizedDitherSpriteSheet.png",
+  "format": "RGBA8888",
+  "size": { "w": 2674, "h": 196 },
+  "scale": "1",
+  "frameTags": [
+  ],
+  "layers": [
+   { "name": "Layer 1", "opacity": 255, "blendMode": "normal" },
+   { "name": "Layer 1", "opacity": 153, "blendMode": "normal" }
+  ],
+  "slices": [
+  ]
+ }
+}

@@ -1,0 +1,5 @@
+package entityScripts
+
+func InitUseOnTankStateMachine() {
+
+}

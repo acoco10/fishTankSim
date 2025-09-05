@@ -11,7 +11,6 @@ func MakeSpriteEntity(img *ebiten.Image, x float32, y float32, flags SpriteEntFl
 
 	sp := &sprite.Sprite{Img: img, X: x, Y: y}
 	sp.Unfocusable = flags.Unfocusable
-	sp.Z = flags.Zlayer
 	ent := &entities.Entity{Sprite: sp}
 	entities.RegisterEntity(ent)
 
@@ -22,6 +21,7 @@ func MakeSpriteEntity(img *ebiten.Image, x float32, y float32, flags SpriteEntFl
 	ent.UpdateFunc = flags.UpdateFunc
 	ent.Parameters = flags.Parameters
 	ent.EventHub = flags.EventHub
+	ent.Z = flags.Zlayer
 
 	return ent.Id
 }
@@ -33,4 +33,6 @@ type SpriteEntFlags struct {
 	UpdateFunc  func(ent *entities.Entity)
 	Parameters  map[string]any
 	EventHub    *tasks.EventHub
+	EventType   tasks.Event
+	sub         func(event tasks.Event)
 }

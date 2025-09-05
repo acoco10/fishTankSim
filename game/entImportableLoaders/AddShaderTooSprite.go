@@ -9,5 +9,5 @@ func AddNormalMap(sprite *sprite.Sprite) {
 	normalMapShader := registry.ShaderMap["NormalMap"]
 	sprite.Shader = normalMapShader
 	sprite.ShaderParams = make(map[string]any)
-	sprite.ShaderParams["Cursor"] = []float64{400, 50}
+	sprite.ShaderParams["Cursor"] = []float64{0, 0, 0}
 }

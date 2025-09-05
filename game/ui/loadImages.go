@@ -59,18 +59,23 @@ func loadSubmitButtonImage() *widget.ButtonImage {
 	}
 }
 
-func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, fontSize float64, hub *tasks.EventHub, imgScale float64) (*widget.Container, error) {
+func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, hub *tasks.EventHub, params map[string]any) (*widget.Container, error) {
 
-	face, err := util.LoadFont(fontSize, "nk57")
+	face, err := util.LoadFont(12, "rockSalt")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	imgForTransform := ebiten.NewImage(fishImg.Bounds().Dx()*int(imgScale), fishImg.Bounds().Dx()*int(imgScale))
+	imgScale := params["imageScale"].(int)
+
+	imgForTransform := ebiten.NewImage(params["minWidth"].(int), params["minHeight"].(int))
 
 	dopts := &ebiten.DrawImageOptions{}
-	dopts.GeoM.Scale(imgScale, imgScale)
+	dopts.GeoM.Scale(float64(imgScale), float64(imgScale))
+	height := fishImg.Bounds().Dy() * imgScale
+	width := fishImg.Bounds().Dx() * imgScale
 
+	dopts.GeoM.Translate(float64(params["minWidth"].(int)/2-width/2), float64(params["minHeight"].(int)/2-height/2))
 	imgForTransform.DrawImage(fishImg, dopts)
 
 	img, err := util.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButton")
@@ -134,11 +139,10 @@ func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, fontS
 		//Move the text back to start on press released
 		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
 			button.GetWidget().Disabled = false
-			button.Text().Inset.Top = 0
-			button.Text().Inset.Left = 0
+
 			button.GetWidget().CustomData = false
 		}),
-		widget.ButtonOpts.Text(buttonText, face, &widget.ButtonTextColor{
+		widget.ButtonOpts.Text(buttonText, &face, &widget.ButtonTextColor{
 			Idle:     color.NRGBA{0, 0, 0, 0xff},
 			Hover:    color.NRGBA{255, 255, 0, 255},
 			Pressed:  color.NRGBA{255, 255, 0, 255},
@@ -146,13 +150,13 @@ func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, fontS
 		}),
 		widget.ButtonOpts.TextProcessBBCode(true),
 		// specify that the button's text needs some padding for correct display
-		widget.ButtonOpts.TextPadding(widget.Insets{
+		widget.ButtonOpts.TextPadding(&widget.Insets{
 			Left:   10,
 			Right:  10,
 			Top:    100,
 			Bottom: 10,
 		}),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.MinSize(250, 250)),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.MinSize(params["minWidth"].(int), params["minHeight"].(int))),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			if button.GetWidget().Disabled == false {
 				button.GetWidget().Disabled = true

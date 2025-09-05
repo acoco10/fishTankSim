@@ -12,7 +12,8 @@ func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
       }
        if int(dstCoord.x) <= Counter+50{
               dis := float(Counter) + 50.0 - dstCoord.x
-              return color * 0.5/dis
+               fade := smoothstep(0.0, 50.0, dis)  // Smooth S-curve fade
+               return color * fade
 
          }
        return color * 0.0

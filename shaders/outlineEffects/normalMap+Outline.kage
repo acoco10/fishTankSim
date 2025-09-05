@@ -5,14 +5,13 @@ package main
 
 // Uniform variables.
 var Time float
-var Cursor vec2
+var Cursor vec3
 var OutlineColor vec4
 
 func Fragment(dstPos vec4, texCoord vec2, _ vec4) vec4 {
 
 	pos := dstPos.xy - imageDstOrigin()
-	lightpos := vec3(Cursor, 50)
-	lightdir := normalize(lightpos - vec3(pos, 0))
+	lightdir := normalize(Cursor - vec3(pos, 0))
 
 
 	srcNormal := imageSrc1UnsafeAt(texCoord)

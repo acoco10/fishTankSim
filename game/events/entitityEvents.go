@@ -41,3 +41,17 @@ type NewProp struct {
 func (w NewProp) Type() string {
 	return "NewProp"
 }
+
+type FertilizerUsed struct {
+}
+
+func (f FertilizerUsed) Type() string {
+	return "FertilizerUsed"
+}
+
+type PlacementMode struct {
+}
+
+func (p PlacementMode) Type() string {
+	return "PlacementMode"
+}

@@ -5,9 +5,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 	"image"
-	"image/color"
 	"math"
 	"math/rand"
 	"time"
@@ -15,8 +13,9 @@ import (
 
 var n int = 0
 
-type Particle struct {
+type FoodParticle struct {
 	*util.Point
+	image             *ebiten.Image
 	counter           int
 	underWater        bool
 	waterLevel        int
@@ -30,11 +29,11 @@ type Particle struct {
 	*sprite.Sprite
 }
 
-func (p *Particle) ShouldRemove() bool {
+func (p *FoodParticle) ShouldRemove() bool {
 	return p.remove
 }
 
-func (p *Particle) float() {
+func (p *FoodParticle) float() {
 	vy := 10.0
 	dx := float32(-5.0)
 	if p.Point.Tag == "left" {
@@ -58,7 +57,7 @@ func (p *Particle) float() {
 
 }
 
-func (p *Particle) Update() {
+func (p *FoodParticle) Update() {
 
 	if p.stop {
 		return
@@ -77,32 +76,46 @@ func (p *Particle) Update() {
 	if int(p.Point.Y) < p.floorLevel {
 		p.float()
 	}
-
 }
 
-func (p *Particle) Draw(screen *ebiten.Image) {
-	clr := color.RGBA{255, 234, 0, 255}
-	vector.DrawFilledCircle(screen, p.Point.X, p.Point.Y, 1, clr, false)
+func (p *FoodParticle) Draw(screen *ebiten.Image) {
+	drawOpts := &ebiten.DrawImageOptions{}
+	drawOpts.GeoM.Translate(float64(p.Point.X), float64(p.Point.Y))
+
+	if p.Point.Z >= 8 {
+		screen.DrawImage(p.image.SubImage(image.Rect(4, 0, 8, 4)).(*ebiten.Image), drawOpts)
+	} else if p.Point.Z >= 6 {
+		screen.DrawImage(p.image.SubImage(image.Rect(0, 0, 4, 3)).(*ebiten.Image), drawOpts)
+	} else {
+		screen.DrawImage(p.image.SubImage(image.Rect(8, 0, 12, 3)).(*ebiten.Image), drawOpts)
+	}
 }
 
 func NewParticle(point *util.Point, rect image.Rectangle, hub *tasks.EventHub) *Entity {
 	println("calling new particle function", n)
 	n++
-	p := &Particle{
+	img, _ := util.LoadImageAssetAsEbitenImage("textures/foodParticle")
+
+	p := &FoodParticle{
 		Point:             point,
 		counter:           0,
 		underWater:        false,
 		waterLevel:        rect.Min.Y,
-		floorLevel:        rect.Max.Y - rand.Intn(10) - 10,
+		floorLevel:        rect.Max.Y,
 		underWaterCounter: 0,
 		eventHub:          hub,
 		remove:            false,
 		Sprite:            &sprite.Sprite{},
+		image:             img,
 	}
 
 	//empty image so we can z sort, we should give entities position data for this
-	sp := &sprite.Sprite{Z: 3, Img: ebiten.NewImage(10, 10)}
+	z := rand.Intn(4)
+	sp := &sprite.Sprite{Img: ebiten.NewImage(10, 10)}
 	foodEntity := &Entity{ParticleData: p, Sprite: sp}
+	foodEntity.Z = 6 + z
+	foodEntity.ParticleData.floorLevel -= 12 - z
+	foodEntity.ParticleData.Point.Z = foodEntity.Z
 	foodEntity.EventHub = hub
 	RegisterEntity(foodEntity)
 

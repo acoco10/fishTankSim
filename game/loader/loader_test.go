@@ -23,7 +23,7 @@ func TestLoadAnimation(t *testing.T) {
 
 func TestLoadCreature(t *testing.T) {
 
-	res, err := LoadFishSprite(entities.Fish, 1)
+	res, err := LoadFishSprite(entities.GoldFish, 1)
 
 	if err != nil {
 

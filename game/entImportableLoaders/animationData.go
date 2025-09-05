@@ -2,9 +2,8 @@ package entImportableLoaders
 
 import (
 	"encoding/json"
-	"github.com/acoco10/QuickDrawAdventure/animations"
-	"github.com/acoco10/QuickDrawAdventure/spriteSheet"
 	"github.com/acoco10/fishTankWebGame/assets"
+	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"log"
 )
 
@@ -22,18 +21,18 @@ type AsepriteData struct {
 	Frames []AsepriteFrame `json:"frames"`
 }
 
-func LoadAnimation(path string) (*animations.Animation, *spritesheet.SpriteSheet, error) {
+func LoadAnimation(path string) (*sprite.Animation, error) {
 
 	var data AsepriteData
 
 	fileData, err := assets.AnimationDataDir.ReadFile(path)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = json.Unmarshal(fileData, &data)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	frameCount := len(data.Frames)
@@ -47,8 +46,8 @@ func LoadAnimation(path string) (*animations.Animation, *spritesheet.SpriteSheet
 	log.Printf("Height result from animation loader:%d", data.Frames[0].Frame.H)
 	log.Printf("Duration result from animation loader:%d", data.Frames[0].Duration)
 
-	sps := spritesheet.NewSpritesheet(len(data.Frames), 1, data.Frames[0].Frame.W, data.Frames[0].Frame.H)
-	ani := animations.NewAnimation(0, len(data.Frames)-1, 1, float32(1000/data.Frames[0].Duration))
+	sps := sprite.NewSpriteSheet(len(data.Frames), 1, data.Frames[0].Frame.W, data.Frames[0].Frame.H)
+	ani := sprite.NewAnimation(sps, 0, len(data.Frames)-1, 1, float32(1000/data.Frames[0].Duration))
 
-	return ani, sps, nil
+	return ani, nil
 }

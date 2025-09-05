@@ -17,7 +17,7 @@ func LoadDay1Tasks(gameLog *sceneManagement.GameLog) {
 		return ok
 	}
 
-	taskCondition12 := func(e tasks.Event) bool {
+	/*	taskCondition12 := func(e tasks.Event) bool {
 		ev, ok := e.(events.UnFocus)
 		if !ok {
 			return false
@@ -32,20 +32,20 @@ func LoadDay1Tasks(gameLog *sceneManagement.GameLog) {
 			}
 		}
 		return false
-	}
-	gameTask := tasks.NewTask(events.UnFocus{}, "1. Take a ph reading of your tank", taskCondition12, gameLog.GlobalEventHub)
+	}*/
+
+	gameLog.TaskManager.NewTask(events.PHGuess{}, "1. Take a ph reading of your tank", taskCondition11)
 	//gameTask.UIEffect = uiEvent
-	subT1 := &tasks.SubTask{Completed: false, Condition: taskCondition11, EventType: events.PHGuess{}}
-	gameTask.SubTasks = append(gameTask.SubTasks, subT1)
 
 	taskCondition2 := func(e tasks.Event) bool {
 		ev, ok := e.(events.ButtonClickedEvent)
 		return ok && ev.ButtonText == "Confirm for prop select"
 	}
 
-	gameTask2 := tasks.NewTask(events.ButtonClickedEvent{}, "2. Pick your first tank decoration", taskCondition2, gameLog.GlobalEventHub)
+	gameLog.TaskManager.NewTask(events.ButtonClickedEvent{}, "2. Pick your first tank decoration", taskCondition2)
 
-	gameLog.Tasks = []*tasks.Task{gameTask, gameTask2, FeedAllFishTask(3, gameLog.GlobalEventHub)}
+	taskCondition4, text := FeedAllFishTask(3)
+	gameLog.TaskManager.NewTask(entities.AllFishFed{}, text, taskCondition4)
 
 	gameLog.DayType = sceneManagement.Free
 }
@@ -58,14 +58,14 @@ func LoadDay2Tasks(gameLog *sceneManagement.GameLog) {
 		return ok && ev.ButtonText == "Go do your Chores?: Yes"
 	}
 
-	gameTask := tasks.NewTask(events.ButtonClickedEvent{}, "1. Do your chores", taskCondition1, gameLog.GlobalEventHub)
+	gameLog.TaskManager.NewTask(events.ButtonClickedEvent{}, "1. Do your chores", taskCondition1)
 
 	taskCondition2 := func(e tasks.Event) bool {
 		_, ok := e.(events.MoneyAdded)
 		return ok
 	}
 
-	gameTask2 := tasks.NewTask(events.MoneyAdded{}, "2. Stash your allowance.", taskCondition2, gameLog.GlobalEventHub)
+	gameLog.TaskManager.NewTask(events.MoneyAdded{}, "2. Stash your allowance.", taskCondition2)
 
 	taskCondition3 := func(e tasks.Event) bool {
 		log.Printf("Day 2 purchase task condition met")
@@ -73,11 +73,10 @@ func LoadDay2Tasks(gameLog *sceneManagement.GameLog) {
 		return ok && entities.FishList(ev.Purchase) != ""
 	}
 
-	gameTask3 := tasks.NewTask(events.PurchaseSuccessful{}, "3. Buy a new fish.", taskCondition3, gameLog.GlobalEventHub)
+	gameLog.TaskManager.NewTask(events.PurchaseSuccessful{}, "3. Buy a new fish.", taskCondition3)
 
-	gameTask4 := FeedAllFishTask(4, gameLog.GlobalEventHub)
-
-	gameLog.Tasks = []*tasks.Task{gameTask, gameTask2, gameTask3, gameTask4}
+	taskCondition4, text := FeedAllFishTask(4)
+	gameLog.TaskManager.NewTask(entities.AllFishFed{}, text, taskCondition4)
 	gameLog.DayType = sceneManagement.Chores
 }
 
@@ -95,26 +94,56 @@ func LoadDay3Tasks(gameLog *sceneManagement.GameLog) {
 		return ok && ev.UiSprite == "door"
 	}
 
-	gameTask1 := tasks.NewTask(events.UISpriteAction{}, "1. Go to Camp", taskCondition1, gameLog.GlobalEventHub)
+	gameLog.TaskManager.NewTask(events.UISpriteAction{}, "1. Go to Camp", taskCondition1)
 
-	gameLog.Tasks = []*tasks.Task{}
-	gameLog.Tasks = append(gameLog.Tasks, gameTask1, FeedAllFishTask(2, gameLog.GlobalEventHub))
+	taskCondition, text := FeedAllFishTask(2)
+	gameLog.TaskManager.NewTask(entities.AllFishFed{}, text, taskCondition)
 
 	gameLog.DayType = sceneManagement.Camp
 }
 
-func FeedAllFishTask(taskn int, hub *tasks.EventHub) *tasks.Task {
+func FeedAllFishTask(taskn int) (condition func(e tasks.Event) bool, text string) {
 
 	taskCondition := func(e tasks.Event) bool {
 		_, ok := e.(entities.AllFishFed)
 		return ok
 	}
 
-	text := fmt.Sprintf("%d. Feed all your fish ", taskn)
+	taskText := fmt.Sprintf("%d. Feed all your fish ", taskn)
 
-	task := tasks.NewTask(entities.AllFishFed{}, text, taskCondition, hub)
-	task.Type = tasks.FishFed
+	return taskCondition, taskText
 
-	return task
+}
 
+func LoadDefualtTasks(gameLog *sceneManagement.GameLog) {
+	//uiEvent := events.UISpriteAction{UiSpriteData: "phreader", UiSpriteAction: "highlight"}
+	taskCondition11 := func(e tasks.Event) bool {
+		_, ok := e.(events.PHGuess)
+		return ok
+	}
+
+	/*	taskCondition12 := func(e tasks.Event) bool {
+		ev, ok := e.(events.UnFocus)
+		if !ok {
+			return false
+		}
+		ent, exists := entities.GetEntity(ev.EntID)
+		if !exists {
+			return false
+		}
+		if ent.UiData != nil {
+			if ent.UiData.Label == "phreader" {
+				return true
+			}
+		}
+		return false
+	}*/
+
+	gameLog.TaskManager.NewTask(events.PHGuess{}, "1. Take a ph reading of your tank", taskCondition11)
+	//gameTask.UIEffect = uiEvent
+
+	taskCondition4, text := FeedAllFishTask(2)
+	gameLog.TaskManager.NewTask(entities.AllFishFed{}, text, taskCondition4)
+
+	gameLog.DayType = sceneManagement.Free
 }

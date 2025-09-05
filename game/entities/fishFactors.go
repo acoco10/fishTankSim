@@ -34,7 +34,7 @@ func MakeFishMenu(forFish uint32) {
 	cs := ebiten.ColorScale{}
 	clr := colornames.Gold
 	cs.Scale(float32(clr.R), float32(clr.G), float32(clr.B), float32(clr.A))
-	name := "Lily"
+	name := fish.CreatureData.name
 
 	nameId := graphics.NewNkTextGraphic(&name, 16, float64(bground.Sprite.X+(264))/2, float64(bground.Sprite.Y+28)/2, false, cs, 1, false)
 
@@ -51,7 +51,7 @@ func MakeFishMenu(forFish uint32) {
 
 	fish.LinkedID = bground.Id
 
-	bground.Sprite.Z = 4
+	bground.NoZoom = true
 
 	icons, err := util.LoadImageAssetAsEbitenImage("uiSprites/fishFactorIcons")
 	if err != nil {
@@ -62,7 +62,7 @@ func MakeFishMenu(forFish uint32) {
 	imageMap, indMap := ChopUpIcons(icons, iconLabels, 32)
 
 	iconLabels = iconLabels[3:]
-
+	bground.Z = 13
 	buffer := float32(60.0 * registry.Config.ZoomFactor)
 	spacing := float32(64.0 * registry.Config.ZoomFactor)
 
@@ -74,15 +74,17 @@ func MakeFishMenu(forFish uint32) {
 		} else {
 			iconSprite = MakeSpriteEntity(imageMap[label], bground.Sprite.X+buffer+float32(i-1)*spacing, bground.Sprite.Y+spacing+20)
 		}
-		iconSprite.Sprite.Z = 5
+		iconSprite.Z = 14
+		iconSprite.NoZoom = true
 		switch label {
 		case "temperature":
 			threshHolds := []float64{5.0, 10.0}
 			val := math.Abs(float64(fish.CreatureData.idealTemperature - fish.CreatureData.Environment.Temperature))
 			condImg := CheckIconValue(val, threshHolds, indMap)
 			iconSprite.Sprite.LinkedSprite = &sprite.Sprite{
-				Img: &condImg,
-				X:   iconSprite.Sprite.X + 45, Y: iconSprite.Sprite.Y, Z: iconSprite.Sprite.Z,
+				Img:   &condImg,
+				X:     iconSprite.Sprite.X + 45,
+				Y:     iconSprite.Sprite.Y,
 				Scale: registry.Config.ZoomFactor}
 		case "ph":
 			threshHolds := []float64{2.5, 5.0}
@@ -90,7 +92,8 @@ func MakeFishMenu(forFish uint32) {
 			condImg := CheckIconValue(val, threshHolds, indMap)
 			iconSprite.Sprite.LinkedSprite = &sprite.Sprite{
 				Img: &condImg,
-				X:   iconSprite.Sprite.X + 35, Y: iconSprite.Sprite.Y, Z: iconSprite.Sprite.Z, Scale: registry.Config.ZoomFactor}
+				X:   iconSprite.Sprite.X + 35, Y: iconSprite.Sprite.Y,
+				Scale: registry.Config.ZoomFactor}
 		case "otherFish":
 		case "structures":
 		}
@@ -164,7 +167,7 @@ func InitStomachGraphic(menuBackground *Entity, fishId uint32) uint32 {
 	stomachSprite.ShaderParams["FishId"] = fishId
 	stomachSprite.UpdateShaderParams = UpdateFullness
 	stomachEnt := &Entity{Sprite: stomachSprite}
-	stomachEnt.Sprite.Z = 5
+	stomachEnt.Z = 13
 	RegisterEntity(stomachEnt)
 	return stomachEnt.Id
 }

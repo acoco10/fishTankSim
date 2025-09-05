@@ -13,10 +13,13 @@ func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
     tankRect := TankRect
     tankRect.xy += org
     tankRect.zw += org
+    insideTank := CheckRect(dstCoord, tankRect)
+
+    if insideTank && color.a > 0 {
 
     lightPoint := LightPoint
     lightPoint += org
-    wallColor := vec4(0.1412, 0.1137, 0.3020, 1.0)
+    //wallColor := vec4(0.1412, 0.1137, 0.3020, 1.0)
 
     // Quantize the position itself for stepped lighting
     pixelSize := 2.0 // Adjust this for different step sizes
@@ -34,32 +37,15 @@ func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
     lightDir := normalize(steppedPos - closestPointOnLine)
     downwardBias := max(0.0, lightDir.y) * 0.9
 
-    backGround := CheckAgainstTarget(color, wallColor)
-
-    if backGround {
-        lightRadius := clamp(1.0 - dis / 500, 0.0, 1.0)
-        lightRadius = StepLighting(lightRadius, 4.0)
-        color.rgb *= 0.2
-        return color
-    }
-
     // Light intensity calculation using stepped position
     lightRadius := clamp(1.0 - dis / 250, 0.0, 1.0) * (1.0 + downwardBias)
     lightRadius = StepLighting(lightRadius, 15)
 
-    insideTank := CheckRect(dstCoord, tankRect)
-
-    if insideTank && color.a > 0 {
-        color.rgb *= 0.4
-        color.rgb += vec3(0.45, 0.5, 0.55) * lightRadius
-        return color
+    color.rgb *= 0.4
+    color.rgb += vec3(0.45, 0.5, 0.55) * lightRadius
+    return color
     }
 
-    // Background
-    lightRadius = clamp(1.0 - dis / 500, 0.0, 1.0) * (1.0 + downwardBias)
-    lightRadius = StepLighting(lightRadius, 3.0)
-    color.rgb *= 0.3
-    color.rgb += vec3(0.3, 0.3, 0.4) * lightRadius
     return color
 }
 
@@ -69,12 +55,11 @@ func StepLighting(intensity float, steps float) float {
 
 
 
-// Alternative simpler dither function if the matrix doesn't work
-func SimpleDither(pos vec2, intensity float) float {
-    // Simple checkerboard dither
-    checker := mod(floor(pos.x) + floor(pos.y), 2.0)
-    ditherValue := (checker - 0.5) * 0.05
-    return intensity + ditherValue
+
+func CheckRect(dstCoord vec4, tankRect vec4) bool {
+    xCheck := dstCoord.x >= tankRect.x && dstCoord.x <= tankRect.z
+    yCheck := dstCoord.y >= tankRect.y && dstCoord.y <= tankRect.w
+    return xCheck && yCheck
 }
 
 // Calculate distance to the nearest edge of a rectangle
@@ -87,20 +72,4 @@ func DistanceToRectEdge(pos vec2, rect vec4) float {
     dy := max(0.0, max(rect.y - pos.y, pos.y - rect.w))
 
     return sqrt(dx * dx + dy * dy)
-}
-
-func CheckRect(dstCoord vec4, tankRect vec4) bool {
-    xCheck := dstCoord.x >= tankRect.x && dstCoord.x <= tankRect.z
-    yCheck := dstCoord.y >= tankRect.y && dstCoord.y <= tankRect.w
-    return xCheck && yCheck
-}
-
-func CheckAgainstTarget(color vec4, targetColor vec4) bool {
-    tolerance := 0.01
-
-    rDif := abs(color.x - targetColor.x)
-    gDif := abs(color.y - targetColor.y)
-    bDif := abs(color.z - targetColor.z) // Fixed: was .w, should be .z for blue
-
-    return rDif < tolerance && gDif < tolerance && bDif < tolerance
 }

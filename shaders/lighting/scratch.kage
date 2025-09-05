@@ -1,0 +1,9 @@
+func CheckAgainstTarget(color vec4, targetColor vec4) bool {
+    tolerance := 0.01
+
+    rDif := abs(color.x - targetColor.x)
+    gDif := abs(color.y - targetColor.y)
+    bDif := abs(color.z - targetColor.z) // Fixed: was .w, should be .z for blue
+
+    return rDif < tolerance && gDif < tolerance && bDif < tolerance
+}

@@ -54,3 +54,11 @@ type UnZoom struct{}
 func (z UnZoom) Type() string {
 	return "UnZoom"
 }
+
+type LightEvent struct {
+	Day bool
+}
+
+func (l LightEvent) Type() string {
+	return "LightEvent"
+}

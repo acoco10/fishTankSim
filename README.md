@@ -1,4 +1,4 @@
-# Fish Fish Fish!
+# GoldFish GoldFish GoldFish!
 
 You can try it On my site here: https://collisionposition.netlify.app/gamepage
 
@@ -8,15 +8,15 @@ You can try it On my site here: https://collisionposition.netlify.app/gamepage
 - Develop a clean front-end in JavaScript and HTML
 - user/server management in Go backend
 - Develop good pixel art visuals for water and particles
-- Develop a behaviour tree for Fish ui with a good-looking swimming movement and behaviour that is interesting to observe 
-- Automate sprit loading based On Fish type and level
+- Develop a behaviour tree for GoldFish ui with a good-looking swimming movement and behaviour that is interesting to observe 
+- Automate sprit loading based On GoldFish type and level
 - native JavaScript music player/streamer that communicates with web assembly application (storing large music file within web assembly is cumbersome and cuases performance issues)
 
 ## Dev Notes
-- Fish swimming behavior is pretty good; they are randomly assigned a target point that they swim towards unless there is food
-- Animation looks good, Fish swim at different speeds, and it looks smooth. 
+- GoldFish swimming behavior is pretty good; they are randomly assigned a target point that they swim towards unless there is food
+- Animation looks good, GoldFish swim at different speeds, and it looks smooth. 
 - The initial challenge of loading a compiled WASM that triggers a JavaScript file to load the save and wait for it to be completed is solved.
-- In other words, you can feed the Fish, see them grow, then reload, and they will still be grown 
+- In other words, you can feed the GoldFish, see them grow, then reload, and they will still be grown 
 ~~For now, it just runs On localhost; the next step will be hosting/ user management~~
 - uploaded to the site and users can log in to save their game
 - hosted On heroku (back end) and netlify(static/frontend)

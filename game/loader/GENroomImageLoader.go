@@ -15,11 +15,13 @@ type BackGroundImages struct {
 	OffScreen2 *ebiten.Image
 	RoomBackground *ebiten.Image
 	FishTank *ebiten.Image
+	FishTankDayLight *ebiten.Image
 	FishTank_n *ebiten.Image
 	FishTankFrontLayerDayLight *ebiten.Image
 	FishTankNight *ebiten.Image
 	FishTankFrontLayerNoLightSmaller *ebiten.Image
 	LaptopRoomBackground *ebiten.Image
+	RoomBackGroundNight *ebiten.Image
 }
 
 
@@ -50,6 +52,11 @@ func LoadAllRoomBackGroundImages(basePath string) (*BackGroundImages, error) {
 		return nil, fmt.Errorf("loading fishTank: %w", err)
 	}
 
+	m.FishTankDayLight, err = LoadImage(filepath.Join(basePath, "fishTankDayLight.png"))
+	if err != nil {
+		return nil, fmt.Errorf("loading fishTankDayLight: %w", err)
+	}
+
 	m.FishTank_n, err = LoadImage(filepath.Join(basePath, "fishTank_n.png"))
 	if err != nil {
 		return nil, fmt.Errorf("loading fishTank_n: %w", err)
@@ -73,6 +80,11 @@ func LoadAllRoomBackGroundImages(basePath string) (*BackGroundImages, error) {
 	m.LaptopRoomBackground, err = LoadImage(filepath.Join(basePath, "laptopRoomBackground.png"))
 	if err != nil {
 		return nil, fmt.Errorf("loading laptopRoomBackground: %w", err)
+	}
+
+	m.RoomBackGroundNight, err = LoadImage(filepath.Join(basePath, "roomBackGroundNight.png"))
+	if err != nil {
+		return nil, fmt.Errorf("loading roomBackGroundNight: %w", err)
 	}
 
 	return &m, nil

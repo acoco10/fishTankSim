@@ -10,6 +10,7 @@ func MeasureText(outputText string, fontsize float64, font string) (float64, flo
 	face := registry.FontMap[font]
 	if fontsize != 16 {
 		face, _ = LoadFont(fontsize, font)
+
 	}
 
 	return text.Measure(outputText, face, 2)
@@ -25,6 +26,11 @@ func Lerp32(A float32, B float32, t float32) float32 {
 
 func GetScaledCursorPosition() (int, int) {
 	x, y := ebiten.CursorPosition()
+
+	if registry.Config.CursorSpeed != 0 {
+		x = registry.Config.CursorPosition.X
+		y = registry.Config.CursorPosition.Y
+	}
 	if registry.Config.Zoom {
 
 		scaledX := float64(x) / registry.Config.ResolutionScalingF / registry.Config.ZoomFactor

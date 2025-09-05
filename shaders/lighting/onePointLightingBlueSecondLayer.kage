@@ -1,0 +1,66 @@
+//kage:unit pixels
+package main
+
+var LightPoint vec2
+var LightWidth float
+var TankRect vec4
+
+func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
+    color := imageSrc0UnsafeAt(texCoord)
+
+    org := imageDstOrigin()
+
+    tankRect := TankRect
+    tankRect.xy += org
+    tankRect.zw += org
+    insideTank := CheckRect(dstCoord, tankRect)
+
+    if insideTank && color.a > 0 {
+
+    lightPoint := LightPoint
+    lightPoint += org
+    //wallColor := vec4(0.1412, 0.1137, 0.3020, 1.0)
+
+    // Quantize the position itself for stepped lighting
+    pixelSize := 2.0 // Adjust this for different step sizes
+    steppedPos := vec2(
+        floor(dstCoord.x / pixelSize) * pixelSize,
+        floor(dstCoord.y / pixelSize) * pixelSize,
+    )
+
+    // Calculate lighting from the stepped position
+    lineHalfWidth := LightWidth * 0.5
+    clampedX := clamp(steppedPos.x, lightPoint.x - lineHalfWidth, lightPoint.x + lineHalfWidth)
+    closestPointOnLine := vec2(clampedX, lightPoint.y)
+
+    dis := distance(closestPointOnLine, steppedPos)
+    lightDir := normalize(steppedPos - closestPointOnLine)
+    downwardBias := max(0.0, lightDir.y) * 0.9
+
+    // Light intensity calculation using stepped position
+    lightRadius := clamp(1.0 - dis / 100, 0.0, 1.0) * (1.0 + downwardBias)
+    lightRadius = StepLighting(lightRadius, 15)
+
+        additiveLight := vec3(lightRadius * (1.0 + downwardBias))
+        color = vec4(color.rgb + additiveLight, color.a)
+        if color.a < 1.0{
+            color.rgb *= 0.2
+        }
+
+        return color
+    }
+
+    return color
+}
+
+func StepLighting(intensity float, steps float) float {
+    return floor(intensity * steps) / steps
+}
+
+
+
+func CheckRect(dstCoord vec4, tankRect vec4) bool {
+    xCheck := dstCoord.x >= tankRect.x && dstCoord.x <= tankRect.z
+    yCheck := dstCoord.y >= tankRect.y && dstCoord.y <= tankRect.w
+    return xCheck && yCheck
+}

@@ -8,7 +8,7 @@ import (
 	"image"
 )
 
-func PhReaderUpdate(e *Entity) {
+func PHReaderUpdate(e *Entity, gs GameState) {
 	us := e.Sprite
 	uiDat := e.UiData
 
@@ -23,27 +23,32 @@ func PhReaderUpdate(e *Entity) {
 	if uiDat.state == Selected && pt.In(uiDat.ActivationRect) {
 		us.ShaderParams["OutlineColor"] = [4]float64{0, 1, 0, 1}
 		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-			if e.Sprite.Z > 1 {
-				UpdateEntityZAndReSortEntitySlice(e.Id, 0)
+			if e.Z > 10 {
+				UpdateEntityZAndReSortEntitySlice(e.Id, 10)
+				e.Sprite.DOptsUpdaterTag = "swirl"
+				phps := NewPhReaderParticleSystem(float64(e.Sprite.X)+float64(e.Sprite.GetSpriteRect().Dx()/2), float64(e.Sprite.Y)+float64(e.Sprite.GetSpriteRect().Dy()), gs.Zbounds[e.Z-1])
+				RegisterEntity(&Entity{ParticleSystem: phps, LifeTime: 20, Z: e.Z})
 			}
 		}
-		ClickForTime(e, phReaderDoAtTime)
+		ClickForTime(e, gs, phReaderDoAtTime)
 	}
 
 	if uiDat.state == Selected && !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-		if e.Sprite.Z < 2 {
-			UpdateEntityZAndReSortEntitySlice(e.Id, 2)
+		if e.Z < 10 {
+			UpdateEntityZAndReSortEntitySlice(e.Id, 10)
 		}
 	}
 
 	if uiDat.state == JustFocused {
 		e.EventHub.Publish(events.UISpriteAction{e.UiData.Label, "clicked"})
-		boxSprite := &sprite.Sprite{Img: uiDat.MainImg, X: uiDat.baseX, Y: uiDat.baseY, Z: 0}
+		UpdateEntityZAndReSortEntitySlice(e.Id, 13)
+		boxSprite := &sprite.Sprite{Img: uiDat.MainImg, X: uiDat.baseX, Y: uiDat.baseY}
 		boxEnt := &Entity{Sprite: boxSprite}
+		boxEnt.Z = 0
 		RegisterEntity(boxEnt)
 		e.LinkedID = boxEnt.Id
 		uiDat.state = Selected
-		AltImageWhenClickedUpdater(e, uiDat.HoverImg)
+		AltImageWhenClickedUpdater(e, gs)
 	}
 
 	if us.UpdateFunc == nil && uiDat.state == Animation {
@@ -58,11 +63,13 @@ func PhReaderUpdate(e *Entity) {
 }
 
 func phReaderDoAtTime(ent *Entity) {
+	ent.Sprite.DOptsUpdaterTag = ""
+
 	RemoveEntity(ent.LinkedID)
 	us := ent.Sprite
 	uiDat := ent.UiData
 
-	UpdateEntityZAndReSortEntitySlice(ent.Id, 2)
+	UpdateEntityZAndReSortEntitySlice(ent.Id, 13)
 
 	us.Shader = registry.ShaderMap["PH"]
 	us.XYUpdater = nil

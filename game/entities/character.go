@@ -204,7 +204,7 @@ func CrashFunc(character *Entity) {
 	character.MovementState.VelY = 0
 	character.MovementState.AccelX = 0
 	character.MovementState.AccelY = 0
-	character.StateMachine.Transition()
+	character.StateMachine.Transition(character)
 }
 
 type TankCorners struct {
@@ -218,8 +218,8 @@ type TankCorners struct {
 func GetCharCorners(character *Entity) *TankCorners {
 
 	// Get half dimensions
-	halfWidth := float32(character.Sprite.SpriteWidth)/2 - 4
-	halfHeight := float32(character.Sprite.SpriteHeight)/2 - 2
+	halfWidth := float32(character.Sprite.SpriteWidth())/2 - 4
+	halfHeight := float32(character.Sprite.SpriteHeight())/2 - 2
 
 	// Center position
 	centerX := character.Sprite.X
