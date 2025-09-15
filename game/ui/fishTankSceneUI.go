@@ -45,7 +45,7 @@ type MainMenuData struct {
 	day                    int
 	dayType                string
 	storeMagazine          *Magazine
-	journal                *Magazine
+	journal                *Journal
 	eventHub               *tasks.EventHub
 	windowOpen             WindowType
 	textInputReference     *widget.TextInput
@@ -61,7 +61,7 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenu
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 	)
 
-	/*buttonContainer := widget.NewContainer(
+	buttonContainer := widget.NewContainer(
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(
 				widget.AnchorLayoutData{
@@ -75,9 +75,9 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenu
 				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
 				widget.RowLayoutOpts.Padding(&widget.Insets{Right: 0, Left: 0, Top: 100, Bottom: 0}),
 			)),
-	)*/
+	)
 
-	/*fishStats, err := NewTextBlock(eHub, StatsMenu)
+	fishStats, err := NewTextBlock(eHub, StatsMenu)
 
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenu
 
 	fishStats.text.GetWidget().Visibility = widget.Visibility_Hide
 	buttonContainer.AddChild(fishStats)
-	rootContainer.AddChild(buttonContainer)*/
+	rootContainer.AddChild(buttonContainer)
 
 	// construct the UI
 	ui := ebitenui.UI{
@@ -106,9 +106,7 @@ func LoadMainFishMenu(gameWidth, gameHeight int, eHub *tasks.EventHub) (*ebitenu
 
 func MakePHmenu(hub *tasks.EventHub) (*widget.Container, *widget.TextInput) {
 
-	face, err := util.LoadFont(32, "reglisseOutline") //white center text
-
-	face2, err := util.LoadFont(32, "reglisseOutlined") //black outline
+	face := registry.FontMap["RockSalt"] //white center text
 
 	rootContainer := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout(
@@ -136,6 +134,14 @@ func MakePHmenu(hub *tasks.EventHub) (*widget.Container, *widget.TextInput) {
 			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(50)),
 		)))
 
+	/*	textRow := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+				Stretch:  false,
+			}),
+		))*/
+
 	buttonRow := widget.NewContainer(
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
@@ -145,7 +151,7 @@ func MakePHmenu(hub *tasks.EventHub) (*widget.Container, *widget.TextInput) {
 		),
 		widget.ContainerOpts.Layout(widget.NewGridLayout(
 			//Define number of columns in the grid
-			widget.GridLayoutOpts.Columns(3),
+			widget.GridLayoutOpts.Columns(4),
 			//onlt one row so row spacing second input doesnt really matter
 			//widget.GridLayoutOpts.Spacing(),
 			// DefaultStretch values will be used when extra columns/rows are used
@@ -201,23 +207,21 @@ func MakePHmenu(hub *tasks.EventHub) (*widget.Container, *widget.TextInput) {
 				Position: widget.RowLayoutPositionCenter,
 			})),
 
-		widget.TextOpts.Text("Guess the PH!", &face2, color.RGBA{R: 0, G: 0, B: 0, A: 255}),
+		widget.TextOpts.Text("Guess the PH!", &face, color.RGBA{R: 0, G: 0, B: 0, A: 150}),
+		widget.TextOpts.Padding(&widget.Insets{Left: 2, Top: 2}),
 		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
 	)
-
-	inputFace := registry.FontMap["nk57_24"]
 
 	img, _ := loadTextInputImage()
 
 	textInput := widget.NewTextInput(
 		widget.TextInputOpts.WidgetOpts(
 			//Set the layout information to center the textbox in the parent
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
 			}),
 
-			widget.WidgetOpts.MinSize(50, 10),
+			widget.WidgetOpts.MinSize(120, 10),
 		),
 		//Set the Idle and Disabled background image for the text input
 		//If the NineSlice image has a minimum size, the widget will use that or
@@ -225,7 +229,7 @@ func MakePHmenu(hub *tasks.EventHub) (*widget.Container, *widget.TextInput) {
 		widget.TextInputOpts.Image(img),
 
 		//Set the font face and size for the widget
-		widget.TextInputOpts.Face(&inputFace),
+		widget.TextInputOpts.Face(&face),
 
 		//Set the colors for the text and caret
 		widget.TextInputOpts.Color(&widget.TextInputColor{
@@ -241,7 +245,7 @@ func MakePHmenu(hub *tasks.EventHub) (*widget.Container, *widget.TextInput) {
 		//Set the font and width of the caret
 
 		//This text is displayed if the input is empty
-		widget.TextInputOpts.Placeholder("7.0"),
+		widget.TextInputOpts.Placeholder("PH 7.0"),
 
 		//This is called when the user hits the "Enter" key.
 		//There are other options that can configure this behavior
@@ -259,21 +263,25 @@ func MakePHmenu(hub *tasks.EventHub) (*widget.Container, *widget.TextInput) {
 		}),
 	)
 
-	b1 := LoadOutlineTextButtonNoBg("<", hub)
+	b1 := LoadOutlineTextButtonSubmitBg("+0.1", hub, "")
 
-	b2 := LoadOutlineTextButtonNoBg(">", hub)
+	b2 := LoadOutlineTextButtonSubmitBg("-0.1", hub, "")
 
-	b3 := LoadOutlineTextButtonSubmitBg("Guess", hub, "")
+	b3 := LoadOutlineTextButtonSubmitBg("-1.0", hub, "")
+
+	b4 := LoadOutlineTextButtonSubmitBg("+1.0", hub, "")
+
+	b5 := LoadOutlineTextButtonSubmitBg("Guess", hub, "")
 
 	textInput.SetText("7.0")
 	textContainer.AddChild(textInput)
 
-	buttonRow.AddChild(b1, textContainer, b2)
-	buttonRow2.AddChild(b3)
+	buttonRow.AddChild(b2, b3, b4, b1)
+	buttonRow2.AddChild(b5)
 
-	headContainer.AddChild(headerLbl, headerLblOutline)
+	headContainer.AddChild(headerLblOutline, headerLbl)
 
-	childContainer.AddChild(headContainer, buttonRow, buttonRow2)
+	childContainer.AddChild(headContainer, textInput, buttonRow, buttonRow2)
 	rootContainer.AddChild(childContainer)
 
 	return rootContainer, textInput
@@ -470,12 +478,6 @@ func makeWindow(rtContainer *widget.Container, y int, width int, height int) *wi
 		//Set the titlebar for the window (Optional)
 		//Set the window above everything else and block input elsewhere
 		widget.WindowOpts.Modal(),
-		//Set how to close the window. CLICK_OUT will close the window when clicking anywhere
-		//that is not a part of the window object
-		//widget.WindowOpts.CloseMode(widget.CLICK_OUT),
-		//Indicates that the window is draggable. It must have a TitleBar for this to work
-		//Set the window resizeable
-		//Set the minimum size the window can be
 		widget.WindowOpts.MinSize(windowWidth, windowHeight),
 		//Set the maximum size a window can be
 		widget.WindowOpts.MaxSize(windowWidth, windowHeight),
@@ -495,7 +497,7 @@ func makeWindow(rtContainer *widget.Container, y int, width int, height int) *wi
 
 func triggerPHwindow(ui *ebitenui.UI, hub *tasks.EventHub) (widget.RemoveWindowFunc, *widget.TextInput) {
 	cont, txtInput := MakePHmenu(hub)
-	window := makeWindow(cont, registry.Config.ResolutionHeight/2+100, 400, 130)
+	window := makeWindow(cont, registry.Config.ResolutionHeight/2+190, 500, 150)
 	rfunc := ui.AddWindow(window)
 	return rfunc, txtInput
 }
@@ -509,7 +511,7 @@ func triggerDebugTextInputWindow(lastInput string, ui *ebitenui.UI, hub *tasks.E
 
 func TriggerNextDayWindow(ui *ebitenui.UI, hub *tasks.EventHub) widget.RemoveWindowFunc {
 
-	buttonText := []string{"Yes", "vibe awhile longer"}
+	buttonText := []string{"Yes", "Not yet"}
 
 	ndUI, err := LoadNextOptionsMenuUI("Go to Bed?", buttonText, hub)
 	if err != nil {
@@ -677,7 +679,34 @@ func TriggerOptionWindow(headerText string, ui *ebitenui.UI, hub *tasks.EventHub
 	removeFunc := ui.AddWindow(ndUI)
 	return removeFunc
 }
+func TriggerJournalWindow(mag *Journal, ui *ebitenui.UI, hub *tasks.EventHub) widget.RemoveWindowFunc {
 
+	activeContainer := mag.ActiveWindow()
+
+	window := widget.NewWindow(
+
+		widget.WindowOpts.Contents(activeContainer),
+
+		widget.WindowOpts.Modal(),
+		widget.WindowOpts.Location(image.Rect(250, 100, ScreenWidth*2-250, ScreenHeight*2-150)),
+		widget.WindowOpts.MinSize(ScreenWidth*2, ScreenHeight*2), // Force consistent sizing
+		widget.WindowOpts.MoveHandler(func(args *widget.WindowChangedEventArgs) {
+			fmt.Println("Window Moved")
+		}),
+		widget.WindowOpts.ResizeHandler(func(args *widget.WindowChangedEventArgs) {
+			fmt.Println("Window Resized")
+		}),
+	)
+
+	fmt.Printf("Window location before UI add: %+v\n", window.GetContainer().GetWidget().Rect)
+	removeFunc := ui.AddWindow(window)
+	fmt.Printf("Window location after UI add: %+v\n", window.GetContainer().GetWidget().Rect)
+	go func() {
+		time.Sleep(100 * time.Millisecond) // Let one render cycle happen
+		fmt.Printf("After render - Root container rect: %+v\n", activeContainer.GetWidget().Rect)
+	}()
+	return removeFunc
+}
 func TriggerMagWindow(mag *Magazine, ui *ebitenui.UI, hub *tasks.EventHub) widget.RemoveWindowFunc {
 
 	activeContainer := mag.ActiveWindow()
@@ -687,9 +716,8 @@ func TriggerMagWindow(mag *Magazine, ui *ebitenui.UI, hub *tasks.EventHub) widge
 		widget.WindowOpts.Contents(activeContainer),
 
 		widget.WindowOpts.Modal(),
-		widget.WindowOpts.Location(image.Rect(200, 200, 1200, 800)),
-		widget.WindowOpts.MinSize(800, 600), // Force consistent sizing
-		widget.WindowOpts.MaxSize(1000, 800),
+		widget.WindowOpts.Location(image.Rect(250, 100, ScreenWidth*2-250, ScreenHeight*2-150)),
+		widget.WindowOpts.MinSize(ScreenWidth*2, ScreenHeight*2), // Force consistent sizing
 		widget.WindowOpts.MoveHandler(func(args *widget.WindowChangedEventArgs) {
 			fmt.Println("Window Moved")
 		}),
@@ -803,16 +831,12 @@ func buttonTextSubs(mainDat *MainMenuData, magazine *Magazine, ui *ebitenui.UI, 
 	hub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
 		ev := e.(events.ButtonClickedEvent)
 		switch mainDat.windowOpen {
-		case StoreMagazineState:
+		case StoreMagazineState, JournalMagazineState:
 			MagazineWindowButtonEvent(mainDat, magazine, ui, ev, hub)
-		case ChooseProp:
-			if ev.ButtonText == "Confirm for prop select" {
-				closeWindow(hub, mainDat)
-			}
 		case PHGuess:
 			PhGuessWindowButtonEvent(mainDat, ev, hub)
 		case GoToBed:
-			if ev.ButtonText == "Vibe awhile Longer" {
+			if ev.ButtonText == "Go to Bed?: Not yet" {
 				closeWindow(hub, mainDat)
 			}
 		case DebugText:
@@ -832,7 +856,7 @@ func buttonTextSubs(mainDat *MainMenuData, magazine *Magazine, ui *ebitenui.UI, 
 func uiSpriteActionSubs(mainDat *MainMenuData, magazine *Magazine, ui *ebitenui.UI, hub *tasks.EventHub) {
 	hub.Subscribe(events.UISpriteAction{}, func(e tasks.Event) {
 		ev := e.(events.UISpriteAction)
-		if ev.UiSprite == "pillow" && ev.UiSpriteAction == "clicked" {
+		if ev.UiSprite == "lightSwitch" && ev.UiSpriteAction == "clicked" {
 			SendWindowOpened(hub)
 			mainDat.windowOpen = GoToBed
 			mainDat.addRemoveFunc(TriggerNextDayWindow(ui, hub))
@@ -855,7 +879,7 @@ func uiSpriteActionSubs(mainDat *MainMenuData, magazine *Magazine, ui *ebitenui.
 		if ev.UiSprite == string(entities.GrandpasJournal) {
 			mainDat.windowOpen = JournalMagazineState
 			SendWindowOpened(hub)
-			mainDat.addRemoveFunc(TriggerMagWindow(mainDat.journal, ui, hub))
+			mainDat.addRemoveFunc(TriggerJournalWindow(mainDat.journal, ui, hub))
 		}
 	})
 	hub.Subscribe(events.DebugTextInput{}, func(e tasks.Event) {
@@ -872,7 +896,7 @@ func uiSpriteActionSubs(mainDat *MainMenuData, magazine *Magazine, ui *ebitenui.
 
 func PhGuessWindowButtonEvent(mainDat *MainMenuData, ev events.ButtonClickedEvent, hub *tasks.EventHub) {
 	switch ev.ButtonText {
-	case ">":
+	case "+0.1":
 		curr := mainDat.textInputReference.GetText()
 		phVal, err := strconv.ParseFloat(curr, 64)
 		if err != nil {
@@ -881,13 +905,31 @@ func PhGuessWindowButtonEvent(mainDat *MainMenuData, ev events.ButtonClickedEven
 		phVal += 0.1
 		phValStr := fmt.Sprintf("%.1f", phVal)
 		mainDat.textInputReference.SetText(phValStr)
-	case "<":
+	case "-0.1":
 		curr := mainDat.textInputReference.GetText()
 		phVal, err := strconv.ParseFloat(curr, 64)
 		if err != nil {
 			log.Printf("Error parsing '%s': %v", curr, err) // This will show you exactly what's in the string
 		}
 		phVal -= 0.1
+		phValStr := fmt.Sprintf("%.1f", phVal)
+		mainDat.textInputReference.SetText(phValStr)
+	case "+1.0":
+		curr := mainDat.textInputReference.GetText()
+		phVal, err := strconv.ParseFloat(curr, 64)
+		if err != nil {
+			log.Printf("Error parsing '%s': %v", curr, err) // This will show you exactly what's in the string
+		}
+		phVal += 1.0
+		phValStr := fmt.Sprintf("%.1f", phVal)
+		mainDat.textInputReference.SetText(phValStr)
+	case "-1.0":
+		curr := mainDat.textInputReference.GetText()
+		phVal, err := strconv.ParseFloat(curr, 64)
+		if err != nil {
+			log.Printf("Error parsing '%s': %v", curr, err) // This will show you exactly what's in the string
+		}
+		phVal -= 1.0
 		phValStr := fmt.Sprintf("%.1f", phVal)
 		mainDat.textInputReference.SetText(phValStr)
 	case "Guess":
@@ -906,8 +948,14 @@ func PhGuessWindowButtonEvent(mainDat *MainMenuData, ev events.ButtonClickedEven
 }
 
 func MagazineWindowButtonEvent(mainDat *MainMenuData, magazine *Magazine, ui *ebitenui.UI, ev events.ButtonClickedEvent, hub *tasks.EventHub) {
+
 	mainDat.RemoveFunc([]string{"maintainState"})
-	mainDat.addRemoveFunc(TriggerMagWindow(magazine, ui, hub))
+	if mainDat.windowOpen == StoreMagazineState {
+		mainDat.addRemoveFunc(TriggerMagWindow(magazine, ui, hub))
+	}
+	if mainDat.windowOpen == JournalMagazineState {
+		mainDat.addRemoveFunc(TriggerJournalWindow(mainDat.journal, ui, hub))
+	}
 
 	if strings.HasPrefix(ev.ButtonText, "Buy:") {
 		closeWindow(hub, mainDat)

@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"fmt"
 	"reflect"
 )
 
@@ -40,7 +39,6 @@ func (h *EventHub) Subscribe(eventType Event, handler Handler) int {
 }
 
 func (h *EventHub) Publish(event Event) {
-	fmt.Printf("Publishg: %T\n", event)
 	t := reflect.TypeOf(event).String()
 	for _, handlerInfo := range h.subscribers[t] {
 		handlerInfo.Handler(event)

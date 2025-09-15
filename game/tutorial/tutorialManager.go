@@ -220,7 +220,7 @@ func (m *Manager) handlePreviousTip() {
 func (m *Manager) transitionToTip(newTip *tip) {
 	graphics.DeInitGraphicId(m.lastPublishedGraphicID)
 	m.tipHead = newTip
-	m.lastPublishedGraphicID = graphics.NewFadeInTextGraphicSmall(m.tipHead.msg, tipx1, tipy1)
+	m.lastPublishedGraphicID = graphics.NewFadeInTextGraphicSmall(m.tipHead.msg, tipx1, tipy1, 50)
 }
 
 func Subs(hub *tasks.EventHub, m *Manager) {
@@ -254,7 +254,7 @@ func (m *Manager) CheckForTip(e tasks.Event) {
 				graphics.DeInitGraphicId(m.lastPublishedGraphicID)
 			}
 			m.tipHead = m.tipMap[eventType]
-			m.lastPublishedGraphicID = graphics.NewFadeInTextGraphicSmall(m.tipHead.msg, tipx1, tipy1)
+			m.lastPublishedGraphicID = graphics.NewFadeInTextGraphicSmall(m.tipHead.msg, tipx1, tipy1, 50)
 			return
 		} else {
 			return
@@ -265,7 +265,7 @@ func (m *Manager) CheckForTip(e tasks.Event) {
 	}
 	m.currCondition = eventType
 	m.tipHead = m.tipMap[eventType]
-	m.lastPublishedGraphicID = graphics.NewFadeInTextGraphicSmall(m.tipHead.msg, tipx1, tipy1)
+	m.lastPublishedGraphicID = graphics.NewFadeInTextGraphicSmall(m.tipHead.msg, tipx1, tipy1, 50)
 	m.previousThread = m.tipMap[eventType]
 
 }

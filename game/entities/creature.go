@@ -17,20 +17,13 @@ import (
 var animationPaths []string
 
 func LoadFishImg(fType FishList, level int, tag string) (*ebiten.Image, error) {
-	var fishImgName string
-	switch fType {
-	case GoldFish:
-		fishImgName = fmt.Sprintf("goldFish%d%sSpriteSheet", level, tag)
-	case MollyFish:
-		fishImgName = fmt.Sprintf("mollyFish%d%sSpriteSheet", level, tag)
-	case Guppy:
-		fishImgName = fmt.Sprintf("guppy%d%sSpriteSheet", level, tag)
-	case Kirbensis:
-		fishImgName = fmt.Sprintf("kirbensis%d%sSpriteSheet", level, tag)
-	}
-	img, err := util.LoadImageAssetAsEbitenImage("fishSpriteSheets/" + fishImgName)
+
+	fishImgName := fmt.Sprintf("fishSpriteSheets/%s%d%sSpriteSheet", string(fType), level, tag)
+
+	img, err := util.LoadImageAssetAsEbitenImage(fishImgName)
 	if err != nil {
-		return &ebiten.Image{}, err
+		log.Println("no fish image found for:", fishImgName, err)
+		return nil, err
 	}
 	return img, nil
 }
@@ -50,14 +43,14 @@ func LoadFishAnimations(creatureType FishList, creatureLvl int) (map[string]*spr
 
 	tags := []string{"", "Eating", "Forward", "Backwards", "Depth"}
 	for _, tag := range tags {
-		nimg, err := LoadFishNormal(creatureType, creatureLvl, "")
-		if err != nil {
+		//nimg, err := LoadFishNormal(creatureType, creatureLvl, "")
+		/*if err != nil {
 			log.Println("normal map not found for fish:", creatureType, "ERROR:", err)
-		}
+		}*/
 		img := loadFishAnimationImg(creatureType, creatureLvl, tag)
 		animation := loadFishAnimationData(creatureType, creatureLvl, tag)
 		animation.Img = img
-		animation.NormalImg = nimg
+		//animation.NormalImg = nimg
 
 		if tag == "" {
 			AnimationMap["swimming"] = animation

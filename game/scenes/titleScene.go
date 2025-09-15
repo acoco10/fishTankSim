@@ -1,3 +1,5 @@
+//go:build old
+
 package scenes
 
 import (
@@ -17,9 +19,7 @@ type TitleScene struct {
 }
 
 func NewTitleScene(gameLog *sceneManagement.GameLog) *CampScene {
-	s := CampScene{}
-	s.gameLog = gameLog
-	s.isLoaded = true
+
 	return &s
 }
 

@@ -3,6 +3,7 @@ package ui
 import (
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/events"
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	eimage "github.com/ebitenui/ebitenui/image"
@@ -10,7 +11,7 @@ import (
 	"image/color"
 )
 
-func NewTextInput(ehub *tasks.EventHub, placeholder string) (*widget.Container, *widget.TextInput, *widget.Button, error) {
+func NewTextInput(ehub *tasks.EventHub, placeholder string) (*widget.Container, *widget.TextInput, *widget.Container, error) {
 
 	img, err := loadTextInputImage()
 
@@ -31,10 +32,7 @@ func NewTextInput(ehub *tasks.EventHub, placeholder string) (*widget.Container, 
 			widget.GridLayoutOpts.Spacing(20, 20),
 		)))
 
-	face, err := util.LoadFont(20, "nk57")
-	if err != nil {
-		return nil, nil, nil, err
-	}
+	face := registry.FontMap["RockSalt"]
 
 	btnContainer := widget.NewContainer(
 		widget.ContainerOpts.WidgetOpts(
@@ -47,10 +45,10 @@ func NewTextInput(ehub *tasks.EventHub, placeholder string) (*widget.Container, 
 		),
 		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.MinSize(100, 50)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout(widget.AnchorLayoutOpts.Padding(
-			&widget.Insets{Right: 0, Left: 0, Top: 8, Bottom: 0},
+			&widget.Insets{Right: 0, Left: 0, Top: 10, Bottom: 0},
 		))),
 	)
-
+	twidth, tHeight := util.MeasureText(placeholder, 16, "RockSalt")
 	textContainer := widget.NewContainer(
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
@@ -60,7 +58,7 @@ func NewTextInput(ehub *tasks.EventHub, placeholder string) (*widget.Container, 
 				StretchVertical:    false,
 			}),
 		),
-		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.MinSize(100, 10)),
+		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.MinSize(int(twidth), 10)),
 
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 	)
@@ -73,7 +71,7 @@ func NewTextInput(ehub *tasks.EventHub, placeholder string) (*widget.Container, 
 				VerticalPosition:   widget.AnchorLayoutPositionCenter,
 			}),
 
-			widget.WidgetOpts.MinSize(200, 10),
+			widget.WidgetOpts.MinSize(int(twidth)+10, int(tHeight)+10),
 		),
 		//Set the Idle and Disabled background image for the text input
 		//If the NineSlice image has a minimum size, the widget will use that or
@@ -118,7 +116,7 @@ func NewTextInput(ehub *tasks.EventHub, placeholder string) (*widget.Container, 
 		}),
 	)
 
-	b3 := LoadSubmitButton("Submit", ehub, "")
+	b3 := LoadOutlineTextButtonSubmitBg("Submit", ehub, "")
 
 	textContainer.AddChild(textInput)
 	btnContainer.AddChild(b3)

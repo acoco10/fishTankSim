@@ -29,6 +29,7 @@ func main() {
 		"fishTankFrontLayerNoLightSmaller",
 		"laptopRoomBackground",
 		"roomBackGroundNight",
+		"fishTankFrontLayerZoom",
 		// Add more as needed
 	}
 

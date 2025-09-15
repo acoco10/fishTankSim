@@ -51,11 +51,9 @@ func NewGame(log *sceneManagement.GameLog, userType UserType) *Game {
 		ConfigResolution()
 
 		sceneMap := map[sceneManagement.SceneId]sceneManagement.Scene{
-			sceneManagement.StartScene:          NewStartScene(log),
-			sceneManagement.FishTank:            NewFishScene2(log),
-			sceneManagement.TransitionScene:     LoadTransitionScene(log),
-			sceneManagement.MowingMiniGameScene: NewMowingScene(log),
-			sceneManagement.CampScene:           LoadCampScene(log),
+			sceneManagement.StartScene:      NewStartScene(log),
+			sceneManagement.FishTank:        NewFishScene2(log),
+			sceneManagement.TransitionScene: LoadTransitionScene(log),
 		}
 
 		game := &Game{
@@ -136,8 +134,6 @@ func (g *Game) Update() error {
 			g.sceneMap[g.activeSceneId].OnEnter()
 
 			switch g.activeSceneId {
-			case sceneManagement.MowingMiniGameScene:
-				g.sceneMap[sceneManagement.Reset] = NewMowingScene(g.gameLog)
 			}
 
 			return nil
@@ -185,8 +181,6 @@ func NewTestScene(TestSceneID sceneManagement.SceneId, log *sceneManagement.Game
 
 	switch TestSceneID {
 	case sceneManagement.MowingMiniGameScene:
-		sceneMap[TestSceneID] = NewMowingScene(log)
-		sceneMap[sceneManagement.Reset] = NewMowingScene(log)
 	case sceneManagement.FishTank:
 		log.Save.Fish = append(log.Save.Fish, entities.SavedFish{FishType: string(entities.MollyFish), Size: 1})
 		sceneMap[TestSceneID] = NewFishScene2(log)

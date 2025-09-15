@@ -17,17 +17,19 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"golang.org/x/image/colornames"
 	"image"
+	"image/color"
 	"math"
+	"math/rand"
 	"strconv"
-	"strings"
 )
+
+const MidLayerZ = 6
+const NotInTankZ = 13
 
 type UiSpriteState uint8
 
 const (
 	Selected UiSpriteState = iota
-	HoveredOver
-	ClickedWhileBeingSelected
 	Idle
 	Clickable
 	ExtraSpriteAnimationCompleted
@@ -41,6 +43,7 @@ const (
 type UiSpriteData struct {
 	*sprite.Sprite
 	baseX, baseY           float32
+	BaseZ                  int
 	MainImg                *ebiten.Image
 	HoverImg               *ebiten.Image
 	AltImg                 *ebiten.Image
@@ -59,7 +62,7 @@ type UiSpriteData struct {
 	extraSprite               *sprite.Sprite
 	Environment               *system.Environment
 	ActivationRect            image.Rectangle
-	timers                    map[string]*util.Timer
+	Timers                    map[string]*util.Timer
 	variables                 map[string]float64
 	Flags                     map[string]bool
 	stringVariables           map[string]string
@@ -73,12 +76,29 @@ func (e *Entity) SetUIState(state UiSpriteState) {
 	e.UiData.state = state
 }
 
-func InitStateMachine(updateFunc func(entity *Entity, gs GameState), transitionFunc1 func(entity *Entity), transitionFunc2 func(entity *Entity)) *StateMachine {
+func (sm *StateMachine) AppendState(newUpdater func(entity *Entity, gs GameState), transitionFunc1 func(entity *Entity)) {
+	if sm.States[len(sm.States)] != nil {
+		sm.States[len(sm.States)].TransitionTo = len(sm.States) + 1
+		newState := &StateHandler{Updater: newUpdater, TransitionFunc: transitionFunc1, TransitionTo: 1}
+		sm.States[len(sm.States)+1] = newState
+	}
+}
+
+func InitStateMachine(initState func(entity *Entity, gs GameState), updateFunc func(entity *Entity, gs GameState), transitionFunc1 func(entity *Entity), transitionFunc2 func(entity *Entity)) *StateMachine {
 	States := make(map[int]*StateHandler)
-	idle := &StateHandler{Updater: UISpriteIdleUpdater, TransitionFunc: transitionFunc1, TransitionTo: 2}
-	pickedUp := &StateHandler{Updater: updateFunc, TransitionFunc: transitionFunc2, TransitionTo: 1}
-	States[1] = idle
-	States[2] = pickedUp
+	idleFunc := &StateHandler{Updater: initState, TransitionFunc: transitionFunc1, TransitionTo: 2}
+	if updateFunc == nil {
+		idleFunc.TransitionTo = 1
+
+	}
+	if initState == nil {
+		idleFunc = &StateHandler{Updater: UISpriteIdleUpdater, TransitionFunc: transitionFunc1, TransitionTo: 2}
+	}
+	if updateFunc != nil {
+		pickedUp := &StateHandler{Updater: updateFunc, TransitionFunc: transitionFunc2, TransitionTo: 1}
+		States[2] = pickedUp
+	}
+	States[1] = idleFunc
 	sm := &StateMachine{States: States, CurrentState: 1}
 	return sm
 }
@@ -113,6 +133,7 @@ func PositionUpdate(ent *Entity, gs GameState) {
 	if ebiten.IsKeyPressed(ebiten.KeyE) {
 		ent.StateMachine.Transition(ent)
 	}
+
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		UnFocus(ent.Id)
 	}
@@ -121,7 +142,7 @@ func PositionUpdate(ent *Entity, gs GameState) {
 
 func UpdateSkimmer(ent *Entity, gs GameState) {
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && ent.CursorInActivationRect() {
-		UpdateEntityZAndReSortEntitySlice(ent.Id, 6)
+		UpdateEntityZAndReSortEntitySlice(ent.Id, MidLayerZ)
 		gs.CursorUpdater.ChangeSpeed(0.2)
 		skimmerBounds := gs.Zbounds[0]
 		skimmerBounds.Max.X += ent.Sprite.GetSpriteRect().Dx()
@@ -129,7 +150,7 @@ func UpdateSkimmer(ent *Entity, gs GameState) {
 		gs.CursorUpdater.SetBounds(gs.Zbounds[0])
 	}
 	if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-		UpdateEntityZAndReSortEntitySlice(ent.Id, 13)
+		UpdateEntityZAndReSortEntitySlice(ent.Id, NotInTankZ)
 		gs.CursorUpdater.ResetSpeed()
 		gs.CursorUpdater.ResetBounds()
 		if inpututil.IsKeyJustPressed(ebiten.KeyE) {
@@ -147,31 +168,57 @@ func UpdateUseOnTank(ent *Entity, gs GameState) {
 }
 
 func UseOnTank(ent *Entity) {
-
 	ent.UiData.state = Disabled
 	UnFocus(ent.Id)
 	ent.Sprite.XYUpdater = nil
 	ent.UiData.Flags["used"] = true
-	ent.UiData.timers["waitAndReset"] = util.NewTimer(2.5)
-	ent.UiData.timers["waitAndReset"].TurnOn()
+	ent.UiData.Timers["waitAndReset"] = util.NewTimer(2.5)
+	ent.UiData.Timers["waitAndReset"].TurnOn()
 	ent.Sprite.DOptsUpdaterTag = "swirl"
 	if ent.UiData.HoverImg != nil {
 		ent.Sprite.Img = ent.UiData.HoverImg
 	}
-	if ent.Z != 6 {
-		UpdateEntityZAndReSortEntitySlice(ent.Id, 6)
+	if ent.UiData.Flags["resort"] {
+		UpdateEntityZAndReSortEntitySlice(ent.Id, MidLayerZ)
+		ent.UiData.Flags["resort"] = false
+	}
+	if ent.UiData.Flags["unDraw"] {
+		ent.Draw = false
 	}
 	if !ent.UiData.Flags["particlesGenerated"] {
-		spriteBounds := ent.Sprite.GetSpriteRect()
-		fps := NewFertilizerParticleSystem(float64(ent.Sprite.X+float32(spriteBounds.Dx()/4)), float64(ent.Sprite.Y+float32(spriteBounds.Dy()/2)), ent.UiData.ActivationRect)
-		fpent := &Entity{ParticleSystem: fps}
-		fpent.Z = 6
+		if ent.UiData.Label == string(Fertilizer) {
+			spriteBounds := ent.Sprite.GetSpriteRect()
+			fps := NewFertilizerParticleSystem(float64(ent.Sprite.X+float32(spriteBounds.Dx()/4)), float64(ent.Sprite.Y+float32(spriteBounds.Dy()/2)), ent.UiData.ActivationRect)
+			fpent := &Entity{ParticleSystem: fps, Sprite: fps.Sprite}
+			fpent.Z = MidLayerZ
+			fpent.LifeTime = 8.0
+			println("registering fertilizer particle entity")
+			RegisterEntity(fpent)
+			ent.UiData.Flags["particlesGenerated"] = true
+			return
+		}
+
+		if ent.UiData.Label == string(PhBoost) {
+			AddPHEffectParticles(ent, 1)
+		}
+
+		if ent.UiData.Label == string(PhReduce) {
+			AddPHEffectParticles(ent, 2)
+		}
+	}
+}
+
+func AddPHEffectParticles(ent *Entity, textureTag uint32) {
+	for i := 0; i < 3; i++ {
+		x := float64(50 + ent.UiData.ActivationRect.Min.X + (i * 100))
+		y := float64(ent.UiData.ActivationRect.Max.Y) - 45 - 3*rand.NormFloat64()
+		fps := NewGenericParticleSystem(x, y, ent.UiData.ActivationRect, textureTag)
+		fpent := &Entity{ParticleSystem: fps, Sprite: fps.Sprite}
+		fpent.Z = MidLayerZ
 		fpent.LifeTime = 8.0
-		println("registering fertilizer particle entity")
 		RegisterEntity(fpent)
 		ent.UiData.Flags["particlesGenerated"] = true
 	}
-
 }
 
 func (ent *Entity) CursorInActivationRect() bool {
@@ -181,7 +228,7 @@ func (ent *Entity) CursorInActivationRect() bool {
 }
 
 func AddUiSpriteXYUpdater(ent *Entity) {
-	if ent.UiData.Flags["used"] {
+	if ent.UiData.Flags["done"] {
 		return
 	}
 	ent.Sprite.XYUpdater = sprite.NewUpdater(ent.Sprite)
@@ -209,9 +256,8 @@ func AddUiSpriteXYUpdater(ent *Entity) {
 
 func UpdateUiSpriteTimers(ent *Entity, gs GameState) {
 	us := ent.UiData
-	for name, timer := range us.timers {
+	for name, timer := range us.Timers {
 		switch name {
-
 		case "clickMeBuffer":
 			state := timer.Update()
 			if state == util.Done {
@@ -234,8 +280,16 @@ func UpdateUiSpriteTimers(ent *Entity, gs GameState) {
 				gs.CursorUpdater.ResetBounds()
 				gs.CursorUpdater.ResetSpeed()
 				if ent.UiData.Flags["oneOff"] {
+					fmt.Println("Item used:", ent.UiData.Label)
+					ent.EventHub.Publish(events.ItemUsed{Name: ent.UiData.Label})
 					RemoveEntity(ent.Id)
 				}
+			}
+		case "transition1":
+			state := timer.Update()
+			if state == util.Done {
+				ent.StateMachine.Transition(ent)
+				timer.TurnOff()
 			}
 
 		}
@@ -280,7 +334,7 @@ func (e *Entity) hoveredUpdater(gs *GameState) {
 
 	if !us.Focused && uiDat.state != Disabled {
 		if us.Img == uiDat.MainImg {
-			if us.X == uiDat.baseX {
+			if us.X == uiDat.baseX && !uiDat.Flags["noOffset"] {
 				us.Y -= 5
 				us.X += 5
 				UpdateEntityZAndReSortEntitySlice(e.Id, 2)
@@ -291,14 +345,15 @@ func (e *Entity) hoveredUpdater(gs *GameState) {
 		}
 	}
 	switch uiDat.Label {
-	case string(Phreader), string(Magazine), string(GrandpasJournal):
-		uiDat.PublishPickedUpEventIfClicked()
-	case string(Thermometer):
-		AltImageWhenClickedUpdaterStatic(e)
-	case string(Pillow), string(Door):
+	case string(Phreader), string(Magazine):
+		PublishPickedUpEventIfClicked(e, *gs)
+	case string(LightSwitch):
 		if e.Draw && ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 			uiDat.Publish(events.UISpriteAction{UiSprite: uiDat.Label, UiSpriteAction: "clicked"})
-			turnOffClickMeEffect(uiDat)
+			e.effectHandler()
+			UiSpriteTurnOffEverything(e)
+
+			//turnOffClickMeEffect(uiDat)
 		}
 	}
 }
@@ -328,8 +383,8 @@ func UiSpriteTurnOffEverything(ent *Entity) {
 	uiDat := ent.UiData
 	sp := ent.Sprite
 	sp.CurrentAnimation = ""
-	if ent.Z != 0 {
-		UpdateEntityZAndReSortEntitySlice(ent.Id, 0)
+	if ent.Z != ent.UiData.BaseZ {
+		UpdateEntityZAndReSortEntitySlice(ent.Id, uiDat.BaseZ)
 	}
 	if len(uiDat.PublishedGraphicId) != 0 {
 		graphics.DeInitGraphics(uiDat.PublishedGraphicId)
@@ -338,6 +393,7 @@ func UiSpriteTurnOffEverything(ent *Entity) {
 	sp.LinkedSprite = nil
 	uiDat.state = Idle
 	sp.XYUpdater = nil
+	uiDat.Scale = 0.0
 	uiDat.returnToBase()
 	sp.Img = uiDat.MainImg
 	uiDat.DOptsUpdaterParams = make(map[string]float64)
@@ -359,12 +415,9 @@ func ClickForTime(ent *Entity, gs GameState, doAtTime func(ent *Entity)) {
 }
 
 func MoveSpriteToDestination(sp *sprite.Sprite) {
-
-	destinationX := 420.0
-	destinationY := float64(registry.Config.ScreenHeight / 4)
-	speed := 8.0
-
-	// Calculate rotation needed to reach π (flipped)
+	destinationX := sp.DOptsUpdaterParams["destinationX"]
+	destinationY := sp.DOptsUpdaterParams["destinationY"]
+	speed := sp.DOptsUpdaterParams["speed"]
 
 	// Calculate the distance to destination
 	dx := destinationX - float64(sp.X)
@@ -388,9 +441,10 @@ func MoveSpriteToDestination(sp *sprite.Sprite) {
 
 func MoveSpriteToDestinationAndSpin(ui *sprite.Sprite) {
 
-	destinationX := 400.0
-	destinationY := 230.0
-	speed := 4.0
+	destinationX := 250.0
+	destinationY := 50.0
+	maxScale := 4.0
+	speed := 8.0
 
 	// Calculate rotation needed to reach π (flipped)
 
@@ -424,13 +478,21 @@ func MoveSpriteToDestinationAndSpin(ui *sprite.Sprite) {
 	rotationSpeed := rotationNeeded / travelTime
 	ui.DOptsUpdaterParams["degree"] += rotationSpeed
 
+	scaleIncreaseNeeded := maxScale - ui.Scale
+	totalScaleChange := maxScale - 1
+	ui.Scale += scaleIncreaseNeeded / totalScaleChange
 	ui.X += float32(dx / distance * speed)
 	ui.Y += float32(dy / distance * speed)
 
 }
 
 func (e *Entity) UpdateUiSprite(gs *GameState) {
+	if registry.Config.Zoom {
+		return
+	}
+
 	UpdateUiSpriteTimers(e, *gs)
+
 	if e.StateMachine != nil {
 		return
 	}
@@ -444,6 +506,10 @@ func (e *Entity) UpdateUiSprite(gs *GameState) {
 
 	if e == gs.HoveredUiSprite {
 		e.hoveredUpdater(gs)
+	} else {
+		if uiDat.Label == string(GrandpasJournal) {
+			uiDat.Img = uiDat.MainImg
+		}
 	}
 
 	if !us.Focused {
@@ -460,7 +526,7 @@ func (e *Entity) UpdateUiSprite(gs *GameState) {
 		return
 	}
 
-	us.Scale = 1.0
+	//us.Scale = 1.0 why is this here?
 	e.DebugActivationRect()
 
 	if uiDat.state == Idle {
@@ -485,56 +551,89 @@ func (us *UiSpriteData) returnToBase() {
 	us.XYUpdater = nil
 }
 
-func AltImageWhenClickedUpdaterStatic(ent *Entity) {
-	us := ent.UiData
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && us.Img != us.HoverImg {
-		println("thermometer message triggered")
-		if us.Label == "thermometer" {
-			AddTempGuage(us)
-		}
-		us.Scale = 1.0
-		us.Sprite.Img = us.HoverImg
-		UpdateEntityZAndReSortEntitySlice(ent.Id, 13)
-	}
+func CenterSprite(ent *Entity) {
+	w := registry.Config.ScreenWidth
+	h := registry.Config.ScreenHeight
 
+	x := w/2 - ent.Sprite.GetSpriteRect().Dx()/2
+	y := h/2 - ent.Sprite.GetSpriteRect().Dy()/2
+
+	ent.Sprite.X = float32(x)
+	ent.Sprite.Y = float32(y)
+}
+
+func MoveToCenter(ent *Entity, speed float64) {
+	w := registry.Config.ScreenWidth
+	h := registry.Config.ScreenHeight
+
+	x := w/2 - ent.Sprite.GetSpriteRect().Dx()/2
+	y := h/2 - ent.Sprite.GetSpriteRect().Dy()/2
+
+	ent.Sprite.UpdateFunc = MoveSpriteToDestination
+	ent.Sprite.DOptsUpdaterParams["destinationY"] = float64(y)
+	ent.Sprite.DOptsUpdaterParams["destinationX"] = float64(x)
+	ent.Sprite.DOptsUpdaterParams["speed"] = speed
 }
 
 func AltImageWhenClickedUpdater(ent *Entity, gs GameState) {
 	if ent.Sprite.Img != ent.UiData.HoverImg {
 		img := ent.UiData.HoverImg
-		x, y := util.GetScaledCursorPosition()
 		sp := ent.Sprite
-		sp.X = float32(x - img.Bounds().Dx()/2)
-		sp.Y = float32(y - img.Bounds().Dy()/2)
 		sp.Img = img
-		sp.XYUpdater = sprite.NewUpdater(sp)
-		if ent.Z < 2 {
-			UpdateEntityZAndReSortEntitySlice(ent.Id, 2)
+		sp.DOptsUpdaterTag = ""
+		if ent.UiData.Flags["updater"] {
+			//if you don't do this, it won't be centered on the sprite
+			x, y := util.GetScaledCursorPosition()
+			sp.X = float32(x - img.Bounds().Dx()/2)
+			sp.Y = float32(y - img.Bounds().Dy()/2)
+			sp.XYUpdater = sprite.NewUpdater(sp)
+		}
+		if ent.effectHandler != nil {
+			ent.effectHandler()
+		}
+		if ent.UiData.Flags["center"] {
+			MoveToCenter(ent, 8.0)
+		}
+
+		if ent.Z < 13 {
+			UpdateEntityZAndReSortEntitySlice(ent.Id, 13)
+		}
+		if ent.UiData.Flags["autoTransition1"] {
+			if ent.UiData.Timers["transition1"] != nil {
+				ent.UiData.Timers["transition1"].TurnOn()
+			} else {
+				ent.StateMachine.Transition(ent)
+			}
 		}
 	}
+
 	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
 		ent.Sprite.Img = ent.UiData.MainImg
+		ent.Z = 0
 		ent.StateMachine.Transition(ent)
 	}
 
 }
 
-func AddTempGuage(us *UiSpriteData) {
+func AddTempGuage(ent *Entity) {
+	us := ent.UiData
 	width := float32(4)
-	x := float32(us.HoverImg.Bounds().Dx() / 2)
-	y := float32(us.HoverImg.Bounds().Dy() - 3)
+	x := float32(us.HoverImg.Bounds().Dx()/2) + 1
+	y := float32(us.HoverImg.Bounds().Dy() - 2)
 	height := float32(us.Environment.Temperature-62) * 5
-	vector.StrokeLine(us.HoverImg, x, y, x, y-height, width, colornames.Red, false)
+	colr := color.RGBA{255, 20, 10, 150}
+	vector.StrokeLine(us.HoverImg, x, y, x, y-height, width, colr, false)
 	us.X = us.X - float32(us.HoverImg.Bounds().Dx()/4)
 	us.Sprite.SavePublishedGraphicID(graphics.NewFadeInTextGraphicSmall(
 		"Temperature:"+strconv.Itoa(us.Environment.Temperature),
-		float64(us.X)/registry.Config.ResolutionScalingF+float64(us.HoverImg.Bounds().Dx()/2)/registry.Config.ResolutionScalingF,
-		float64(us.Y)/registry.Config.ResolutionScalingF-float64(us.HoverImg.Bounds().Dy())/4,
+		float64(us.X)+float64(us.HoverImg.Bounds().Dx()/2),
+		float64(us.Y)-float64(us.HoverImg.Bounds().Dy())/4, 0,
 	))
+	ent.EventHub.Publish(WriteToWhiteBoard{Msg: fmt.Sprintf("Temp: %d", us.Environment.Temperature), PreferredPosition: "bottomRight", NoErase: true})
 }
 
 func AddTextGraphic(sp *sprite.Sprite, text string) int {
-	id := graphics.NewFadeInTextGraphic(text, float64(sp.X)-float64(sp.Img.Bounds().Dx()), float64(sp.Y)-float64(sp.Img.Bounds().Dy()))
+	id := graphics.NewFadeInTextGraphic(text, float64(sp.X)-float64(sp.Img.Bounds().Dx()), float64(sp.Y)-float64(sp.Img.Bounds().Dy()), 0)
 	return id
 }
 
@@ -551,10 +650,10 @@ func NewUiSprite(environment *system.Environment, imgs []*ebiten.Image, hub *tas
 	uis.Environment = environment
 	uis.ShaderParams = paramaMappa
 
-	uis.timers = map[string]*util.Timer{}
-	uis.timers["clickMeBuffer"] = util.NewTimer(1)
-	uis.timers["graphicDeInit"] = util.NewTimer(3)
-	uis.timers["waitAndReset"] = util.NewTimer(1)
+	uis.Timers = map[string]*util.Timer{}
+	uis.Timers["clickMeBuffer"] = util.NewTimer(1)
+	uis.Timers["graphicDeInit"] = util.NewTimer(3)
+	uis.Timers["waitAndReset"] = util.NewTimer(1)
 
 	uis.Img = &ebiten.Image{}
 	uis.Img = imgs[0]
@@ -578,7 +677,7 @@ func NewUiSprite(environment *system.Environment, imgs []*ebiten.Image, hub *tas
 	}
 
 	uis.state = Idle
-	if label == string(PiggyBank) {
+	if label == string(PiggyBank) || label == string(LightSwitch) {
 		uis.state = Disabled
 	}
 	uis.gameMode = registry.Normal
@@ -622,57 +721,59 @@ func UiSpriteSubs(hub *tasks.EventHub, uis *Entity) {
 			uis.Draw = false
 		})
 
-	case string(Door):
-		hub.Subscribe(events.NewDay{}, func(e tasks.Event) {
-			ev := e.(events.NewDay)
-			if ev.DayType == "Chores" || ev.DayType == "Camp" {
-				initClickMeEffect(uis.UiData)
-				uis.Draw = true
-			}
+	case string(Thermometer):
+		hub.Subscribe(events.Zoom{}, func(e tasks.Event) {
+			uis.Sprite.DOptsUpdaterParams["opacity"] = 0.15
 		})
+		hub.Subscribe(events.UnZoom{}, func(e tasks.Event) {
+			uis.Sprite.DOptsUpdaterParams["opacity"] = 0
+		})
+	case string(LightSwitch):
+		hub.Subscribe(events.BedTime{}, func(e tasks.Event) {
 
-		hub.Subscribe(events.LeavingFishScene{}, func(e tasks.Event) {
-			uis.Draw = false
+			uis.UiData.state = Clickable
+			uis.UiData.Shader = registry.ShaderMap["PulseHighlight"]
+			uis.Sprite.ShaderParams["Counter"] = 0
+			uis.Sprite.ShaderParams["MaxCounter"] = uis.Sprite.GetSpriteRect().Dy() * 10
+			uis.Sprite.UpdateShaderParams = shaders.UpdateCounter
+
+			uis.effectHandler = LoadFollowEffectAsEnt("exclamation", uis.Id, hub, nil)
+
 		})
 
 	case string(Phreader):
 		hub.Subscribe(events.PHGuess{}, func(e tasks.Event) {
+			UiSpriteTurnOffEverything(uis)
+			UnFocus(uis.Id)
 			phev := e.(events.PHGuess)
 			var text string
 			var wbText string
 			if math.Abs(phev.Guess-uis.UiData.Environment.ModifiedPHLevel) < .1 {
-				text = "Right On! Stash you bonus quarter in your piggy bank"
+				text = "Right On!"
 				wbText = "PH: " + strconv.FormatFloat(phev.Guess, 'f', 2, 32)
 				mev := events.MoneyAvailable{Amount: .25}
 				hub.Publish(mev)
 			} else if phev.Guess < uis.UiData.Environment.ModifiedPHLevel {
-				text = "Too Low"
+				text = "Too Low!"
 				wbText = "PH: >" + strconv.FormatFloat(phev.Guess, 'f', 1, 32)
 			} else if phev.Guess > uis.UiData.Environment.ModifiedPHLevel {
-				text = "Too High"
+				text = "Too High!"
 				wbText = "PH: <" + strconv.FormatFloat(phev.Guess, 'f', 1, 32)
 			}
 			if uis.Sprite.LinkedSprite != nil {
 				uis.Sprite.SavePublishedGraphicID(AddTextGraphic(uis.Sprite.LinkedSprite, text))
 			}
-			fmt.Printf("Before replace: '%s'\n", wbText)
-			wbText = strings.ReplaceAll(wbText, ".", " . ")
-			fmt.Printf("After replace: '%s'\n", wbText)
 
-			ev := events.WriteToWhiteBoard{PreferredPosition: "bottomLeft", Msg: wbText}
+			graphics.NewFadeInTextGraphicCentered(text, 120)
+			ev := WriteToWhiteBoard{PreferredPosition: "bottomLeft", Msg: wbText, NoErase: true}
 			hub.Publish(ev)
 		})
 
 		hub.Subscribe(events.DayOver{}, func(e tasks.Event) {
 			uis.UiData.Flags["triggered"] = false
 		})
+
 	case string(Magazine):
-		hub.Subscribe(tasks.TaskCreated{}, func(e tasks.Event) {
-			ev := e.(tasks.TaskCreated)
-			if ev.Task.Text == "3. Buy a new fish." {
-				initClickMeEffect(uis.UiData)
-			}
-		})
 		hub.Subscribe(events.NewDay{}, func(e tasks.Event) {
 			ev := e.(events.NewDay)
 			if ev.Day > 1 {
@@ -681,8 +782,18 @@ func UiSpriteSubs(hub *tasks.EventHub, uis *Entity) {
 		})
 	case string(GrandpasJournal):
 		hub.Subscribe(events.NewDay{}, func(e tasks.Event) {
-			uis.Sprite.DOptsUpdaterTag = "swirl"
+			ev := e.(events.NewDay)
+			if ev.Day == 1 {
+				params := make(map[string]any)
+				params["position"] = "center"
+				uis.effectHandler = LoadFollowEffectAsEnt("exclamation", uis.Id, hub, params)
+				//uis.Sprite.DOptsUpdaterTag = "swirl"
+				uis.UiData.Shader = registry.ShaderMap["Highlight"]
+				/*uis.Sprite.ShaderParams["Counter"] = 0
+				uis.Sprite.ShaderParams["MaxCounter"] = uis.Sprite.GetSpriteRect().Dy()*/
+			}
 		})
+
 		hub.Subscribe(events.UISpriteAction{}, func(e tasks.Event) {
 			ev := e.(events.UISpriteAction)
 
@@ -718,13 +829,22 @@ func (us *UiSpriteData) SavePosition() drawables.SavePositionData {
 	return sp
 }
 
-func (us *UiSpriteData) PublishPickedUpEventIfClicked() {
-	if us.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		ev := events.UISpriteAction{
-			UiSprite:       us.Label,
-			UiSpriteAction: "picked up",
-		}
-		us.EventHub.Publish(ev)
+func PublishPickedUpEvent(ent *Entity, gs GameState) {
+	ev := events.UISpriteAction{
+		UiSprite:       ent.UiData.Label,
+		UiSpriteAction: "picked up",
+	}
+	ent.EventHub.Publish(ev)
+	if ent.UiData.Flags["revert"] {
+		ent.StateMachine.Transition(ent)
+		UnFocus(ent.Id)
+		UiSpriteTurnOffEverything(ent)
+	}
+}
+
+func PublishPickedUpEventIfClicked(ent *Entity, gs GameState) {
+	if ent.Sprite.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		PublishPickedUpEvent(ent, gs)
 	}
 
 }
@@ -736,9 +856,9 @@ func initClickMeEffect(us *UiSpriteData) {
 	cs.SetG(1.0)
 	cs.SetA(1.0)
 	msg := "Click Me"
-	us.Sprite.SavePublishedGraphicID(graphics.NewOutlineGraphicText(&msg, 24, float64(us.X), float64(us.Y), true, cs, float64(us.Img.Bounds().Dx()), true))
+	us.Sprite.SavePublishedGraphicID(graphics.NewOutlineGraphicText(&msg, 24, float64(us.X), float64(us.Y), true, cs, float64(us.Img.Bounds().Dx()), true, 0))
 
-	ols := shaders.LoadOutlineShader()
+	ols := registry.ShaderMap["Outline"]
 
 	us.Sprite.Shader = ols
 	us.Sprite.ShaderParams["Opacity"] = float32(0.0)
@@ -749,8 +869,8 @@ func initClickMeEffect(us *UiSpriteData) {
 func turnOffClickMeEffect(us *UiSpriteData) {
 
 	us.Sprite.Shader = nil
-	if us.timers != nil {
-		us.timers["clickMeBuffer"].TurnOn()
+	if us.Timers != nil {
+		us.Timers["clickMeBuffer"].TurnOn()
 	}
 	graphics.DeInitGraphics(us.Sprite.PublishedGraphicId)
 }

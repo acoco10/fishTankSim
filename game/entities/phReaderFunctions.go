@@ -26,8 +26,10 @@ func PHReaderUpdate(e *Entity, gs GameState) {
 			if e.Z > 10 {
 				UpdateEntityZAndReSortEntitySlice(e.Id, 10)
 				e.Sprite.DOptsUpdaterTag = "swirl"
-				phps := NewPhReaderParticleSystem(float64(e.Sprite.X)+float64(e.Sprite.GetSpriteRect().Dx()/2), float64(e.Sprite.Y)+float64(e.Sprite.GetSpriteRect().Dy()), gs.Zbounds[e.Z-1])
-				RegisterEntity(&Entity{ParticleSystem: phps, LifeTime: 20, Z: e.Z})
+				phps := NewPhReaderParticleSystem(float64(e.Sprite.X)+float64(e.Sprite.GetSpriteRect().Dx()/2), float64(gs.Zbounds[e.Z-1].Min.Y), gs.Zbounds[e.Z-1])
+				phps2 := NewPhReaderParticleSystem(float64(e.Sprite.X)+float64(e.Sprite.GetSpriteRect().Dx()/2), float64(gs.Zbounds[e.Z-1].Min.Y), gs.Zbounds[e.Z-1])
+				RegisterEntity(&Entity{ParticleSystem: phps, LifeTime: 20, Z: e.Z, Sprite: phps.Sprite})
+				RegisterEntity(&Entity{ParticleSystem: phps2, LifeTime: 20, Z: e.Z, Sprite: phps2.Sprite})
 			}
 		}
 		ClickForTime(e, gs, phReaderDoAtTime)
@@ -80,6 +82,10 @@ func phReaderDoAtTime(ent *Entity) {
 
 	sp := &sprite.Sprite{Img: uiDat.AltImg, X: uiDat.baseX, Y: uiDat.baseY}
 	sp.UpdateFunc = MoveSpriteToDestination
+	sp.DOptsUpdaterParams = make(map[string]float64)
+	sp.DOptsUpdaterParams["speed"] = 8.0
+	sp.DOptsUpdaterParams["destinationX"] = 420
+	sp.DOptsUpdaterParams["destinationY"] = float64(registry.Config.ScreenHeight / 10)
 	us.LinkedSprite = sp
 
 	//us.UpdateShaderParams = shaders.UpdateCounter

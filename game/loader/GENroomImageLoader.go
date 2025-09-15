@@ -22,6 +22,7 @@ type BackGroundImages struct {
 	FishTankFrontLayerNoLightSmaller *ebiten.Image
 	LaptopRoomBackground *ebiten.Image
 	RoomBackGroundNight *ebiten.Image
+	FishTankFrontLayerZoom *ebiten.Image
 }
 
 
@@ -85,6 +86,11 @@ func LoadAllRoomBackGroundImages(basePath string) (*BackGroundImages, error) {
 	m.RoomBackGroundNight, err = LoadImage(filepath.Join(basePath, "roomBackGroundNight.png"))
 	if err != nil {
 		return nil, fmt.Errorf("loading roomBackGroundNight: %w", err)
+	}
+
+	m.FishTankFrontLayerZoom, err = LoadImage(filepath.Join(basePath, "fishTankFrontLayerZoom.png"))
+	if err != nil {
+		return nil, fmt.Errorf("loading fishTankFrontLayerZoom: %w", err)
 	}
 
 	return &m, nil

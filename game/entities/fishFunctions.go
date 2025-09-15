@@ -58,7 +58,7 @@ func CreatureEventSubscriptions(c *Entity) {
 	c.EventHub.Subscribe(events.NewProp{}, func(e tasks.Event) {
 		ev := e.(events.NewProp)
 
-		LoadFollowEffectAsEnt("exclamation", c.Id, c.EventHub)
+		c.effectHandler = LoadFollowEffectAsEnt("exclamation", c.Id, c.EventHub, nil)
 
 		prop, exists := GetEntity(ev.PropId)
 		if !exists {
@@ -84,16 +84,22 @@ func CreatureEventSubscriptions(c *Entity) {
 }
 
 func (c *CreatureData) CalcDailyFishHealthState() {
-	if math.Abs(float64(c.Environment.Temperature-c.idealTemperature)) > 10 {
+	c.stressContributors = []string{}
+	if math.Abs(float64(c.Environment.Temperature-c.IdealTemperature)) > 10 {
 		c.stressContributors = append(c.stressContributors, "temperature")
 		c.Happiness -= 1
 		c.Stress += 2
 	}
 	//compare environment ph to ideal
-	if math.Abs(float64(c.Environment.NaturalPHLevel-c.idealPH)) > 1.5 {
+	if math.Abs(float64(c.Environment.NaturalPHLevel-c.IdealPH)) > 0.5 {
 		c.stressContributors = append(c.stressContributors, "ph")
 		c.Stress += 2
 	}
+
+	if len(c.stressContributors) == 0 {
+		c.Stress -= 1
+	}
+
 	// reduce hunger if chronically stressed
 	if c.Stress > 3 {
 		c.HealthState = Stressed
@@ -118,6 +124,7 @@ func (c *CreatureData) CalcDailyFishHealthState() {
 			c.HealthState = Dead
 		}
 	}
+
 }
 
 func DoneEating(c *Entity) {
@@ -312,12 +319,18 @@ func (e *Entity) RandomTarget(flags [10]uint32) *util.Point {
 
 	randZ := rand.Intn(12)
 	if randZ > 8 && randZ < 10 {
-		if c.TargetZ-1 >= 1 {
+		if c.TargetZ-1 > 2 {
+			//dont want layer 0/1 to be accesible by fish since back of tank is there
 			c.TargetZ -= 1
+			newPoint := util.Point{X: e.Sprite.X + float32(rand.NormFloat64())*10, Y: e.Sprite.Y + float32(rand.NormFloat64())*5}
+			return &newPoint
 		}
 	} else if randZ > 10 {
-		if c.TargetZ+1 <= 12 {
+		if c.TargetZ+1 < 12 {
+			//last layer of tank
 			c.TargetZ += 1
+			newPoint := util.Point{X: e.Sprite.X + float32(rand.NormFloat64())*5, Y: e.Sprite.Y + float32(rand.NormFloat64())*5}
+			return &newPoint
 		}
 	}
 
@@ -439,6 +452,9 @@ func (c *Entity) PointReached(flags [10]uint32) {
 	} else if c.CreatureData.TargetPoint.PType == util.Structure {
 		c.CreatureData.TargetParticleId = 0
 		c.MakeTargetPoint(c.RandomTarget(flags))
+		if c.effectHandler != nil {
+			c.effectHandler()
+		}
 	} else {
 		c.MakeTargetPoint(c.RandomTarget(flags))
 	}
@@ -501,7 +517,11 @@ func (e *Entity) TranSlateFishOpts() *ebiten.DrawImageOptions {
 	opts := &ebiten.DrawImageOptions{}
 
 	if c.Flip {
-		sprite.FlipSprite(e.Sprite, opts)
+		e.Sprite.Flip = true
+		opts.GeoM.Scale(-1, 1) // flip horizontally
+		opts.GeoM.Translate(float64(e.Sprite.SpriteWidth()), 0)
+	} else {
+		e.Sprite.Flip = false
 	}
 
 	if e.Sprite.Dy < -0.5 {
@@ -645,8 +665,8 @@ type FishStats struct {
 	Size             int
 	progress         float32
 	nextLevel        float32
-	idealTemperature int
-	idealPH          float64
+	IdealTemperature int
+	IdealPH          float64
 	DaysStressed     int
 	DaysSick         int
 	HealthState
@@ -691,7 +711,7 @@ func GenFishStats(fType FishList, name string) (*FishStats, error) {
 		//no fish stat generator for this species yet
 		log.Println("Warning: No fish stat generator for:", string(fType))
 		fs, err := GenKirbensisFishStats()
-		fs.FishType = Kirbensis
+		fs.FishType = fType
 		fs.name = name
 		if err != nil {
 			return fs, err
@@ -705,7 +725,8 @@ func GenMollyFishStats() (*FishStats, error) {
 
 	fs.Size = 1
 	fs.maxSpeed = rand.Float32() + 0.7
-	fs.avgSpeed = 1.2
+	fs.avgSpeed = 0.9
+	fs.IdealPH = 7.2
 	fs.stdDevSpeed = 0.1
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
 	fs.FishType = MollyFish
@@ -717,7 +738,7 @@ func GenMollyFishStats() (*FishStats, error) {
 	fs.avgDepth = 100
 	fs.progress = 0
 	fs.nextLevel = 10
-	fs.idealTemperature = 75
+	fs.IdealTemperature = 75
 
 	persRoll := rand.Intn(10)
 
@@ -733,10 +754,10 @@ func GenMollyFishStats() (*FishStats, error) {
 func GenGoldFishStats() (*FishStats, error) {
 	fs := &FishStats{}
 	fs.Size = 1
-	fs.idealTemperature = 70
-	fs.idealPH = 6.5
+	fs.IdealTemperature = 70
+	fs.IdealPH = 6.5
 	fs.avgDepth = 40.0
-	fs.avgSpeed = 1.0
+	fs.avgSpeed = 0.8
 	fs.stdDevSpeed = 0.2
 	fs.maxSpeed = rand.Float32()*0.5 + 0.2
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
@@ -746,7 +767,7 @@ func GenGoldFishStats() (*FishStats, error) {
 	fs.Hunger = 0
 	fs.progress = 0
 	fs.nextLevel = 10
-	fs.idealPH = 6.5
+	fs.IdealPH = 6.5
 	fs.MaxHunger = 5
 	fs.defaultMaxHunger = fs.MaxHunger
 	persRoll := rand.Intn(10)
@@ -764,7 +785,7 @@ func GenGuppyFishStats() (*FishStats, error) {
 	fs := &FishStats{}
 	fs.Size = 1
 	fs.avgDepth = 150
-	fs.avgSpeed = 1.1
+	fs.avgSpeed = 0.9
 	fs.stdDevSpeed = 0.1
 	fs.maxSpeed = rand.Float32()*0.5 + 0.2
 	fs.speed = rand.Float32()*fs.maxSpeed + 0.3
@@ -774,8 +795,8 @@ func GenGuppyFishStats() (*FishStats, error) {
 	fs.Hunger = 0
 	fs.progress = 0
 	fs.nextLevel = 10
-	fs.idealTemperature = 80
-	fs.idealPH = 7.5
+	fs.IdealTemperature = 80
+	fs.IdealPH = 7.5
 	fs.MaxHunger = 6
 	fs.defaultMaxHunger = fs.MaxHunger
 	persRoll := rand.Intn(10)
@@ -803,8 +824,8 @@ func GenKirbensisFishStats() (*FishStats, error) {
 	fs.Hunger = 0
 	fs.progress = 0
 	fs.nextLevel = 10
-	fs.idealTemperature = 77
-	fs.idealPH = 7.0
+	fs.IdealTemperature = 77
+	fs.IdealPH = 7.0
 	fs.MaxHunger = 4
 	fs.defaultMaxHunger = fs.MaxHunger
 	persRoll := rand.Intn(10)

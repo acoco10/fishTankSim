@@ -1,6 +1,7 @@
 package graphics
 
 import (
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
@@ -69,7 +70,12 @@ func UpdateGraphics() {
 	}
 }
 
-func NewFadeInTextGraphic(msg string, x, y float64) int {
+func NewFadeInTextGraphicCentered(msg string, lifetime int) int {
+	id := NewFadeInTextGraphic(msg, float64(registry.Config.ScreenWidth/2), float64(registry.Config.ScreenHeight/3), lifetime)
+	return id
+}
+
+func NewFadeInTextGraphic(msg string, x, y float64, lifeTime int) int {
 	cs := ebiten.ColorScale{}
 	cs.SetR(0.9)
 	cs.SetB(0.9)
@@ -78,47 +84,33 @@ func NewFadeInTextGraphic(msg string, x, y float64) int {
 
 	/*x = x * registry.Config.ResolutionScalingF
 	y = (y + float64(registry.Config.YOffset)) * registry.Config.ResolutionScalingF*/
-	id := NewOutlineGraphicText(&msg, 48, x, y, false, cs, 0, true)
+	id := NewOutlineGraphicText(&msg, 48, x, y, false, cs, 0, true, lifeTime)
 	return id
 }
 
-func NewFadeInTextGraphicSmall(msg string, x, y float64) int {
+func NewFadeInTextGraphicSmall(msg string, x, y float64, lifetime int) int {
 	cs := ebiten.ColorScale{}
 	cs.SetR(0.9)
 	cs.SetB(0.9)
 	cs.SetG(0.9)
 	cs.SetA(1.0)
 
-	id := NewOutlineGraphicText(&msg, 24, x, y, false, cs, 0, true)
+	id := NewOutlineGraphicText(&msg, 24, x, y, false, cs, 0, true, lifetime)
 	return id
 }
 
-func NewUpdateAbleTextGraphic(msg *string, x, y float64) int {
+func NewUpdateAbleTextGraphic(msg *string, x, y float64, lifetime int) int {
 	cs := ebiten.ColorScale{}
 	cs.SetR(0.9)
 	cs.SetB(0.9)
 	cs.SetG(0.9)
 	cs.SetA(1.0)
 
-	id := NewOutlineGraphicText(msg, 48, x, y, false, cs, 0, true)
+	id := NewOutlineGraphicText(msg, 48, x, y, false, cs, 0, true, lifetime)
 	return id
 }
 
 func AddGraphic(graphic Graphic) int {
 	id := AssignAndIncrement(graphic)
-	return id
-}
-
-func AddHandwritingGraphic(txt string, buff *ebiten.Image, insets [2]float64, yInset float64, xInset float64) int {
-	cs := &ebiten.ColorScale{}
-	cs.SetA(1.0)
-	cs.SetR(0.0)
-	cs.SetB(0.0)
-	cs.SetG(0.0)
-
-	ts := NewTextWithMarkerShader(txt, buff, insets, *cs, yInset, xInset)
-	id := AssignAndIncrement(ts)
-	ts.Id = id
-
 	return id
 }

@@ -201,12 +201,12 @@ func CreateCursorUpdater(hub *tasks.EventHub) *CursorUpdater {
 
 func subs(hub *tasks.EventHub, updater *CursorUpdater) {
 
-	hub.Subscribe(events.Focus{}, func(e tasks.Event) {
-		ev := e.(events.Focus)
+	hub.Subscribe(events.FocusEvent{}, func(e tasks.Event) {
+		ev := e.(events.FocusEvent)
 		updater.focusEntityID = ev.EntID
 	})
 
-	hub.Subscribe(events.UnFocus{}, func(e tasks.Event) {
+	hub.Subscribe(events.UnFocusEvent{}, func(e tasks.Event) {
 		updater.state = idle
 		updater.focusEntityID = 0
 	})

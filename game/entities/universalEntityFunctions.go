@@ -21,11 +21,7 @@ func ClosestHoveredEntityToCursor(cursorX int, cursorY int, entSlice []*Entity) 
 
 	for _, ent := range entSlice {
 
-		if ent.Sprite == nil {
-			continue
-		}
-
-		if !ent.Sprite.SpriteHovered() && ent.UiData == nil {
+		if ent.UiData == nil {
 			continue
 		}
 		if !ent.Sprite.SpriteHoveredWithBuffer(20) {
@@ -38,7 +34,7 @@ func ClosestHoveredEntityToCursor(cursorX int, cursorY int, entSlice []*Entity) 
 		if ent.UiData != nil && ent.UiData.state == Disabled {
 			continue
 		}
-		
+
 		s := ent.Sprite
 
 		entPt := image.Point{X: int(s.X), Y: int(s.Y)}

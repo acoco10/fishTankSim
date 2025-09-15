@@ -175,6 +175,46 @@ func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, hub *
 	return buttonStackedLayout, nil
 }
 
+func LoadGraphic(image *ebiten.Image, params map[string]any, text *widget.Text) *widget.Container {
+
+	imgScale := params["imageScale"].(int)
+
+	imgForTransform := ebiten.NewImage(params["minWidth"].(int), params["minHeight"].(int))
+
+	dopts := &ebiten.DrawImageOptions{}
+	dopts.GeoM.Scale(float64(imgScale), float64(imgScale))
+	height := image.Bounds().Dy() * imgScale
+	width := image.Bounds().Dx() * imgScale
+
+	dopts.GeoM.Translate(float64(params["minWidth"].(int)/2-width/2), float64(params["minHeight"].(int)/2-height/2))
+	imgForTransform.DrawImage(image, dopts)
+
+	rootContainer := widget.NewContainer(
+		widget.ContainerOpts.Layout(
+			widget.NewGridLayout(
+				widget.GridLayoutOpts.Columns(2),
+				widget.GridLayoutOpts.Spacing(10, 0),
+				widget.GridLayoutOpts.Padding(&widget.Insets{}),
+				widget.GridLayoutOpts.Stretch([]bool{true, true}, []bool{true, true}),
+			),
+		),
+	)
+
+	graph := widget.NewGraphic(
+		widget.GraphicOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.GridLayoutData{HorizontalPosition: widget.GridLayoutPositionCenter})),
+		widget.GraphicOpts.Images(&widget.GraphicImage{
+			Idle:     imgForTransform,
+			Disabled: imgForTransform,
+		},
+		),
+	)
+
+	rootContainer.AddChild(graph)
+	rootContainer.AddChild(text)
+
+	return rootContainer
+}
+
 func loadSpriteSelectButtonImage(t string) (*widget.ButtonImage, error) {
 
 	img, err := util.LoadImageAssetAsEbitenImage("menuAssets/spriteOutlineButton")

@@ -34,11 +34,12 @@ func LoadAllEntities(uiSpritesToLoad []entities.Label, fishList []entities.Saved
 
 func InitFish(fishName entities.SavedFish, environment *system.Environment, hub *tasks.EventHub, collisions map[string]image.Rectangle) *entities.Entity {
 
-	z := rand.Intn(11) + 1
+	z := rand.Intn(11) + 2
 	zLayer := fmt.Sprintf("z%d", z)
 
 	fish := entities.NewFishData(environment, hub, collisions[zLayer], fishName)
-	newFishEntity := &entities.Entity{CreatureData: fish}
+	fish.TargetZ = z
+	newFishEntity := &entities.Entity{CreatureData: fish, Z: z}
 	println("loaded fish entity:", fishName.FishType)
 
 	//mutates entity to have sprite and animations loaded

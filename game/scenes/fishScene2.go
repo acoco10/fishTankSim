@@ -16,9 +16,9 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/acoco10/fishTankWebGame/game/soundFX"
+	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/system"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
-	"github.com/acoco10/fishTankWebGame/game/tutorial"
 	"github.com/acoco10/fishTankWebGame/game/ui"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/ebitenui/ebitenui"
@@ -32,7 +32,6 @@ import (
 	"math/rand"
 	"os"
 	"strings"
-	time2 "time"
 )
 
 type lightingState uint8
@@ -54,7 +53,6 @@ type FishScene2 struct {
 	gameLog                 *sceneManagement.GameLog
 	timers                  map[string]*util.Timer
 	returnScene             sceneManagement.SceneId
-	tutorialManager         *tutorial.Manager
 	collisionMap            map[string]image.Rectangle
 	environment             *system.Environment
 	playerState             *entities.Player
@@ -73,6 +71,7 @@ type FishScene2 struct {
 	taskRelatedEventQueue   []tasks.Event
 	zBounds                 [13]image.Rectangle
 	propData                entities.PropData
+	fid                     uint32
 }
 
 var creatureManager CreatureManager
@@ -100,11 +99,11 @@ func NewFishScene2(gameLog *sceneManagement.GameLog) *FishScene2 {
 		log.Fatal(err)
 	}
 
-	g.propData = entities.PropData{PtMap: propPts, CollisionMap: collisionMap, PlacementParams: make(map[string]any), ZBounds: g.zBounds}
 	for i := 0; i <= 12; i++ {
 		layerName := fmt.Sprintf("z%d", i)
 
 		rect := collisionMap["tank"]
+		rect.Min.Y -= 5
 		rect.Max.Y -= 8
 		//top layer is obfuscated by tank front layer, dont worry about it for now
 		//2 pixels per z layer (first iteration
@@ -118,7 +117,7 @@ func NewFishScene2(gameLog *sceneManagement.GameLog) *FishScene2 {
 		log.Printf("setting z bounds: %d \n max y = %d", i, rect.Max.Y)
 		g.zBounds[i] = rect
 	}
-
+	g.propData = entities.PropData{PtMap: propPts, CollisionMap: collisionMap, PlacementParams: make(map[string]any), ZBounds: g.zBounds}
 	roomImages, err := loader.LoadAllRoomBackGroundImages("assets/images/roomImagesSmaller")
 	if err != nil {
 		log.Fatal("error while loading fish tank room assets:", err)
@@ -171,45 +170,67 @@ func NewFishScene2(gameLog *sceneManagement.GameLog) *FishScene2 {
 	g.tankSize = tankRect
 	g.collisionMap["tankRect"] = tankRect
 
-	fishtankSpriteFlags := loader.SpriteEntFlags{Unfocusable: true, Zlayer: 0}
-	fid := loader.MakeSpriteEntity(g.images.FishTankDayLight, float32(g.tankSize.Min.X), float32(g.tankSize.Min.Y), fishtankSpriteFlags)
-
-	fishtankNightSpriteFlags := loader.SpriteEntFlags{Unfocusable: true, Zlayer: 0}
-	fnid := loader.MakeSpriteEntity(g.images.FishTankNight, float32(g.tankSize.Min.X), float32(g.tankSize.Min.Y), fishtankNightSpriteFlags)
-
 	fishtankFrontSpriteFlags := loader.SpriteEntFlags{Unfocusable: true, Zlayer: 12}
-	loader.MakeSpriteEntity(g.images.FishTankFrontLayerNoLightSmaller, float32(g.tankSize.Min.X), float32(g.tankSize.Min.Y), fishtankFrontSpriteFlags)
+	flid := loader.MakeSpriteEntity(g.images.FishTankFrontLayerNoLightSmaller, float32(g.tankSize.Min.X), float32(g.tankSize.Min.Y), fishtankFrontSpriteFlags)
+	g.fid = flid
+
+	ftdl := entImportableLoaders.LoadEffect("fishTankDayLight")
+	ftdl.Unfocusable = true
+	ftdl.GetAnimation().SpeedInTPS = 32
+	ftdl.X = float32(g.tankSize.Min.X)
+	ftdl.Y = float32(g.tankSize.Min.Y)
+	ftid := entities.RegisterEntity(&entities.Entity{Sprite: ftdl, Z: 1})
+
+	ftn := entImportableLoaders.LoadEffect("fishTankNightLight")
+	ftn.Unfocusable = true
+	ftn.GetAnimation().SpeedInTPS = 32
+	ftn.X = float32(g.tankSize.Min.X)
+	ftn.Y = float32(g.tankSize.Min.Y)
+	ftnId := entities.RegisterEntity(&entities.Entity{Sprite: ftn, Z: 1})
 
 	fishTankFrontLayerDy := g.images.FishTankFrontLayerNoLightSmaller.Bounds().Dy()
 	fishTankHeightDy := g.images.FishTank.Bounds().Dy()
 	y := fishTankFrontLayerDy - fishTankHeightDy
 	y = g.tankSize.Min.Y - y
 
-	lightingImages := util.LoadDirectoryImages("images/lightingTransparencies")
+	nightLight1 := entImportableLoaders.LoadEffect("fishTankNightLightTransparency1")
+	nightLight1.Unfocusable = true
+	nightLight1.GetAnimation().SpeedInTPS = 32
+	nightLight1.X = float32(g.tankSize.Min.X)
+	nightLight1.Y = float32(g.tankSize.Min.Y)
+	nlId := entities.RegisterEntity(&entities.Entity{Sprite: nightLight1, Z: 4})
 
-	//nightLight1Flags := loader.SpriteEntFlags{Unfocusable: true, Zlayer: 6}
-	//nlid := loader.MakeSpriteEntity(lightingImages["nightLight1"], 0, 0, nightLight1Flags)
+	nightLight2 := entImportableLoaders.LoadEffect("fishTankNightLightTransparency2")
+	nightLight2.Unfocusable = true
+	nightLight2.GetAnimation().SpeedInTPS = 32
+	nightLight2.X = float32(g.tankSize.Min.X)
+	nightLight2.Y = float32(g.tankSize.Min.Y)
+	nl2Id := entities.RegisterEntity(&entities.Entity{Sprite: nightLight2, Z: 8})
 
-	nightLight2Flags := loader.SpriteEntFlags{Unfocusable: true, Zlayer: 12}
-	nlid2 := loader.MakeSpriteEntity(lightingImages["nightLight2"], 0, 0, nightLight2Flags)
+	waveSprite := entImportableLoaders.LoadEffect("lightRay")
+	waveSprite.GetAnimation().SpeedInTPS = 32
+	waveSprite.X = float32(g.tankSize.Min.X)
+	waveSprite.Y = float32(g.tankSize.Min.Y)
+	dayWaveID := entities.RegisterEntity(&entities.Entity{Sprite: waveSprite, Z: 5})
 
-	nightLight3Flags := loader.SpriteEntFlags{Unfocusable: true, Zlayer: 1}
-	nlid3 := loader.MakeSpriteEntity(lightingImages["nightLight2"], 0, -10, nightLight3Flags)
-
-	waveSprite := entImportableLoaders.LoadEffect("waveEffect")
-	waveSprite.GetAnimation().SpeedInTPS = 120
-	waveSprite.X = float32(startingX + 5)
-	waveSprite.Y = float32(g.collisionMap["tank"].Min.Y - 5)
-	dayWaveID := entities.RegisterEntity(&entities.Entity{Sprite: waveSprite, Z: 7})
-
-	dither := entImportableLoaders.LoadEffect("randomizedDither")
+	dither := entImportableLoaders.LoadEffect("ditheredCaustic")
 	dither.X = float32(startingX + 5)
-	dither.Y = float32(g.collisionMap["tank"].Min.Y - 5)
-	ditherID := entities.RegisterEntity(&entities.Entity{Sprite: dither, Z: 5})
+	dither.Y = float32(g.collisionMap["tank"].Min.Y - 25)
+	entities.RegisterEntity(&entities.Entity{Sprite: dither, Z: 5})
+
+	tImg := ebiten.NewImage(dither.GetAnimation().SpriteWidth, dither.GetAnimation().SpriteHeight)
+	dopts := &ebiten.DrawImageOptions{}
+	dopts.GeoM.Scale(1.4, 1.4)
+	dopts.GeoM.Translate(-100, -100)
+	tImg.DrawImage(dither.GetAnimation().GetFirstFrameAsStaticImage(), dopts)
+	tSprite := &sprite.Sprite{Img: tImg, X: dither.X, Y: dither.Y}
+
+	ent := &entities.Entity{Sprite: tSprite, Z: 1}
+	entities.RegisterEntity(ent)
 
 	g.lightEntManager = &entities.LightingEntManager{}
-	g.lightEntManager.NightEnts = append(g.lightEntManager.NightEnts, nlid2, nlid3, fnid, ditherID)
-	g.lightEntManager.DayEnts = append(g.lightEntManager.DayEnts, fid, dayWaveID)
+	g.lightEntManager.NightEnts = append(g.lightEntManager.NightEnts, nlId, nl2Id, ftnId)
+	g.lightEntManager.DayEnts = append(g.lightEntManager.DayEnts, dayWaveID, ftid)
 	g.lightEntManager.Subscribe(gameLog.GlobalEventHub)
 
 	//stuff that needs to exist before game publishes shit
@@ -259,10 +280,6 @@ func (g *FishScene2) FirstLoad() {
 	//g.store = store
 	g.LoadStuff()
 
-	tutMngr := &tutorial.Manager{}
-	tutorial.InitData(tutMngr, g.gameLog.GlobalEventHub)
-	g.tutorialManager = tutMngr
-
 	ev2 := events.FishTankLayout{
 		Rectangle: g.tankSize,
 	}
@@ -277,7 +294,7 @@ func (g *FishScene2) FirstLoad() {
 		entities.Phreader,
 		entities.FishFood,
 		entities.Skimmer,
-		entities.Pillow,
+		entities.LightSwitch,
 	}
 
 	_, wbSprite := loader.LoadAllEntities(fishScene2UISprites, g.gameLog.Save.Fish, g.environment, g.gameLog.GlobalEventHub, g.collisionMap)
@@ -290,6 +307,11 @@ func (g *FishScene2) FirstLoad() {
 }
 
 func (g *FishScene2) OnEnter() {
+	g.images.OffScreen.Clear()
+	g.smallerResolution.Clear()
+	if g.zoomScreen != nil {
+		g.zoomScreen.Clear()
+	}
 
 	cu := entities.CreateCursorUpdater(g.gameLog.GlobalEventHub)
 	eInput.SetCursorUpdater(cu)
@@ -312,17 +334,31 @@ func (g *FishScene2) OnEnter() {
 
 	g.timers["songTimer"].TurnOn()
 
-	bs := entities.NewBubbleSystem(44.0, float64(g.collisionMap["z2"].Min.Y), g.zBounds[1])
-	entities.RegisterEntity(&entities.Entity{ParticleSystem: bs, Z: 14, Sprite: bs.Sprite})
-
+	bs := entities.NewBubbleSystem(300.0, float64(g.zBounds[1].Dy()), g.zBounds[1])
+	entities.RegisterEntity(&entities.Entity{ParticleSystem: bs, Z: 1, Sprite: bs.Sprite})
 	bs.BubbleSubscriptions(g.gameLog.GlobalEventHub)
 
-	bs2 := entities.NewBubbleSystem(44.0, float64(g.collisionMap["z4"].Min.Y), g.zBounds[3])
-	entities.RegisterEntity(&entities.Entity{ParticleSystem: bs2, Z: 14, Sprite: bs2.Sprite})
+	bs2 := entities.NewBubbleSystem(300.0, float64(g.zBounds[3].Dy()), g.zBounds[3])
+	entities.RegisterEntity(&entities.Entity{ParticleSystem: bs2, Z: 3, Sprite: bs2.Sprite})
 	bs2.BubbleSubscriptions(g.gameLog.GlobalEventHub)
 
-	bs3 := entities.NewBubbleSystem(44.0, float64(g.collisionMap["z6"].Min.Y), g.zBounds[5])
-	entities.RegisterEntity(&entities.Entity{ParticleSystem: bs3, Z: 14, Sprite: bs3.Sprite})
+	bs3 := entities.NewBubbleSystem(300.0, float64(g.zBounds[5].Dy()), g.zBounds[5])
+	entities.RegisterEntity(&entities.Entity{ParticleSystem: bs3, Z: 5, Sprite: bs3.Sprite})
+
+	bs3.BubbleSubscriptions(g.gameLog.GlobalEventHub)
+
+	totallyRandBubbles := entities.NewGenericParticleSystem(300.0, float64(g.zBounds[1].Min.Y), g.zBounds[5], 7)
+	totallyRandBubbles.PConfig = &entities.ParticleConfig{XVariance: 80, YVariance: 80, XVelocityVariance: 20, YVelocityVariance: 20, MaxLife: 0}
+	totallyRandBubbles.SpawnRate = 20
+	totallyRandBubbles.MaxParticles = 75
+	totallyRandBubbles.EndAfter = 100
+	entities.RegisterEntity(&entities.Entity{ParticleSystem: totallyRandBubbles, Z: 10, Sprite: totallyRandBubbles.Sprite})
+	totallyRandBubbles2 := entities.NewGenericParticleSystem(300.0, float64(g.zBounds[1].Min.Y), g.zBounds[10], 6)
+	totallyRandBubbles2.PConfig = &entities.ParticleConfig{XVariance: 80, YVariance: 80, XVelocityVariance: 12, YVelocityVariance: 12, MaxLife: 0}
+	totallyRandBubbles2.SpawnRate = 10
+	totallyRandBubbles2.MaxParticles = 50
+	totallyRandBubbles2.EndAfter = 100
+	entities.RegisterEntity(&entities.Entity{ParticleSystem: totallyRandBubbles2, Z: 5, Sprite: totallyRandBubbles2.Sprite})
 	g.returnScene = sceneManagement.FishTank
 
 	println("made it to new day")
@@ -347,17 +383,9 @@ func (g *FishScene2) configureExistingDay() {
 func (g *FishScene2) configureNewDay() {
 	ev := events.NewDay{NTasks: len(g.gameLog.TaskManager.Tasks), Day: g.gameLog.Day}
 	g.lightingState = Day
-	switch g.gameLog.DayType {
-	case sceneManagement.Chores:
-		ev.DayType = "Chores"
-	case sceneManagement.Camp:
-		ev.DayType = "Camp"
-	default:
-		ev.DayType = "Free"
-	}
-
 	g.gameLog.GlobalEventHub.Publish(ev)
 	g.state.lastDayEntered = g.gameLog.Day
+
 	if len(g.gameLog.TaskManager.Tasks) > 0 {
 		g.gameLog.TaskManager.Activate()
 	}
@@ -393,7 +421,6 @@ func (g *FishScene2) IsLoaded() bool {
 func (g *FishScene2) Update() (sceneManagement.SceneId, error) {
 	g.ui.Update()
 	g.gameState.MouseFlags.HandledClick = false
-	g.tutorialManager.Update()
 
 	if !g.gameState.MouseFlags.WindowOpen {
 		g.updateInput()
@@ -426,15 +453,10 @@ func (g *FishScene2) Update() (sceneManagement.SceneId, error) {
 }
 
 func (g *FishScene2) DrawOffScreen() {
-	//define our draw options
-	opts := &ebiten.DrawImageOptions{}
-	//shaderOpts := &ebiten.DrawRectShaderOptions{}
 
-	//step1 draw room background to primary offscreen
-	/*x, y := ebiten.WindowSize()
-	if float64(x)/float64(y) != 16.0/9.0 {
-		g.images.OffScreen.DrawImage(g.images.LaptopRoomBackground, opts)
-	}*/
+	g.images.OffScreen.Clear()
+
+	opts := &ebiten.DrawImageOptions{}
 
 	switch g.lightingState {
 	case NightLight:
@@ -442,57 +464,40 @@ func (g *FishScene2) DrawOffScreen() {
 	case Day:
 		g.images.OffScreen.DrawImage(g.images.RoomBackground, opts)
 	}
-
 	opts.GeoM.Reset()
 	entities.DrawEntities(g.images.OffScreen, g.gameState)
+	graphics.DrawScaledGraphics(g.images.OffScreen)
 
-	if registry.Config.Zoom {
-		/*	sopts.Images[0] = g.images.OffScreen
-			sopts.Uniforms = g.shaderParamsMap[g.lightingState]
-			b := g.images.OffScreen.Bounds()
-			g.smallerResolution.DrawRectShader(b.Dx(), b.Dy(), g.globalLightingShaderMap[g.lightingState], sopts)
-			entities.DrawFocusedEntityNoLightingShader(g.renderBuffers[1], g.gameState)*/
-		opts.GeoM.Scale(registry.Config.ZoomFactor, registry.Config.ZoomFactor)
-		opts.GeoM.Translate(registry.Config.ZoomOffSetX, registry.Config.ZoomOffSetY)
-		g.zoomScreen.DrawImage(g.smallerResolution, opts)
-	}
 }
 
 func (g *FishScene2) Draw(screen *ebiten.Image) {
-
+	screen.Clear()
+	g.zoomScreen.Clear()
 	//call offscreen function to render everything we want to apply global shaders to
 	g.DrawOffScreen()
 
 	dOpts := &ebiten.DrawImageOptions{}
-	//shaderOpts := &ebiten.DrawRectShaderOptions{}
-	/*	shaderOpts.Images[0] = g.images.OffScreen
-		shaderOpts.Uniforms = g.shaderParamsMap[g.lightingState]
-		b := g.images.OffScreen.Bounds()
-		g.smallerResolution.DrawRectShader(b.Dx(), b.Dy(), g.globalLightingShaderMap[g.lightingState], shaderOpts)*/
-
-	g.smallerResolution.DrawImage(g.images.OffScreen, dOpts)
-
-	//entities.DrawFocusedEntityNoLightingShader(g.smallerResolution, g.gameState)
-
-	//debug rect needs to be scaled to base resolution
-	//scale our draw opts to resolution
 
 	if g.debug.GameMode == debug.Debug {
-		g.debug.Draw(g.smallerResolution)
+		g.debug.Draw(g.images.OffScreen)
 		g.debug.Draw(g.zoomScreen)
 		for _, rect := range g.gameState.ActiveCollisions {
 			util.StrokeRectFromImageRect(rect.Rectangle, g.smallerResolution, colornames.Greenyellow, false)
 		}
 	}
 
-	graphics.DrawScaledGraphics(g.smallerResolution)
-
-	dOpts.GeoM.Reset()
-
-	dOpts.GeoM.Translate(0, registry.Config.YOffsetF)
-	dOpts.GeoM.Scale(registry.Config.ResolutionScalingF, registry.Config.ResolutionScalingF)
-
 	if registry.Config.Zoom {
+
+		dOpts.GeoM.Reset()
+
+		dOpts.GeoM.Scale(registry.Config.ZoomFactor, registry.Config.ZoomFactor)
+		dOpts.GeoM.Translate(registry.Config.ZoomOffSetX, registry.Config.ZoomOffSetY)
+		g.zoomScreen.DrawImage(g.images.OffScreen, dOpts)
+
+		dOpts.GeoM.Reset()
+		dOpts.GeoM.Translate(0, registry.Config.YOffsetF)
+		dOpts.GeoM.Scale(registry.Config.ResolutionScalingF, registry.Config.ResolutionScalingF)
+
 		screen.DrawImage(g.zoomScreen, dOpts)
 		entities.DrawNonZoomedEntities(screen)
 		graphics.DrawScaledGraphicsOnMainScreen(screen)
@@ -500,24 +505,24 @@ func (g *FishScene2) Draw(screen *ebiten.Image) {
 		g.ui.Draw(screen) //also drawing our custom cursor
 		return
 	} else {
-		ebitenutil.DebugPrintAt(g.smallerResolution, fmt.Sprintf("TPS: %0.2f\n", ebiten.ActualTPS()), 30, 0)
-		ebitenutil.DebugPrintAt(g.smallerResolution, fmt.Sprintf("Window Open:%t, Focused Entity = %v, HoveredUiSprite = %v", g.gameState.MouseFlags.WindowOpen, g.gameState.FocusedEntity, g.gameState.HoveredUiSprite), 30, 20)
-		ebitenutil.DebugPrintAt(g.smallerResolution, fmt.Sprintf("Environment Temperatre: %f, Environment natural PH: %f, Environment Modified PH: %f", g.environment.Temperature, g.environment.NaturalPHLevel, g.environment.ModifiedPHLevel), 30, 40)
+		dOpts.GeoM.Reset()
 
-		screen.DrawImage(g.smallerResolution, dOpts)
+		dOpts.GeoM.Translate(0, registry.Config.YOffsetF)
+		dOpts.GeoM.Scale(registry.Config.ResolutionScalingF, registry.Config.ResolutionScalingF)
+
+		ebitenutil.DebugPrintAt(g.images.OffScreen, fmt.Sprintf("TPS: %0.2f\n", ebiten.ActualTPS()), 30, 0)
+		ebitenutil.DebugPrintAt(g.images.OffScreen, fmt.Sprintf("Window Open:%t, Focused Entity = %v, HoveredUiSprite = %v", g.gameState.MouseFlags.WindowOpen, g.gameState.FocusedEntity, g.gameState.HoveredUiSprite), 30, 20)
+		ebitenutil.DebugPrintAt(g.images.OffScreen, fmt.Sprintf("Environment Temperatre: %f, Environment natural PH: %f, Environment Modified PH: %f", g.environment.Temperature, g.environment.NaturalPHLevel, g.environment.ModifiedPHLevel), 30, 40)
+
+		screen.DrawImage(g.images.OffScreen, dOpts)
+
+		graphics.DrawUnScaledGraphics(screen)
+		//g.whiteBoardSprite.DstImg.Draw(screen)
+		graphics.DrawScaledGraphicsOnMainScreen(screen)
+
+		g.ui.Draw(screen)
 
 	}
-	//custom debug text
-	//tps monitor
-
-	//draw graphics
-
-	graphics.DrawUnScaledGraphics(screen)
-	g.whiteBoardSprite.DstImg.Draw(screen)
-	graphics.DrawScaledGraphicsOnMainScreen(screen)
-
-	//draw ui last
-	g.ui.Draw(screen)
 
 }
 
@@ -553,7 +558,7 @@ func (g *FishScene2) updateTimers() {
 		}
 
 		if key == "publishNewTask" && state == util.Done {
-			if len(g.gameLog.TaskManager.Tasks) > g.currentTask {
+			if len(g.gameLog.TaskManager.Tasks) > g.gameLog.TaskManager.CurrentTask {
 				timer.TurnOff()
 				g.gameLog.TaskManager.Activate()
 			} else {
@@ -571,6 +576,7 @@ func (g *FishScene2) updateTimers() {
 			g.gameLog.GlobalEventHub.Publish(entities.TurnOffBubbles{})
 			g.timers["turnOffBubbles"].TurnOff()
 		}
+
 		if key == "placementCooldown" && state == util.Done {
 			pickedSoFar, ok := g.propData.PlacementParams["quantity"].(int)
 			if !ok {
@@ -628,18 +634,28 @@ func (g *FishScene2) updateInput() {
 		//entities.RegisterEntity(ent)
 		//g.gameState.PhysicsObjects = append(g.gameState.PhysicsObjects, ent.Id)
 	}
+
 }
 
 func (g *FishScene2) HandleZoom() {
 	if !registry.Config.Zoom {
+		g.publish(events.Zoom{})
 		registry.Config.Set(registry.Zoom, true)
+
 		if g.gameState.FocusedEntity != nil {
 			g.gameState.PreZoomFocusedEntity = g.gameState.FocusedEntity
 			entities.UnFocus(g.gameState.FocusedEntity.Id)
 		}
 
-	} else {
+		flidEnt, exists := entities.GetEntity(g.fid)
+		if !exists {
+			log.Fatal("flid Ent does not exist")
+		}
 
+		flidEnt.Draw = false
+
+	} else {
+		g.publish(events.UnZoom{})
 		registry.Config.Set(registry.Zoom, false)
 
 		if g.gameState.PreZoomFocusedEntity != nil {
@@ -647,6 +663,13 @@ func (g *FishScene2) HandleZoom() {
 			g.gameState.FocusedEntity = g.gameState.PreZoomFocusedEntity
 		}
 		g.gameState.PreZoomFocusedEntity = nil
+
+		flidEnt, exists := entities.GetEntity(g.fid)
+		if !exists {
+			log.Fatal("flid Ent does not exist")
+		}
+
+		flidEnt.Draw = true
 	}
 }
 
@@ -664,11 +687,22 @@ func (g *FishScene2) debugInputCheck() {
 		testEvent := events.MoneyAvailable{Amount: 10.0}
 		g.gameLog.GlobalEventHub.Publish(testEvent)
 	}
+	if g.debug.DebugOption == debug.FishSpawn {
+		if inpututil.IsKeyJustPressed(ebiten.Key1) {
+			e := entities.SavedFish{FishType: string(entities.GoldFish), Size: 3}
+			loader.InitFish(e, g.environment, g.gameLog.GlobalEventHub, g.collisionMap)
+		}
+		if inpututil.IsKeyJustPressed(ebiten.Key2) {
+			e := entities.SavedFish{FishType: string(entities.AngelFish), Size: 2}
+			loader.InitFish(e, g.environment, g.gameLog.GlobalEventHub, g.collisionMap)
+		}
+		if inpututil.IsKeyJustPressed(ebiten.Key3) {
+			e := entities.SavedFish{FishType: string(entities.Kirbensis), Size: 2}
+			loader.InitFish(e, g.environment, g.gameLog.GlobalEventHub, g.collisionMap)
+		}
 
-	if inpututil.IsKeyJustPressed(ebiten.Key9) {
-		e := entities.SavedFish{FishType: string(entities.GoldFish), Size: 3}
-		loader.InitFish(e, g.environment, g.gameLog.GlobalEventHub, g.collisionMap)
 	}
+
 	if inpututil.IsKeyJustPressed(ebiten.KeyL) {
 		switch g.lightingState {
 		case NightLight:
@@ -708,21 +742,26 @@ func (g *FishScene2) subscribe(eventType tasks.Event, handler func(e tasks.Event
 	g.gameLog.GlobalEventHub.Subscribe(eventType, handler)
 }
 
+func (g *FishScene2) publish(event tasks.Event) {
+	g.gameLog.GlobalEventHub.Publish(event)
+}
+
 func (g *FishScene2) entitySubs() {
 	g.subscribe(entities.PlacementPicked{}, func(e tasks.Event) {
 		ev := e.(entities.PlacementPicked)
 		entities.LoadPlant(ev, g.propData, g.gameLog.GlobalEventHub)
 		g.timers["placementCooldown"].TurnOn()
 	})
-	g.subscribe(events.FertilizerUsed{}, func(e tasks.Event) {
-		g.propData.PlacementParams["fertilizer"] = true
+	g.subscribe(events.ItemUsed{}, func(e tasks.Event) {
+		ev := e.(events.ItemUsed)
+		if ev.Name == string(entities.Fertilizer) {
+			g.propData.PlacementParams["fertilizer"] = true
+		}
 	})
+
 }
 
 func (g *FishScene2) uiSubs() {
-
-	var propPicked string
-
 	g.gameLog.GlobalEventHub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
 		ev := e.(events.ButtonClickedEvent)
 		println(ev.ButtonText, "button event received")
@@ -751,27 +790,6 @@ func (g *FishScene2) uiSubs() {
 			g.gameLog.Day++
 			return
 		}
-		if ev.ButtonText == "Go do your Chores?: Yes" {
-			g.returnScene = sceneManagement.MowingMiniGameScene
-			return
-		}
-		if ev.ButtonText == "Go to Camp?: Yes" {
-			g.returnScene = sceneManagement.CampScene
-			return
-		}
-		if ev.ButtonText == "Castle" || ev.ButtonText == "Log" {
-			propPicked = ev.ButtonText
-			return
-		}
-		if ev.ButtonText == "Confirm for prop select" {
-			if propPicked != "" {
-				ev2 := events.CloseWindow{OverRide: true}
-				g.gameLog.GlobalEventHub.Publish(ev2)
-				g.environment.AddTankModifier(propPicked)
-				entities.LoadProp(propPicked, g.propData, g.gameLog.GlobalEventHub, entities.PlacementPicked{}, g.zBounds)
-				println("castle or whatever added")
-			}
-		}
 
 		g.gameLog.GlobalEventHub.Subscribe(input.MouseButtonPressedUISpriteActivity{}, func(e tasks.Event) {
 			ev := e.(input.MouseButtonPressedUISpriteActivity)
@@ -786,7 +804,7 @@ func (g *FishScene2) uiSubs() {
 					pt.X = pt.X - 50 + rand.Float32()*10
 					pt.Y += 50
 				}
-				entities.NewParticle(pt, g.collisionMap["tank"], g.gameLog.GlobalEventHub)
+				entities.NewParticle(pt, g.collisionMap["tank"], g.gameLog.GlobalEventHub, g.zBounds)
 
 			}
 		})
@@ -797,7 +815,7 @@ func (g *FishScene2) uiSubs() {
 		ev := events.LightEvent{Day: false}
 		g.gameLog.GlobalEventHub.Publish(ev)
 		fishCount := 0.0
-		happyFish := 0.0
+		happyFish := 0
 		for _, ent := range entities.LiveList {
 			if ent.CreatureData != nil {
 				fishCount += 1
@@ -807,11 +825,22 @@ func (g *FishScene2) uiSubs() {
 			}
 		}
 		income := 1.00 * fishCount
-		happyFishBonus := .25 * happyFish
+		happyFishBonus := .25 * float64(happyFish)
 		mev := events.MoneyAvailable{Amount: income}
-		graphics.NewFadeInTextGraphic(fmt.Sprintf("income: S%0.2f", income), ScreenWidth/2, ScreenHeight/2)
-		graphics.NewFadeInTextGraphic(fmt.Sprintf("Happy GoldFish Bonus %0.0f X S0.25: %0.2f", happyFish, happyFishBonus), ScreenWidth/2, ScreenHeight/2+100)
-		g.gameLog.GlobalEventHub.Publish(mev)
+
+		msg1 := fmt.Sprintf("Today's Income:$%0.2f", income)
+		ev1 := entities.WriteToWhiteBoard{Msg: msg1, PreferredPosition: "center", Later: true, EventToPublish: mev}
+
+		msg2 := fmt.Sprintf("Happy Fish Bonus:$%0.2f", happyFishBonus)
+		ev2 := entities.WriteToWhiteBoard{Msg: msg2, PreferredPosition: "center", Later: true, EventDriven: events.MoneyAdded{}}
+		if happyFishBonus > 0 {
+			mev2 := events.MoneyAvailable{Amount: happyFishBonus}
+			ev2.EventToPublish = mev2
+		}
+
+		g.publish(ev1)
+		g.publish(ev2)
+
 	})
 }
 
@@ -820,12 +849,14 @@ func (g *FishScene2) PropSubs() {
 	g.subscribe(events.PlacementMode{}, func(e tasks.Event) {
 		g.gameState.MouseFlags.WindowOpen = true
 		zoomedBefore = registry.Config.Zoom
-		registry.Config.Set(registry.Zoom, true)
+		g.HandleZoom()
+		g.publish(events.Zoom{})
 	})
 
 	g.subscribe(events.NewProp{}, func(e tasks.Event) {
 		if !zoomedBefore {
-			registry.Config.Set(registry.Zoom, false)
+			g.HandleZoom()
+			g.publish(events.Zoom{})
 		}
 		g.gameState.MouseFlags.WindowOpen = false
 	})
@@ -955,7 +986,7 @@ func (g *FishScene2) creatureSubs(colMap map[string]image.Rectangle) {
 			pt := ev.Point.Clone()
 			pt.X = pt.X - 50 + rand.Float32()*10
 			pt.Y += 50
-			entities.NewParticle(pt, colMap["tank"], g.gameLog.GlobalEventHub)
+			entities.NewParticle(pt, colMap["tank"], g.gameLog.GlobalEventHub, g.zBounds)
 
 		}
 	})
@@ -981,26 +1012,69 @@ func (g *FishScene2) creatureSubs(colMap map[string]image.Rectangle) {
 
 	g.gameLog.GlobalEventHub.Subscribe(events.PurchaseSuccessful{}, func(e tasks.Event) {
 		ev := e.(events.PurchaseSuccessful)
-		log.Printf("New Purchase:%s ", ev.Purchase)
-		if ev.Purchase == "ph+" || ev.Purchase == "ph-" {
-			LoadPHEffect(ev.Purchase, g.gameLog.GlobalEventHub)
-		} else if ev.Purchase == "plantpack1" {
-			g.propData.PlacementParams["quantity"] = 3
-			entities.LoadPlaceMentReticule(g.zBounds, "Plant", g.gameLog.GlobalEventHub)
-		} else if ev.Purchase == "fertilizer" {
-			imgs, err := loader.LoadUiSpritesImgs(entities.Fertilizer)
-			if err != nil {
-				log.Fatal(err)
+		switch ui.PurchaseType(ev.PurchaseType) {
+		case ui.Decoration:
+			if entities.Decoration(ev.Purchase) == "" {
+				log.Fatal("Recieved decoration purchase that has no const declaration ")
 			}
-			uis := entities.NewUiSprite(g.environment, imgs, g.gameLog.GlobalEventHub, 749, 342, string(entities.Fertilizer))
-			ent := &entities.Entity{UiData: uis, Sprite: uis.Sprite}
-			ent.UiData.ActivationRect = g.collisionMap["tank"]
-			ent.StateMachine = entities.InitStateMachine(entities.UpdateUseOnTank, entities.AddUiSpriteXYUpdater, entities.UseOnTank)
-			ent.UiData.Flags["clickForTime"] = true
-			ent.UiData.Flags["oneOff"] = true
-			ent.EventHub = g.gameLog.GlobalEventHub
-			entities.RegisterEntity(ent)
-		} else if entities.FishList(ev.Purchase) != "" {
+			g.environment.AddTankModifier(ev.Purchase)
+			entities.LoadProp(ev.Purchase, g.propData, g.gameLog.GlobalEventHub, entities.PlacementPicked{}, g.zBounds)
+
+		case ui.Item:
+			if ev.Purchase == "phBoost" || ev.Purchase == "phReduce" {
+				var bought entities.Label
+				switch ev.Purchase {
+				case "phBoost":
+					bought = entities.PhBoost
+				case "phReduce":
+					bought = entities.PhReduce
+				}
+
+				imgs, err := loader.LoadUiSpritesImgs(bought)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				g.gameLog.GlobalEventHub.Publish(events.CloseWindow{})
+				x, y := util.GetScaledCursorPosition()
+				uis := entities.NewUiSprite(g.environment, imgs, g.gameLog.GlobalEventHub, float32(x), float32(y), string(bought))
+				ent := &entities.Entity{UiData: uis, Sprite: uis.Sprite}
+				ent.Z = 13
+				ent.UiData.ActivationRect = g.collisionMap["tank"]
+				entities.AddUiSpriteXYUpdater(ent)
+				ent.StateMachine = entities.InitStateMachine(entities.UpdateUseOnTank, nil, entities.UseOnTank, nil)
+				ent.UiData.Flags["unDraw"] = true
+				ent.UiData.Flags["clickForTime"] = true
+				ent.UiData.Flags["oneOff"] = true
+				ent.EventHub = g.gameLog.GlobalEventHub
+				entities.RegisterEntity(ent)
+			} else if ev.Purchase == "fertilizer" {
+				imgs, err := loader.LoadUiSpritesImgs(entities.Fertilizer)
+				if err != nil {
+					log.Fatal(err)
+				}
+				uis := entities.NewUiSprite(g.environment, imgs, g.gameLog.GlobalEventHub, 735, 360, string(entities.Fertilizer))
+				ent := &entities.Entity{UiData: uis, Sprite: uis.Sprite}
+				ent.UiData.ActivationRect = g.collisionMap["tank"]
+				ent.StateMachine = entities.InitStateMachine(nil, entities.UpdateUseOnTank, entities.AddUiSpriteXYUpdater, entities.UseOnTank)
+				ent.UiData.Flags["clickForTime"] = true
+				ent.UiData.Flags["resort"] = true
+				ent.UiData.Flags["oneOff"] = true
+				ent.EventHub = g.gameLog.GlobalEventHub
+				entities.RegisterEntity(ent)
+			}
+
+		case ui.Plant:
+			if ev.Purchase == "plantpack1" {
+				g.propData.PlacementParams["quantity"] = 3
+				entities.LoadPlaceMentReticule(g.zBounds, "Plant", g.gameLog.GlobalEventHub)
+			}
+
+		case ui.Fish:
+			if entities.FishList(ev.Purchase) == "" {
+				log.Fatal("Recieved decoration purchase that has no const declaration ")
+			}
+
 			log.Printf("New Purchase:%s ", ev.Purchase)
 			ent := loader.InitFish(entities.SavedFish{FishType: ev.Purchase, Size: 1}, g.environment, g.gameLog.GlobalEventHub, g.collisionMap)
 			ev2 := events.CloseWindow{}
@@ -1010,11 +1084,12 @@ func (g *FishScene2) creatureSubs(colMap map[string]image.Rectangle) {
 			}
 			g.gameLog.GlobalEventHub.Publish(ev2)
 		}
+
+		log.Printf("New Purchase:%s ", ev.Purchase)
 	})
 
 	g.gameLog.GlobalEventHub.Subscribe(events.InsufficientFunds{}, func(e tasks.Event) {
-		id := graphics.NewFadeInTextGraphic("Get a job Kid!", float64(200), float64(100))
-		time2.AfterFunc(4*time2.Second, func() { graphics.DeInitGraphicId(id) })
+		graphics.NewFadeInTextGraphicCentered("Get a job Kid!", 120)
 	})
 
 	g.gameLog.GlobalEventHub.Subscribe(entities.CreatureReachedPoint{}, func(e tasks.Event) {

@@ -11,13 +11,22 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 	"image"
-	"image/color"
 	"io/fs"
 	"log"
 	"math/rand"
 	"strings"
+)
+
+type Decoration string
+
+const (
+	Castle    Decoration = "castle"
+	ZenFriend Decoration = "zenFriend"
+	ZenBridge Decoration = "zenBridge"
+	Log       Decoration = "log"
+	CoolRock  Decoration = "coolRock"
+	HotRock   Decoration = "hotRock"
 )
 
 type PropState uint8
@@ -31,7 +40,9 @@ const (
 var PM PropManager
 
 type PropManager struct {
-	placedProps []StructureProp
+	placedProps              []StructureProp
+	placementReticule        *ebiten.Image
+	invalidPlacementReticule *ebiten.Image
 }
 
 type PropAssets struct {
@@ -51,16 +62,21 @@ type StructureProp struct {
 	state    PropState
 	stateWas PropState
 	*sprite.Sprite
-	Sprite2       *sprite.Sprite
-	shadowPoint   image.Point
-	boundaries    image.Rectangle
-	StaticShadow  bool
-	baseY         float32
-	Tag           string
-	frontZLayer   int
-	cornerOffsets [4]image.Point
-	baseCorners   [4]image.Point //0-4 leftUpperCorner rightUpperCorner leftLowerCorner rightLowerCorner
-	placeMentImg  *ebiten.Image
+	Sprite2         *sprite.Sprite
+	shadowPoint     image.Point
+	boundaries      image.Rectangle
+	StaticShadow    bool
+	baseY           float32
+	Tag             string
+	cornerOffsets   [4]image.Point
+	baseCorners     [4]image.Point //0-4 leftUpperCorner rightUpperCorner leftLowerCorner rightLowerCorner
+	particleSystems []*ParticleSystem
+}
+
+func (pm *PropManager) loadPropManager() {
+	valid, invalid := LoadPlacementImg()
+	pm.placementReticule = valid
+	pm.invalidPlacementReticule = invalid
 }
 
 func CheckNormalTags(match string) bool {
@@ -84,6 +100,7 @@ func CheckMergedTags(match string) bool {
 }
 
 func LoadPropImgs(propName string) (PropAssets, error) {
+
 	var matches []string
 	var ps PropAssets
 
@@ -131,17 +148,16 @@ func (p *StructureProp) State() PropState {
 	return p.state
 }
 
-func NewStructureProp(x float32, y float32, ps PropAssets, hub *tasks.EventHub, bounds image.Rectangle, tag string) *StructureProp {
-
+func NewStructureProp(ps PropAssets, hub *tasks.EventHub, bounds image.Rectangle, tag string) *StructureProp {
+	if PM.placementReticule == nil {
+		PM.loadPropManager()
+	}
 	p := StructureProp{}
-	p.placeMentImg = LoadPlacementImg()
-	sp := &sprite.Sprite{Img: ps.layers[0], NormalMap: ps.normalMap}
-	sp.Unfocusable = true
+	sp := &sprite.Sprite{Img: ps.layers[0], NormalMap: ps.normalMap, Unfocusable: true}
 	if len(ps.layers) > 1 {
 		log.Println("loading second image for structure prop as sprite")
-		sp2 := &sprite.Sprite{Img: ps.layers[1], NormalMap: ps.layers[1]}
+		sp2 := &sprite.Sprite{Img: ps.layers[1], NormalMap: ps.layers[1], Unfocusable: true}
 		p.Sprite2 = sp2
-		p.Sprite2.Unfocusable = true
 		if ps.normalMap != nil {
 			normalMapShader := registry.ShaderMap["NormalMap"]
 			sp2.Shader = normalMapShader
@@ -163,57 +179,15 @@ func NewStructureProp(x float32, y float32, ps PropAssets, hub *tasks.EventHub, 
 
 	p.Sprite = sp
 	p.state = Moveable
-	sprite.LoadPulseOutlineShader(p.Sprite)
-	p.shadowPoint = image.Point{X: int(x), Y: int(y)}
+	sprite.LoadPulseOutlineNormalShader(p.Sprite)
 	p.boundaries = bounds
-	p.Y = float32(p.boundaries.Max.Y-p.Img.Bounds().Dy()) - 35
+
 	if p.Sprite2 != nil {
 		p.Sprite2.Y = p.Y
 	}
-	curseX, _ := util.GetScaledCursorPosition()
-	p.X = float32(curseX)
 
 	p.Tag = tag
 	return &p
-}
-
-func (p *StructureProp) Draw(screen *ebiten.Image) {
-
-	baseOffset := float32(10.0)
-	if p.state == SetInPlace {
-		//add static shadow
-	}
-
-	if p.state == Moveable {
-		for _, corner := range p.baseCorners {
-			dopts := &ebiten.DrawImageOptions{}
-			dopts.GeoM.Translate(float64(corner.X-2), float64(corner.Y-4))
-			screen.DrawImage(p.placeMentImg, dopts)
-		}
-
-	}
-
-	if p.state == SettingInPlace {
-
-		dist := float32(p.boundaries.Max.Y-p.Img.Bounds().Dy()) - p.Y
-		//fishtank base - image height = base comparable to image y
-		//base-y = distance between height and current y
-		//positive number between 50 and 30
-		dist = 50 - dist
-
-		x := p.X + dist + baseOffset
-		//increase offset from origin
-		y := float32(p.boundaries.Max.Y - 35)
-		height := float32(2)
-
-		if dist < 35 {
-			y += 1
-			height = 1.0
-		}
-		width := float32(p.Img.Bounds().Dx()) - 2*dist - 2*baseOffset
-		vector.StrokeRect(screen, x, y, width, height, 4, color.RGBA{0, 0, 0, 100}, false)
-	}
-
 }
 
 func (e *Entity) UpdateProp(zBounds [13]image.Rectangle) {
@@ -224,13 +198,85 @@ func (e *Entity) UpdateProp(zBounds [13]image.Rectangle) {
 		p.baseCorners = newCorners
 		p.Sprite.Y = float32(p.baseCorners[0].Y-p.cornerOffsets[0].Y) - 45
 		p.Sprite.X = float32(p.baseCorners[0].X - p.cornerOffsets[0].X)
-		e.Z = z
+		e.Z = min(z, 12)
+		e.Z = max(1, z)
+
+		var lastSprite *sprite.Sprite
+		if p.LinkedSprite == nil {
+			for _, corner := range p.baseCorners {
+				placeMentSprite := &sprite.Sprite{Img: PM.placementReticule, X: float32(corner.X), Y: float32(corner.Y)}
+				if lastSprite != nil {
+					lastSprite.LinkedSprite = placeMentSprite
+					lastSprite = placeMentSprite
+				} else {
+					p.LinkedSprite = placeMentSprite
+					lastSprite = p.LinkedSprite
+				}
+			}
+		}
+		ls := p.LinkedSprite
+		good := true
+		for _, corner := range p.baseCorners {
+			ls.X = float32(corner.X)
+			ls.Y = float32(corner.Y)
+			for _, otherProp := range PM.placedProps {
+				if pointInPolygon(corner, otherProp.baseCorners) {
+					good = false
+					ls.Img = PM.invalidPlacementReticule
+				} else {
+					ls.Img = PM.placementReticule
+				}
+			}
+			if !good {
+				p.ShaderParams["OutlineColor"] = [4]float32{0.7, 0.2, 0.2, 1.0}
+			} else {
+				p.ShaderParams["OutlineColor"] = [4]float32{0.2, 0.7, 0.2, 1.0}
+			}
+
+			ls = ls.LinkedSprite
+
+		}
 
 		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && p.CheckPropPointsValid() {
+
+			p.LinkedSprite = nil
+
 			spriteMidPoint := e.Sprite.GetSpriteRect().Dx() / 2
 
 			DrawSpotLight(e.Sprite.X + float32(spriteMidPoint))
 			p.state = SettingInPlace
+
+			for i, corner := range p.baseCorners {
+
+				psZ := e.Z
+				psZ = min(psZ, len(zBounds)-1)
+				psZ = max(psZ, 1)
+				if i > 1 {
+					psZ = min(psZ+2, len(zBounds)-1)
+				}
+
+				nps := NewBubbleSystem(float64(corner.X-zBounds[psZ].Min.X), float64(corner.Y-zBounds[psZ].Min.Y), zBounds[psZ])
+				nps.SpawnRate = 5000
+				nps.On = true
+				e.PropData.particleSystems = append(e.PropData.particleSystems, nps)
+				RegisterEntity(&Entity{ParticleSystem: nps, Z: psZ, EndAfter: 10.0, Sprite: nps.Sprite})
+
+			}
+			psZ := e.Z
+			psZ = min(psZ, len(zBounds)-1)
+			psZ = max(psZ-2, 1)
+			nps := NewBubbleSystem(float64(p.baseCorners[0].X-zBounds[psZ].Min.X+p.Sprite.GetSpriteRect().Dx()/2+rand.Intn(15)), float64(p.baseCorners[0].Y-zBounds[psZ].Min.Y), zBounds[psZ])
+			nps.SpawnRate = 5000
+			nps.On = true
+			e.PropData.particleSystems = append(e.PropData.particleSystems, nps)
+			RegisterEntity(&Entity{ParticleSystem: nps, Z: psZ, EndAfter: 10.0, Sprite: nps.Sprite})
+
+			nps2 := NewBubbleSystem(float64(p.baseCorners[0].X-zBounds[psZ].Min.X+p.Sprite.GetSpriteRect().Dx()/4-rand.Intn(15)), float64(p.baseCorners[0].Y-zBounds[psZ].Min.Y), zBounds[psZ])
+			nps2.SpawnRate = 5000
+			nps2.On = true
+			e.PropData.particleSystems = append(e.PropData.particleSystems, nps2)
+			RegisterEntity(&Entity{ParticleSystem: nps, Z: psZ, EndAfter: 10.0, Sprite: nps2.Sprite})
+
 		}
 	}
 
@@ -247,24 +293,23 @@ func (e *Entity) UpdateProp(zBounds [13]image.Rectangle) {
 	}
 	if p.Y == float32(p.baseCorners[0].Y-p.cornerOffsets[0].Y) {
 		if p.stateWas == SettingInPlace {
-			nps := NewPlantParticleSystem(float64(p.baseCorners[0].X), float64(p.baseCorners[0].Y), zBounds[e.Z])
-			nps2 := NewPlantParticleSystem(float64(p.baseCorners[1].X), float64(p.baseCorners[1].Y), zBounds[e.Z])
-			nps3 := NewPlantParticleSystem(float64(p.baseCorners[2].X), float64(p.baseCorners[2].Y), zBounds[e.Z])
-			nps4 := NewPlantParticleSystem(float64(p.baseCorners[3].X), float64(p.baseCorners[3].Y), zBounds[e.Z])
-			nps6 := NewPlantParticleSystem(float64(int(p.X)+p.Sprite.GetSpriteRect().Dx()/2), float64(p.Y+50), zBounds[e.Z])
-
-			RegisterEntity(&Entity{ParticleSystem: nps, Z: e.Z})
-			RegisterEntity(&Entity{ParticleSystem: nps2, Z: e.Z})
-			RegisterEntity(&Entity{ParticleSystem: nps3, Z: e.Z})
-			RegisterEntity(&Entity{ParticleSystem: nps4, Z: e.Z})
-			RegisterEntity(&Entity{ParticleSystem: nps6, Z: e.Z - 1})
-
+			for _, ps := range e.PropData.particleSystems {
+				ps.On = false
+			}
 			e.EventHub.Publish(events.NewProp{PropId: e.Id, Name: p.Tag})
 			TurnOffSpotLight()
 			maxY := max(e.PropData.baseCorners[3].Y, e.PropData.baseCorners[2].Y)
 			_, _, z := PositionPointOnZ(e.PropData.baseCorners[3].X, maxY, zBounds)
 			e.Z = z
-			p.Sprite.Unfocusable = true
+
+			psz := max(e.Z, 0)
+			psz = min(psz, 12) // Fix the min function
+
+			for _, corner := range p.baseCorners {
+				nps := NewGenericParticleSystem(float64(corner.X), float64(corner.Y), zBounds[psz], 0)
+				RegisterEntity(&Entity{ParticleSystem: nps, Z: psz, EndAfter: 10.0, Sprite: nps.Sprite})
+			}
+
 			ZSortEntities()
 			p.state = SetInPlace
 			PM.placedProps = append(PM.placedProps, *e.PropData)
@@ -303,7 +348,7 @@ func LoadProp(propName string, pd PropData, eventhub *tasks.EventHub, event task
 		}
 	}
 
-	prop := NewStructureProp(0, 0, propAssets, eventhub, pd.CollisionMap["tankRect"], propName)
+	prop := NewStructureProp(propAssets, eventhub, zbounds[0], propName)
 	if len(points) == 0 {
 		points = pd.PtMap["Castle"]
 	}
@@ -318,20 +363,24 @@ func LoadProp(propName string, pd PropData, eventhub *tasks.EventHub, event task
 	}
 
 	prop.Sprite.X = float32(x)
-	prop.Sprite.Y = float32(prop.baseCorners[0].Y) - 45
+	prop.Sprite.Y = float32(prop.baseCorners[0].Y - 45 - prop.Img.Bounds().Dy())
 	if prop.Sprite2 != nil {
 		prop.Sprite2.X = float32(x)
-		prop.Sprite2.Y = float32(prop.baseCorners[0].Y) - 45
+		prop.Sprite2.Y = prop.Sprite.Y
 	}
 
 	ent := &Entity{PropData: prop, Sprite: prop.Sprite, EventHub: eventhub}
+	ent.EventHub = eventhub
 	ent.Z = 6
 	RegisterEntity(ent)
 	if prop.Sprite2 != nil {
 		ent2 := &Entity{Sprite: prop.Sprite2, EventHub: eventhub}
 		ent2.Z = 0
+		ent.EventHub = eventhub
 		RegisterEntity(ent2)
 	}
+	eventhub.Publish(events.PlacementMode{})
+
 	return ent.Id
 }
 
@@ -365,13 +414,11 @@ func LoadPlant(event tasks.Event, data PropData, hub *tasks.EventHub) uint32 {
 	if ok {
 		if fert {
 			if rareChance < 7 {
-				println("rolled for rare with fertilizer")
 				plantName += "Rare"
 			}
 		}
 	} else {
 		if rareChance < 2 {
-			println("rolled for rare")
 			plantName += "Rare"
 		}
 	}
@@ -385,17 +432,32 @@ func LoadPlant(event tasks.Event, data PropData, hub *tasks.EventHub) uint32 {
 	sp.Unfocusable = true
 	sp.ShaderParams = make(map[string]any)
 	sp.ShaderParams["Cursor"] = []float64{0, 0, 100}
+	if plantName[len(plantName)-4:] == "Rare" {
+		sp.Shader = registry.ShaderMap["NormalMapOutline"]
+		switch plantName[:len(plantName)-4] {
+		case "fern":
+			sp.ShaderParams["OutlineColor"] = [4]float32{0.7, 0.1, 0.5, 0.07}
+		case "leafyPlant":
+			sp.ShaderParams["OutlineColor"] = [4]float32{0.7, 0.1, 0.2, 0.07}
+		case "grassyPlant":
+			sp.ShaderParams["OutlineColor"] = [4]float32{0.1, 0.6, 0.7, 0.07}
+		}
+
+	}
+
 	ent := &Entity{Sprite: sp}
 	ent.Z = ev.Z
 	ent.EventHub = hub
 	ent.UpdateFunc = plantUpdateFunc
 	println("Z picked for plant=", ent.Z)
-	RegisterEntity(ent)
-	pps := NewPlantParticleSystem(float64(ev.X), float64(ev.Y), data.ZBounds[ev.Z])
-	RegisterEntity(&Entity{ParticleSystem: pps, EndAfter: 10.0, Z: ev.Z})
 
-	pps2 := NewPlantParticleSystem(float64(ev.X+4), float64(ev.Y-5), data.ZBounds[ev.Z])
-	RegisterEntity(&Entity{ParticleSystem: pps2, EndAfter: 10.0, Z: ev.Z})
+	RegisterEntity(ent)
+	pps := NewGenericParticleSystem(float64(ev.X), float64(ev.Y), data.ZBounds[ev.Z], 0)
+	RegisterEntity(&Entity{ParticleSystem: pps, EndAfter: 10.0, Z: ev.Z, Sprite: pps.Sprite})
+
+	pps2 := NewGenericParticleSystem(float64(ev.X), float64(ev.Y), data.ZBounds[ev.Z], 0)
+	RegisterEntity(&Entity{ParticleSystem: pps2, EndAfter: 10.0, Z: ev.Z, Sprite: pps2.Sprite})
+
 	return ent.Id
 }
 
@@ -439,16 +501,20 @@ func LoadPlantAnimation(plantName string) *sprite.Animation {
 	return pAni
 }
 
-func LoadPlacementImg() *ebiten.Image {
+func LoadPlacementImg() (*ebiten.Image, *ebiten.Image) {
 	img, err := util.LoadImageAssetAsEbitenImage("uiSprites/placementReticule")
 	if err != nil {
 		log.Fatal("placement reticule path is bad", err)
 	}
-	return img
+	img2, err2 := util.LoadImageAssetAsEbitenImage("uiSprites/placementReticuleInvalid")
+	if err2 != nil {
+		log.Fatal("placement reticule path is bad", err)
+	}
+	return img, img2
 }
 
 func LoadPlaceMentReticule(zBounds [13]image.Rectangle, tag string, hub *tasks.EventHub) {
-	img := LoadPlacementImg()
+	img, _ := LoadPlacementImg()
 	ev := events.PlacementMode{}
 	hub.Publish(ev)
 	x, _, currentZ := positionPointBasedOnCursorOnZslice(zBounds)

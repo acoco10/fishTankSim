@@ -14,7 +14,7 @@ type TaskManager struct {
 	EventHub           *EventHub
 	completedTaskQueue []Event
 	Tasks              []*Task
-	currentTask        int
+	CurrentTask        int
 }
 
 func (tm *TaskManager) Subscribe() {
@@ -27,11 +27,11 @@ func (tm *TaskManager) Subscribe() {
 	})
 
 	tm.EventHub.Subscribe(TaskCompleted{}, func(e Event) {
-		tm.currentTask++
+		tm.CurrentTask++
 	})
 
 	tm.EventHub.Subscribe(events.NewDay{}, func(e Event) {
-		tm.currentTask = 0
+		tm.CurrentTask = 0
 	})
 
 }
@@ -94,7 +94,7 @@ func (t *Task) Publish(hub *EventHub) {
 }
 
 func (t *TaskManager) Activate() {
-	task := t.Tasks[t.currentTask]
+	task := t.Tasks[t.CurrentTask]
 	println("publishing task:", task.Text)
 	task.activated = true
 	id := task.Subscribe(t.EventHub)

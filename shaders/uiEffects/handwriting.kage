@@ -2,22 +2,74 @@
 package main
 
 var Counter int
+var MaxCounter int
 var Speed float
+var MaxOpacity float
+
 
 func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
-      color := imageSrc0UnsafeAt(texCoord)
-      if color.a > 0.0{
-            if dstCoord.x <= float(Counter)*Speed{
-                return color
-      }
-       if int(dstCoord.x) <= Counter+50{
-              dis := float(Counter) + 50.0 - dstCoord.x
-               fade := smoothstep(0.0, 50.0, dis)  // Smooth S-curve fade
-               return color * fade
+    color := imageSrc0UnsafeAt(texCoord)
+    originx := imageSrc0Origin().x
 
-         }
-       return color * 0.0
+    if color.a > 0.0 {
+        if texCoord.x <= originx + float(Counter)*Speed {
+            // Create rough edges
 
-      }
+            // Find if we're near an edge
+            isEdge := false
+
+            // Check surrounding pixels
+            for dx := -3.0; dx <= 3.0; dx++ {
+                for dy := -3.0; dy <= 3.0; dy += 1.0 {
+                    offsetX := dx / imageSrc0Size().x
+                    offsetY := dy / imageSrc0Size().y
+                    sampleAlpha := imageSrc0UnsafeAt(texCoord + vec2(offsetX, offsetY)).a
+
+                    if sampleAlpha < 0.1 {
+                        isEdge = true
+                    }
+                }
+            }
+
+            if isEdge {
+                // Apply roughness to edges
+                roughness := hash2D(vec2(dstCoord.x * 0.3, dstCoord.y * 0.7))
+                if roughness < 0.3 {
+                    // Randomly make some edge pixels more transparent
+                    return color * (0.6 + roughness)
+                }
+            }
+
+            roughness := hash2D(vec2(dstCoord.x * 0.3, dstCoord.y * 0.7))
+                if roughness < 0.2 {
+                    // Randomly make some edge pixels more transparent
+                     color  *= (0.7 + roughness) * MaxOpacity
+                }
+
+           imgWidth := imageSrc0Size().x
+           //imgHeight := imageSrc0Size().y
+
+            midX := imgWidth/2.0
+            randx := hash2D(vec2(dstCoord.x * 0.1, dstCoord.y * 0.4))
+
+
+            if texCoord.x <= originx +midX + randx *10{
+                return color * 0.8 *MaxOpacity
+            }
+
+            return color * MaxOpacity
+
+
+        } else if texCoord.x <= originx + float(Counter)*Speed*1.5 {
+            dis := float(Counter) + 50.0 - dstCoord.x
+            fade := smoothstep(0.0, 50.0, dis)
+            return color * fade
+        }
+    }
+
+    return color * 0.0
 }
 
+func hash2D(p vec2) float {
+    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453)
+}

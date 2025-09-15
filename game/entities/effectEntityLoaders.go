@@ -15,7 +15,7 @@ func LoadEffects(zBounds [13]image.Rectangle) {
 		log.Fatal("cant load spotlight effect", err)
 	}
 
-	spotLightSprite := &sprite.Sprite{Img: spotLight, Y: float32(zBounds[0].Min.Y - 5)}
+	spotLightSprite := &sprite.Sprite{Img: spotLight, Y: float32(zBounds[0].Min.Y - 12)}
 
 	ent := &Entity{Sprite: spotLightSprite}
 	ent.Z = 10

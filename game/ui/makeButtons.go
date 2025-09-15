@@ -292,7 +292,13 @@ func LoadOutlineTextButtonNotDisableOnPress(buttonImg *widget.ButtonImage, butto
 
 func LoadOutlineTextButtonSubmitBg(buttonText string, hub *tasks.EventHub, eventText string) *widget.Container {
 	img := loadSubmitButtonImage()
-	but := LoadOutlineTextButton(img, buttonText, hub, 22, eventText)
+	but := LoadOutlineTextButton(img, buttonText, hub, eventText)
+	return but
+}
+
+func LoadOutlineTextColoreBg(clr color.RGBA, buttonText string, hub *tasks.EventHub, eventText string) *widget.Container {
+	img := LoadColoredImageButton(clr)
+	but := LoadOutlineTextButton(img, buttonText, hub, eventText)
 	return but
 }
 
@@ -334,35 +340,55 @@ func LoadDefualtTextButton(buttonImg *widget.ButtonImage, buttonText string, hub
 			Bottom: 1,
 		}),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-			if button.GetWidget().Disabled == false {
-				button.GetWidget().Disabled = true
-				if eventText == "" {
-					println("button event generated for", buttonText)
-					ev := events.ButtonClickedEvent{
-						ButtonText: buttonText,
-					}
-					hub.Publish(ev)
-				} else {
-					println("button event generated for", eventText)
-					ev := events.ButtonClickedEvent{
-						ButtonText: eventText,
-					}
-					hub.Publish(ev)
+			if eventText == "" {
+				println("button event generated for", buttonText)
+				ev := events.ButtonClickedEvent{
+					ButtonText: buttonText,
 				}
+				hub.Publish(ev)
+			} else {
+				println("button event generated for", eventText)
+				ev := events.ButtonClickedEvent{
+					ButtonText: eventText,
+				}
+				hub.Publish(ev)
 			}
+
 		}))
 
 	return button
 }
 
-func LoadOutlineTextButton(buttonImg *widget.ButtonImage, buttonText string, hub *tasks.EventHub, fontSize float64, eventText string) *widget.Container {
+func LoadOutlineTextButton(buttonImg *widget.ButtonImage, buttonText string, hub *tasks.EventHub, eventText string) *widget.Container {
 
-	face, err := util.LoadFont(fontSize, "reglisseOutline") //white center text
+	face := registry.FontMap["RockSalt_16"]
 
-	face2, err := util.LoadFont(fontSize, "reglisseOutlined") //black outline
+	baseInsets := &widget.Insets{
+		Left:   18,
+		Right:  18,
+		Top:    6,
+		Bottom: 6,
+	}
 
-	if err != nil {
-		log.Fatal("error loading new font")
+	offSetInset := &widget.Insets{
+		Left:   20,
+		Right:  16,
+		Top:    8,
+		Bottom: 4,
+	}
+
+	dropInset := &widget.Insets{
+		Left:   20,
+		Right:  16,
+		Top:    8,
+		Bottom: 4,
+	}
+
+	dropInsetOffset := &widget.Insets{
+		Left:   22,
+		Right:  14,
+		Top:    10,
+		Bottom: 2,
 	}
 
 	buttonStackedLayout := widget.NewContainer(
@@ -373,14 +399,16 @@ func LoadOutlineTextButton(buttonImg *widget.ButtonImage, buttonText string, hub
 	var button *widget.Button
 	txt := buttonText
 
-	headerLbl := widget.NewText(
-		widget.TextOpts.Text(txt, &face, colornames.Aliceblue),
-		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart))
-
-	headerLblOutline := widget.NewText(
-		widget.TextOpts.Text(txt,
-			&face2, colornames.Black),
+	text1 := widget.NewText(
+		widget.TextOpts.Text(txt, &face, colornames.White),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
+		widget.TextOpts.Padding(baseInsets))
+
+	text2 := widget.NewText(
+		widget.TextOpts.Text(txt,
+			&face, colornames.Black),
+		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
+		widget.TextOpts.Padding(dropInset),
 	)
 
 	button = widget.NewButton(
@@ -388,41 +416,42 @@ func LoadOutlineTextButton(buttonImg *widget.ButtonImage, buttonText string, hub
 		widget.ButtonOpts.Image(buttonImg),
 
 		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
+			button.Text().SetPadding(&widget.Insets{Top: 2, Left: 2})
 
+			widget.ButtonOpts.TextPadding(offSetInset)
+
+			text1.SetPadding(offSetInset)
+			text2.SetPadding(dropInsetOffset)
 		}),
 		//Move the text back to start on press released
 		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
-
+			button.Text().SetPadding(&widget.Insets{Top: 0, Left: 0})
+			widget.ButtonOpts.TextPadding(baseInsets)
+			text1.SetPadding(baseInsets)
+			text2.SetPadding(dropInset)
 		}),
 		widget.ButtonOpts.Text(txt, &face, &widget.ButtonTextColor{Idle: color.Black}),
-		widget.ButtonOpts.TextPadding(&widget.Insets{
-			Left:   18,
-			Right:  18,
-			Top:    1,
-			Bottom: 1,
-		}),
+		widget.ButtonOpts.TextPadding(baseInsets),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-			if button.GetWidget().Disabled == false {
-				button.GetWidget().Disabled = true
-				if eventText == "" {
-					println("button event generated for", buttonText)
-					ev := events.ButtonClickedEvent{
-						ButtonText: buttonText,
-					}
-					hub.Publish(ev)
-				} else {
-					println("button event generated for", eventText)
-					ev := events.ButtonClickedEvent{
-						ButtonText: eventText,
-					}
-					hub.Publish(ev)
+
+			if eventText == "" {
+				println("button event generated for", buttonText)
+				ev := events.ButtonClickedEvent{
+					ButtonText: buttonText,
 				}
+				hub.Publish(ev)
+			} else {
+				println("button event generated for", eventText)
+				ev := events.ButtonClickedEvent{
+					ButtonText: eventText,
+				}
+				hub.Publish(ev)
 			}
 		}),
 	)
 
 	buttonStackedLayout.AddChild(button)
-	buttonStackedLayout.AddChild(headerLbl, headerLblOutline)
+	buttonStackedLayout.AddChild(text2, text1)
 
 	return buttonStackedLayout
 }
@@ -431,10 +460,7 @@ func LoadSubmitButton(buttonText string, hub *tasks.EventHub, eventText string) 
 	//load a generic button labeled with button text string that will send a button clicked event to event hub
 	buttonImage := loadSubmitButtonImage()
 
-	face, err := util.LoadFont(24, "miniPixel") //white center text
-	if err != nil {
-		log.Fatal(err)
-	}
+	face := registry.FontMap["RockSalt_16"]
 	var button *widget.Button
 
 	button = widget.NewButton(
@@ -460,10 +486,10 @@ func LoadSubmitButton(buttonText string, hub *tasks.EventHub, eventText string) 
 		widget.ButtonOpts.TextProcessBBCode(true),
 		// specify that the button's text needs some padding for correct display
 		widget.ButtonOpts.TextPadding(&widget.Insets{
-			Left:   30,
-			Right:  30,
-			Top:    0,
-			Bottom: 0,
+			Left:   10,
+			Right:  10,
+			Top:    10,
+			Bottom: 10,
 		}),
 		//Move the text down and right on press
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
@@ -792,4 +818,16 @@ func LoadSpriteSelectButton(buttonText string, hub *tasks.EventHub, fontSize flo
 		}),
 	)
 	return button
+}
+
+func LoadColoredImageButton(clr color.RGBA) *widget.ButtonImage {
+	nineSlice := eimage.NewNineSliceColor(clr)
+	btnimg := &widget.ButtonImage{
+		Idle:     nineSlice,
+		Hover:    nineSlice,
+		Pressed:  nineSlice,
+		Disabled: nineSlice,
+	}
+
+	return btnimg
 }

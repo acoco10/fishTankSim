@@ -15,6 +15,9 @@ const (
 	Door            Label = "door"
 	Phreader        Label = "phreader"
 	Skimmer         Label = "skimmer"
+	PhBoost         Label = "phBoost"
+	PhReduce        Label = "phReduce"
 	Fertilizer      Label = "fertilizer"
 	GrandpasJournal Label = "grandpasJournal"
+	LightSwitch     Label = "lightSwitch"
 )

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/acoco10/fishTankWebGame/assets"
 	"github.com/acoco10/fishTankWebGame/game/drawables"
-	"github.com/acoco10/fishTankWebGame/game/loader"
+	"github.com/acoco10/fishTankWebGame/game/util"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -181,7 +181,7 @@ func main() {
 
 	mainImgName := "uiSprites/" + inputText + "Main"
 
-	_, err = loader.LoadImageAssetAsEbitenImage(mainImgName)
+	_, err = util.LoadImageAssetAsEbitenImage(mainImgName)
 	if err != nil {
 		log.Printf("no main image found for new ui sprite%q", err)
 	} else {

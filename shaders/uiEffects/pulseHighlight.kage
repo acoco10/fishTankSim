@@ -1,0 +1,22 @@
+//kage:unit pixels
+package main
+
+//var HighlightColor vec4
+var Counter int
+
+func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
+    color := imageSrc0UnsafeAt(texCoord)
+    if color.a <= 0 {
+        return color
+    }
+    //originx := imageSrc0Origin().x //for some reason you need to add the source origin x to the x coord you want to use
+    originy := imageSrc0Origin().y
+    imgHeight := imageSrc0Size().y
+    baseOfImgY := originy + imgHeight
+
+    if texCoord.y > baseOfImgY - float(Counter/10){
+        color.rgb += vec3(0.2, 0.2, 0.0)
+      }
+
+    return color
+}

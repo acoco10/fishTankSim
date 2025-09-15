@@ -8,29 +8,20 @@ func (f FishLevelUp) Type() string {
 	return "FishLevelUp"
 }
 
-type UnFocus struct {
+type UnFocusEvent struct {
 	EntID uint32
 }
 
-func (u UnFocus) Type() string {
-	return "UnFocus"
+func (u UnFocusEvent) Type() string {
+	return "UnFocusEvent"
 }
 
-type Focus struct {
+type FocusEvent struct {
 	EntID uint32
 }
 
-func (f Focus) Type() string {
-	return "Focus"
-}
-
-type WriteToWhiteBoard struct {
-	Msg               string
-	PreferredPosition string
-}
-
-func (w WriteToWhiteBoard) Type() string {
-	return "WriteToWhiteBoard"
+func (f FocusEvent) Type() string {
+	return "FocusEvent"
 }
 
 type NewProp struct {
@@ -42,11 +33,12 @@ func (w NewProp) Type() string {
 	return "NewProp"
 }
 
-type FertilizerUsed struct {
+type ItemUsed struct {
+	Name string
 }
 
-func (f FertilizerUsed) Type() string {
-	return "FertilizerUsed"
+func (f ItemUsed) Type() string {
+	return "ItemUsed"
 }
 
 type PlacementMode struct {

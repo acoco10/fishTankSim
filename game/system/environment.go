@@ -2,9 +2,17 @@ package system
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/events"
+	"github.com/acoco10/fishTankWebGame/game/graphics"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
-	"github.com/acoco10/fishTankWebGame/game/util"
+	"log"
 	"math/rand"
+)
+
+type modifierType = int8
+
+const (
+	Temporary modifierType = iota
+	Permanent
 )
 
 type TankModifier struct {
@@ -13,27 +21,28 @@ type TankModifier struct {
 	Amount        float64
 	Duration      int
 	DaysActive    int
+	ModType       modifierType
+	FallOff       float64
 }
 type Environment struct {
-	Temperature        int
-	NaturalPHLevel     float64
-	ModifiedPHLevel    float64
-	NatureBoosters     int
-	modifiers          []TankModifier
-	temporaryModifiers []TankModifier
-	usedTempModifier   []TankModifier
+	Temperature         int
+	ModifiedTemperature int
+	NaturalPHLevel      float64
+	ModifiedPHLevel     float64
+	NatureBoosters      int
+	modifiers           []TankModifier
+	usedTempModifier    []TankModifier
 }
 
 func InitEnvironment(e *Environment) {
 	e.Temperature = rand.Intn(10) + 65
-	e.NaturalPHLevel = rand.Float64()*3 + 6
+	e.NaturalPHLevel = rand.Float64()*5 + 3
 	e.ModifiedPHLevel = e.NaturalPHLevel
 }
 
 func (env *Environment) Subscribe(hub *tasks.EventHub) {
 	hub.Subscribe(events.NewDay{}, func(e tasks.Event) {
 		env.Temperature = rand.Intn(10) + 67
-
 		for i, mod := range env.usedTempModifier {
 			switch mod.EffectedParam {
 			case "PH":
@@ -46,51 +55,47 @@ func (env *Environment) Subscribe(hub *tasks.EventHub) {
 			}
 		}
 
-		for _, mod := range env.modifiers {
+		for i, mod := range env.modifiers {
 			switch mod.EffectedParam {
 			case "PH":
-				if env.ModifiedPHLevel != env.ModifiedPHLevel+mod.Amount {
-					mod.DaysActive++
-					change := util.Lerp64(env.ModifiedPHLevel, env.ModifiedPHLevel+mod.Amount, float64(mod.DaysActive)*0.25)
-					env.ModifiedPHLevel = change
-				}
-			}
-		}
-
-		for i, mod := range env.temporaryModifiers {
-			switch mod.EffectedParam {
-			case "PH":
+				graphics.NewFadeInTextGraphicCentered("PH temporarily increased", 180)
 				mod.DaysActive++
 				env.ModifiedPHLevel += mod.Amount
+			case "Temperature":
+				graphics.NewFadeInTextGraphicCentered("temperature temporarily increased", 180)
+				mod.DaysActive++
+				env.ModifiedTemperature += int(mod.Amount)
+			}
+			if mod.ModType == Temporary {
+				mod.Amount = max(mod.Amount-mod.FallOff, 0)
 				env.usedTempModifier = append(env.usedTempModifier, mod)
 				if mod.DaysActive >= mod.Duration {
-					if len(env.temporaryModifiers) > 1 {
-						env.temporaryModifiers = append(env.temporaryModifiers[0:i], env.temporaryModifiers[i+1:]...)
+					if len(env.modifiers) > 1 {
+						env.modifiers = append(env.modifiers[0:i], env.modifiers[i+1:]...)
 					} else {
-						env.temporaryModifiers = []TankModifier{}
+						env.modifiers = []TankModifier{}
 					}
 				}
 			}
 		}
-
 	})
 
-	hub.Subscribe(events.UISpriteAction{}, func(e tasks.Event) {
-		ev := e.(events.UISpriteAction)
-		if ev.UiSprite == "PHModifier" {
-			if ev.UiSpriteAction == "ph+" {
-				env.AppendTempModifier(TankModifier{Name: ev.UiSpriteAction, EffectedParam: "PH", Amount: .2, Duration: 1})
-			}
-			if ev.UiSpriteAction == "ph-" {
-				env.AppendTempModifier(TankModifier{Name: ev.UiSpriteAction, EffectedParam: "PH", Amount: -.2, Duration: 1})
-			}
+	hub.Subscribe(events.ItemUsed{}, func(e tasks.Event) {
+		ev := e.(events.ItemUsed)
+		if ev.Name == "phBoost" {
+			log.Printf("Modifier added to tank environment")
+			env.AppendModifier(TankModifier{Name: ev.Name, EffectedParam: "PH", Amount: .25, Duration: 1})
+		}
+		if ev.Name == "phReduce" {
+			log.Printf("Modifier added to tank environment")
+			env.AppendModifier(TankModifier{Name: ev.Name, EffectedParam: "PH", Amount: -.25, Duration: 1})
 		}
 	})
 
 }
 
-func (env *Environment) AppendTempModifier(modifier TankModifier) {
-	env.temporaryModifiers = append(env.temporaryModifiers, modifier)
+func (env *Environment) AppendModifier(modifier TankModifier) {
+	env.modifiers = append(env.modifiers, modifier)
 }
 
 func (env *Environment) AddTankModifier(name string) {
@@ -102,12 +107,19 @@ func (env *Environment) AddTankModifier(name string) {
 
 func MakeModifierFromPropName(name string) (TankModifier, bool) {
 	switch name {
-	case "Castle":
-		mod := TankModifier{Name: "Castle", EffectedParam: "PH", Amount: -2}
+	case "castle":
+		mod := TankModifier{Name: "castle", EffectedParam: "PH", Amount: -2}
 		return mod, true
-	case "Log":
-		mod := TankModifier{Name: "Log", EffectedParam: "PH", Amount: 2}
+	case "log":
+		mod := TankModifier{Name: "log", EffectedParam: "PH", Amount: 2}
+		return mod, true
+	case "hotRock":
+		mod := TankModifier{Name: "hotRock", EffectedParam: "Temperature", Amount: 5, Duration: 3}
+		return mod, true
+	case "coolRock":
+		mod := TankModifier{Name: "coolRock", EffectedParam: "Temperature", Amount: -5, Duration: 3}
 		return mod, true
 	}
+
 	return TankModifier{}, false
 }

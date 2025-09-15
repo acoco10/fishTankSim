@@ -1,5 +1,7 @@
 package entities
 
+import "github.com/acoco10/fishTankWebGame/game/tasks"
+
 type CreatureReachedPoint struct {
 	PointID    uint32
 	CreatureID uint32
@@ -75,4 +77,17 @@ type PlacementPicked struct {
 
 func (p PlacementPicked) Type() string {
 	return "PlacementPicked"
+}
+
+type WriteToWhiteBoard struct {
+	Msg               string
+	PreferredPosition string
+	NoErase           bool
+	Later             bool
+	EventDriven       tasks.Event
+	EventToPublish    tasks.Event
+}
+
+func (w WriteToWhiteBoard) Type() string {
+	return "WriteToWhiteBoard"
 }

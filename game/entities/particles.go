@@ -24,6 +24,7 @@ type FoodParticle struct {
 	remove            bool
 	eventHub          *tasks.EventHub
 	stop              bool
+	baseVy            float64
 	targX             float32
 	targY             float32
 	*sprite.Sprite
@@ -34,7 +35,7 @@ func (p *FoodParticle) ShouldRemove() bool {
 }
 
 func (p *FoodParticle) float() {
-	vy := 10.0
+	vy := p.baseVy
 	dx := float32(-5.0)
 	if p.Point.Tag == "left" {
 		dx = float32(5)
@@ -76,25 +77,15 @@ func (p *FoodParticle) Update() {
 	if int(p.Point.Y) < p.floorLevel {
 		p.float()
 	}
+
+	p.Sprite.X = p.Point.X
+	p.Sprite.Y = p.Point.Y
 }
 
-func (p *FoodParticle) Draw(screen *ebiten.Image) {
-	drawOpts := &ebiten.DrawImageOptions{}
-	drawOpts.GeoM.Translate(float64(p.Point.X), float64(p.Point.Y))
-
-	if p.Point.Z >= 8 {
-		screen.DrawImage(p.image.SubImage(image.Rect(4, 0, 8, 4)).(*ebiten.Image), drawOpts)
-	} else if p.Point.Z >= 6 {
-		screen.DrawImage(p.image.SubImage(image.Rect(0, 0, 4, 3)).(*ebiten.Image), drawOpts)
-	} else {
-		screen.DrawImage(p.image.SubImage(image.Rect(8, 0, 12, 3)).(*ebiten.Image), drawOpts)
-	}
-}
-
-func NewParticle(point *util.Point, rect image.Rectangle, hub *tasks.EventHub) *Entity {
+func NewParticle(point *util.Point, rect image.Rectangle, hub *tasks.EventHub, zbounds [13]image.Rectangle) *Entity {
 	println("calling new particle function", n)
 	n++
-	img, _ := util.LoadImageAssetAsEbitenImage("textures/foodParticle")
+	img, _ := util.LoadImageAssetAsEbitenImage("textures/foodParticles")
 
 	p := &FoodParticle{
 		Point:             point,
@@ -105,16 +96,24 @@ func NewParticle(point *util.Point, rect image.Rectangle, hub *tasks.EventHub) *
 		underWaterCounter: 0,
 		eventHub:          hub,
 		remove:            false,
-		Sprite:            &sprite.Sprite{},
+		Sprite:            &sprite.Sprite{Img: img},
 		image:             img,
 	}
 
-	//empty image so we can z sort, we should give entities position data for this
-	z := rand.Intn(4)
-	sp := &sprite.Sprite{Img: ebiten.NewImage(10, 10)}
-	foodEntity := &Entity{ParticleData: p, Sprite: sp}
-	foodEntity.Z = 6 + z
-	foodEntity.ParticleData.floorLevel -= 12 - z
+	z := rand.Intn(7)
+	foodEntity := &Entity{ParticleData: p, Sprite: p.Sprite}
+	foodEntity.Z = 5 + z
+	if foodEntity.Z >= 8 {
+		p.baseVy = 10
+		p.Sprite.Img = img.SubImage(image.Rect(4, 0, 8, 4)).(*ebiten.Image)
+	} else if foodEntity.Z >= 6 {
+		p.baseVy = 9.8
+		p.Sprite.Img = img.SubImage(image.Rect(0, 0, 4, 3)).(*ebiten.Image)
+	} else {
+		p.baseVy = 9.6
+		p.Sprite.Img = img.SubImage(image.Rect(8, 0, 12, 3)).(*ebiten.Image)
+	}
+	foodEntity.ParticleData.floorLevel = zbounds[z].Max.Y
 	foodEntity.ParticleData.Point.Z = foodEntity.Z
 	foodEntity.EventHub = hub
 	RegisterEntity(foodEntity)

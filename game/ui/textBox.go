@@ -216,8 +216,8 @@ func (t *TextBoxUi) subs(tp TextBoxType) {
 				}
 			}
 		})
-		t.eventhub.Subscribe(events.UnFocus{}, func(e tasks.Event) {
-			ev := e.(events.UnFocus)
+		t.eventhub.Subscribe(events.UnFocusEvent{}, func(e tasks.Event) {
+			ev := e.(events.UnFocusEvent)
 			ent, exists := entities.GetEntity(ev.EntID)
 			if exists && ent.CreatureData != nil {
 				t.text.GetWidget().Visibility = widget.Visibility_Hide

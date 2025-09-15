@@ -4,13 +4,13 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"image"
 )
 
 func MeasureText(outputText string, fontsize float64, font string) (float64, float64) {
 	face := registry.FontMap[font]
 	if fontsize != 16 {
 		face, _ = LoadFont(fontsize, font)
-
 	}
 
 	return text.Measure(outputText, face, 2)
@@ -46,4 +46,22 @@ func GetScaledCursorPosition() (int, int) {
 	}
 	return int(float64(x) / registry.Config.ResolutionScalingF), int(float64(y-registry.Config.YOffset) / registry.Config.ResolutionScalingF)
 
+}
+
+func ChopUpIcons(inputImage *ebiten.Image, labels []string, size int) (map[string]*ebiten.Image, map[string]*ebiten.Image) {
+	imageMap := make(map[string]*ebiten.Image)
+	indMap := make(map[string]*ebiten.Image)
+
+	for i, icon := range labels {
+		//horizontal slice of square images
+		rect := image.Rect(i*size, 0, (i+1)*size, size)
+
+		if i < 3 {
+			indMap[icon] = ebiten.NewImageFromImage(inputImage.SubImage(rect))
+		} else {
+			imageMap[icon] = ebiten.NewImageFromImage(inputImage.SubImage(rect))
+		}
+	}
+
+	return imageMap, indMap
 }

@@ -25,27 +25,44 @@ var LiveList []*Entity
 
 var SpriteList [20][]*Entity
 
-var ParticleList []*ParticleSystem
+var ParticleList []*Entity
+
+var GraphicList []*Entity
+
+var SpriteWithBufferDst []*Entity
 
 func RegisterEntity(ent *Entity) uint32 {
 	ent.Id = currentEntID
 	EntityCatalogue[currentEntID] = ent
 	ent.Draw = true
-	currentEntID++
-	LiveList = append(LiveList, ent)
-	ent.Parameters = make(map[string]any)
 
-	if ent.Sprite != nil {
+	currentEntID++
+	if ent.Parameters == nil {
+		ent.Parameters = make(map[string]any)
+	}
+	hasBuffer := ent.Sprite != nil && ent.Sprite.BufferDst != nil
+
+	if !hasBuffer {
 		if ent.Z > 20 {
 			log.Fatal(ent)
 		}
 		SpriteList[ent.Z] = append(SpriteList[ent.Z], ent)
 	}
 
-	if ent.ParticleSystem != nil {
-		ParticleList = append(ParticleList, ent.ParticleSystem)
+	if hasBuffer {
+		SpriteWithBufferDst = append(SpriteWithBufferDst, ent)
+		return ent.Id
 	}
 
+	if ent.ParticleSystem != nil {
+		ParticleList = append(ParticleList, ent)
+	}
+
+	if ent.Graphic != nil {
+		GraphicList = append(GraphicList, ent)
+		return ent.Id
+	}
+	LiveList = append(LiveList, ent)
 	ZSortEntities()
 	return ent.Id
 }
@@ -59,13 +76,44 @@ func GetEntity(id uint32) (*Entity, bool) {
 }
 
 func RemoveEntity(id uint32) {
+	ent, exist := GetEntity(id)
+	if !exist {
+		return
+	}
 	delete(EntityCatalogue, id)
+	for i, spEnt := range SpriteList[ent.Z] {
+		if spEnt.Id == id {
+			SpriteList[ent.Z] = append(SpriteList[ent.Z][:i], SpriteList[ent.Z][i+1:]...)
+		}
+	}
 	for i, ent := range LiveList {
 		if id == ent.Id {
 			LiveList = append(LiveList[:i], LiveList[i+1:]...)
-			return
+			continue
 		}
 	}
+
+	for i, ent := range GraphicList {
+		if id == ent.Id {
+			GraphicList = append(GraphicList[:i], GraphicList[i+1:]...)
+			continue
+		}
+	}
+
+	for i, ent := range ParticleList {
+		if id == ent.Id {
+			ParticleList = append(ParticleList[:i], ParticleList[i+1:]...)
+			continue
+		}
+	}
+
+	for i, ent := range SpriteWithBufferDst {
+		if id == ent.Id {
+			SpriteWithBufferDst = append(SpriteWithBufferDst[:i], SpriteWithBufferDst[i+1:]...)
+			continue
+		}
+	}
+
 }
 
 type Entity struct {
@@ -95,6 +143,8 @@ type Entity struct {
 	NoZoom                      bool
 	LifeTime                    float64
 	EndAfter                    float64
+	Graphic                     *graphics.TextWithShader
+	effectHandler               DeInitFunc
 }
 
 type StateMachine struct {
@@ -195,10 +245,8 @@ func UpdateEntities(gs *GameState) {
 					ent.Z = 0
 					ZSortEntities()
 				}
-				continue
 			}
 			ent.UpdateUiSprite(gs)
-
 		}
 
 		if ent.CreatureData != nil {
@@ -210,12 +258,22 @@ func UpdateEntities(gs *GameState) {
 		if ent.ParticleData != nil {
 			ent.ParticleData.Update()
 		}
+
 		if ent.GraphicManager != nil {
 			ent.GraphicManager.Update()
 		}
-		if ent.ParticleSystem != nil {
-			ent.ParticleSystem.Update()
-		}
+	}
+
+	for _, ps := range ParticleList {
+		ps.ParticleSystem.Update()
+	}
+
+	for _, graphic := range GraphicList {
+		graphic.Graphic.Update()
+	}
+
+	for _, sp := range SpriteWithBufferDst {
+		sp.Sprite.Update()
 	}
 
 }
@@ -248,11 +306,36 @@ func (ent *Entity) CheckAndSelfRemove() {
 	}
 }
 
+func (ent *Entity) buffCheck() bool {
+	return ent.Draw && ent.Sprite != nil && ent.Sprite.IsBuffer
+
+}
+
 func DrawEntities(screen *ebiten.Image, gs *GameState) {
-	for _, ps := range ParticleList {
-		ps.Draw() // draws to "sprite buffer" all sprites are drawn together below
+
+	//clear sprite buffers before redraw graphics/particles to them
+	for z := 0; z < 20; z++ {
+		for _, ent := range SpriteList[z] {
+			if ent.buffCheck() {
+				ent.Sprite.Img.Clear()
+			}
+		}
 	}
 
+	for _, e := range SpriteWithBufferDst {
+		e.Sprite.Draw(e.Sprite.BufferDst)
+	}
+
+	//draw to sprite buffers
+	for _, ps := range ParticleList {
+		ps.ParticleSystem.Draw()
+	}
+
+	for _, graphic := range GraphicList {
+		graphic.Graphic.Draw()
+	}
+
+	//draw all sprites in correct order
 	for z := 0; z < 20; z++ {
 		for _, ent := range SpriteList[z] {
 			if ent.Draw && ent.Sprite != nil {
@@ -354,9 +437,9 @@ func UnFocus(ID uint32) {
 	}
 
 	if e.EventHub != nil {
-		e.EventHub.Publish(events.UnFocus{EntID: ID})
+		e.EventHub.Publish(events.UnFocusEvent{EntID: ID})
 	} else {
-		log.Fatal("making this a crash for now for detecting un focus events on ents that dont have event hubs initiated", ID)
+		println(e.Id)
 	}
 
 	if e.LinkedID != 0 {
@@ -406,9 +489,10 @@ func Focus(ID uint32) {
 	}
 
 	if e.EventHub != nil {
-		e.EventHub.Publish(events.Focus{EntID: ID})
+		e.EventHub.Publish(events.FocusEvent{EntID: ID})
 	} else {
-		log.Fatal("making this a crash for now for detecting un focus events on ents that dont have event hubs initiated", ID)
+		println()
+		//log.Fatal("making this a crash for now for detecting focus events on ents that dont have event hubs initiated", ID)
 	}
 	ZSortEntities()
 
@@ -418,13 +502,13 @@ func LoadCreatureEffect(state string, ent *Entity) {
 
 	switch state {
 	case "Night":
-		LoadFollowEffectAsEnt("zzz", ent.Id, ent.EventHub)
+		LoadFollowEffectAsEnt("zzz", ent.Id, ent.EventHub, nil)
 	case "Day":
 		switch ent.CreatureData.HealthState {
 		case Healthy:
-			LoadFollowEffectAsEnt("happy", ent.Id, ent.EventHub)
+			LoadFollowEffectAsEnt("happy", ent.Id, ent.EventHub, nil)
 		case Stressed:
-			LoadFollowEffectAsEnt("stressed", ent.Id, ent.EventHub)
+			LoadFollowEffectAsEnt("stressed", ent.Id, ent.EventHub, nil)
 		}
 	}
 }
@@ -443,10 +527,10 @@ func ReFocus(ID uint32) {
 	}
 
 	if e.EventHub != nil {
-		e.EventHub.Publish(events.Focus{EntID: ID})
+		e.EventHub.Publish(events.FocusEvent{EntID: ID})
 
 	} else {
-		log.Fatal("making this a crash for now for detecting un focus events on ents that dont have event hubs initiated", ID)
+		//log.Fatal("making this a crash for now for detecting un focus events on ents that dont have event hubs initiated", ID)
 	}
 }
 
@@ -460,17 +544,17 @@ func PHModifier(ent *Entity) {
 
 }
 
-func LoadFollowEffectAsEnt(eff string, targID uint32, hub *tasks.EventHub) {
+type DeInitFunc func()
+
+func LoadFollowEffectAsEnt(eff string, targID uint32, hub *tasks.EventHub, params map[string]any) DeInitFunc {
 	effect := entImportableLoaders.LoadEffect(eff)
 	effect.Unfocusable = true
-	effEnt := &Entity{Sprite: effect, UpdateFunc: FollowEnt, LinkedID: targID}
+	effEnt := &Entity{Sprite: effect, UpdateFunc: FollowEnt, LinkedID: targID, Parameters: params}
 	effEnt.Z = 13
-	effEnt.DeposeAfterNAnimationCycles = 10
 	effect.AnimationMap[effect.CurrentAnimation].SpeedInTPS = 8
 	RegisterEntity(effEnt)
-	hub.Subscribe(events.UnFocus{}, func(e tasks.Event) {
-		RemoveEntity(effEnt.Id)
-	})
+
+	return func() { RemoveEntity(effEnt.Id) }
 }
 
 func FollowEnt(ent *Entity) {
@@ -481,8 +565,18 @@ func FollowEnt(ent *Entity) {
 		RemoveEntity(ent.Id)
 	}
 
-	ent.Sprite.X = targetEnt.Sprite.X
-	ent.Sprite.Y = targetEnt.Sprite.Y - float32(ent.Sprite.SpriteHeight()+10)
+	pos, ok := ent.Parameters["position"].(string)
+	if !ok {
+		ent.Sprite.X = targetEnt.Sprite.X
+		ent.Sprite.Y = targetEnt.Sprite.Y - float32(ent.Sprite.SpriteHeight()+10)
+	}
+
+	if pos == "center" {
+		ent.Sprite.X = targetEnt.Sprite.X + float32(targetEnt.Sprite.GetSpriteRect().Dx()/3+ent.Sprite.GetSpriteRect().Dx()/2)
+		ent.Sprite.Y = targetEnt.Sprite.Y - 20
+
+	}
+
 	if targetEnt.CreatureData != nil {
 		if targetEnt.CreatureData.Flip {
 			ent.Sprite.X -= float32(targetEnt.Sprite.GetAnimation().SpriteWidth)

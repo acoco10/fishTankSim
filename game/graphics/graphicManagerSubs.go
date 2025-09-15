@@ -5,7 +5,6 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
-	"golang.org/x/image/colornames"
 	"image"
 	"log"
 )
@@ -17,6 +16,7 @@ type GraphicManager struct {
 	Timers                map[string]*util.Timer
 	DstImage              *ebiten.Image
 	GraphicsToBePublished []*SpriteGraphic
+	texts                 []*TextWithShader
 }
 
 func (g *GraphicManager) UpdateTimers() {
@@ -52,7 +52,7 @@ func DeInitGraphics(graphics []int) {
 
 func WhiteBoardGMSubs(manager *GraphicManager, hub *tasks.EventHub) {
 
-	hub.Subscribe(tasks.TaskCompleted{}, func(e tasks.Event) {
+	/*	hub.Subscribe(tasks.TaskCompleted{}, func(e tasks.Event) {
 
 		index := manager.Params["Index"].(int)
 		spacing := manager.Params["Spacing"].(int)
@@ -67,7 +67,7 @@ func WhiteBoardGMSubs(manager *GraphicManager, hub *tasks.EventHub) {
 		manager.Params["Index"] = index
 		//manager.Timers["DeInit"].TurnOn()
 
-	})
+	})*/
 
 	hub.Subscribe(tasks.AllTasksCompleted{}, func(e tasks.Event) {
 		AddClothGraphiC(manager)

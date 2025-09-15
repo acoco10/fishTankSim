@@ -5,7 +5,6 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
-	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -22,11 +21,37 @@ type NextDayMenu struct {
 
 func LoadNextOptionsMenuUI(headerText string, buttonText []string, hub *tasks.EventHub) (*widget.Window, error) {
 
-	face, err := util.LoadFont(24, "nk57")
+	face := registry.FontMap["RockSalt_16"]
 
-	if err != nil {
-		return nil, err
-	}
+	headContainer := widget.NewContainer(
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			}),
+		),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+	)
+
+	headerLbl := widget.NewText(
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			})),
+
+		widget.TextOpts.Text(headerText, &face, color.RGBA{R: 255, G: 255, B: 255, A: 255}),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+	)
+
+	headerLblOutline := widget.NewText(
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			})),
+
+		widget.TextOpts.Text(headerText, &face, color.RGBA{R: 0, G: 0, B: 0, A: 150}),
+		widget.TextOpts.Padding(&widget.Insets{Left: 2, Top: 2}),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+	)
 
 	menuImg, err := loadOptionsMenuInputImage()
 	if err != nil {
@@ -69,33 +94,23 @@ func LoadNextOptionsMenuUI(headerText string, buttonText []string, hub *tasks.Ev
 		),
 	)
 
-	headerLbl := widget.NewText(
-		widget.TextOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-			})),
-
-		widget.TextOpts.Text(headerText, &face, color.RGBA{R: 250, G: 160, B: 0, A: 255}),
-		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionStart),
-	)
-
 	//headerContainer.AddChild(headerLbl)
 	for _, button := range buttonText {
-		b := LoadSubmitButton(button, hub, headerText+": "+button)
+		b := LoadOutlineTextButtonSubmitBg(button, hub, headerText+": "+button)
 		ButtonContainer.AddChild(
 			b,
 		)
 	}
 
-	childContainer.AddChild(headerLbl)
+	headContainer.AddChild(headerLblOutline, headerLbl)
+	childContainer.AddChild(headContainer)
 	childContainer.AddChild(ButtonContainer)
-
 	rootContainer.AddChild(childContainer)
 
 	// construct the UI
 
-	windowWidth := 400
-	windowHeight := 100
+	windowWidth := 500
+	windowHeight := 200
 
 	x0 := registry.Config.ResolutionWidth/2 - windowWidth/2
 	y0 := registry.Config.ResolutionHeight/3 - windowHeight/2
@@ -151,7 +166,7 @@ func (nd *NextDayMenu) subs() {
 
 	nd.eventHub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
 		ev := e.(events.ButtonClickedEvent)
-		if ev.ButtonText == "Vibe awhile Longer" {
+		if ev.ButtonText == "Not Yet" {
 			nd.Triggered = false
 		}
 	})

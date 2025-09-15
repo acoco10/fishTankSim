@@ -1,0 +1,65 @@
+{ "frames": [
+   {
+    "filename": "fishTankDayLight 0.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 394, "h": 295 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 394, "h": 295 },
+    "sourceSize": { "w": 394, "h": 295 },
+    "duration": 600
+   },
+   {
+    "filename": "fishTankDayLight 1.aseprite",
+    "frame": { "x": 394, "y": 0, "w": 394, "h": 295 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 394, "h": 295 },
+    "sourceSize": { "w": 394, "h": 295 },
+    "duration": 600
+   },
+   {
+    "filename": "fishTankDayLight 2.aseprite",
+    "frame": { "x": 788, "y": 0, "w": 394, "h": 295 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 394, "h": 295 },
+    "sourceSize": { "w": 394, "h": 295 },
+    "duration": 600
+   },
+   {
+    "filename": "fishTankDayLight 3.aseprite",
+    "frame": { "x": 1182, "y": 0, "w": 394, "h": 295 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 394, "h": 295 },
+    "sourceSize": { "w": 394, "h": 295 },
+    "duration": 600
+   },
+   {
+    "filename": "fishTankDayLight 4.aseprite",
+    "frame": { "x": 1576, "y": 0, "w": 394, "h": 295 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 394, "h": 295 },
+    "sourceSize": { "w": 394, "h": 295 },
+    "duration": 600
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.3.9.2-arm64",
+  "image": "fishTankDayLightSpriteSheet.png",
+  "format": "RGBA8888",
+  "size": { "w": 1970, "h": 295 },
+  "scale": "1",
+  "frameTags": [
+  ],
+  "layers": [
+   { "name": "Flattened", "opacity": 255, "blendMode": "normal" },
+   { "name": "Layer 3", "opacity": 255, "blendMode": "normal" },
+   { "name": "Layer 4", "opacity": 255, "blendMode": "normal" }
+  ],
+  "slices": [
+  ]
+ }
+}

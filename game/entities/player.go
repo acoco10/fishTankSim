@@ -30,7 +30,7 @@ func (p *Player) Subscribe() {
 		ev := e.(events.BuyAttempt)
 		if ev.Cost <= p.Money {
 			p.SpendMoney(ev.Cost)
-			ev2 := events.PurchaseSuccessful{Purchase: ev.Item}
+			ev2 := events.PurchaseSuccessful{Purchase: ev.Item, PurchaseType: ev.ItemType}
 			p.EventHub.Publish(ev2)
 		} else {
 			ev2 := events.InsufficientFunds{}

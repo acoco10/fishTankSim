@@ -36,16 +36,16 @@ func MakeFishMenu(forFish uint32) {
 	cs.Scale(float32(clr.R), float32(clr.G), float32(clr.B), float32(clr.A))
 	name := fish.CreatureData.name
 
-	nameId := graphics.NewNkTextGraphic(&name, 16, float64(bground.Sprite.X+(264))/2, float64(bground.Sprite.Y+28)/2, false, cs, 1, false)
+	nameId := graphics.NewNkTextGraphic(&name, 16, float64(bground.Sprite.X+(264))/2, float64(bground.Sprite.Y+28)/2, false, cs, 1, false, 0)
 
 	currrentLevel := fmt.Sprintf("Level: %d", fish.CreatureData.Size)
-	currlvlId := graphics.NewNkTextGraphic(&currrentLevel, 12, float64(bground.Sprite.X+(70))/2, float64(bground.Sprite.Y+50)/2, false, cs, 1, false)
+	currlvlId := graphics.NewNkTextGraphic(&currrentLevel, 12, float64(bground.Sprite.X+(70))/2, float64(bground.Sprite.Y+50)/2, false, cs, 1, false, 0)
 
 	ageString := "Age: 1 day"
-	ageId := graphics.NewNkTextGraphic(&ageString, 12, float64(bground.Sprite.X+(130))/2, float64(bground.Sprite.Y+50)/2, false, cs, 1, false)
+	ageId := graphics.NewNkTextGraphic(&ageString, 12, float64(bground.Sprite.X+(130))/2, float64(bground.Sprite.Y+50)/2, false, cs, 1, false, 0)
 
 	msg := "Progress:"
-	factorsID := graphics.NewNkTextGraphic(&msg, 12, float64(bground.Sprite.X+(62*2))/2, (float64(bground.Sprite.Y)+float64((bground.Sprite.Img.Bounds().Dy()-52)*2))/2, false, cs, 1, false)
+	factorsID := graphics.NewNkTextGraphic(&msg, 12, float64(bground.Sprite.X+(62*2))/2, (float64(bground.Sprite.Y)+float64((bground.Sprite.Img.Bounds().Dy()-52)*2))/2, false, cs, 1, false, 0)
 
 	bground.Sprite.PublishedGraphicId = append(bground.Sprite.PublishedGraphicId, nameId, factorsID, currlvlId, ageId)
 
@@ -59,27 +59,26 @@ func MakeFishMenu(forFish uint32) {
 	}
 
 	iconLabels := []string{"thumbsUp", "thumbsNeutral", "thumbsDown", "otherFish", "structures", "temperature", "ph"}
-	imageMap, indMap := ChopUpIcons(icons, iconLabels, 32)
+	imageMap, indMap := util.ChopUpIcons(icons, iconLabels, 32)
 
 	iconLabels = iconLabels[3:]
 	bground.Z = 13
-	buffer := float32(60.0 * registry.Config.ZoomFactor)
-	spacing := float32(64.0 * registry.Config.ZoomFactor)
+	//buffer := float32(60.0 * registry.Config.ZoomFactor)
+	spacing := 84
 
 	lastSprite := &Entity{}
 	for i, label := range iconLabels {
-		iconSprite := &Entity{}
-		if i < 2 {
-			iconSprite = MakeSpriteEntity(imageMap[label], bground.Sprite.X+buffer+(float32(i+1)*spacing), bground.Sprite.Y+64)
-		} else {
-			iconSprite = MakeSpriteEntity(imageMap[label], bground.Sprite.X+buffer+float32(i-1)*spacing, bground.Sprite.Y+spacing+20)
+		if label == "otherFish" || label == "structures" {
+			continue
 		}
+		iconSprite := &Entity{}
+		iconSprite = MakeSpriteEntity(imageMap[label], bground.Sprite.X+float32(bground.Sprite.GetSpriteRect().Dx()-120+i*spacing), bground.Sprite.Y+float32(80))
 		iconSprite.Z = 14
 		iconSprite.NoZoom = true
 		switch label {
 		case "temperature":
 			threshHolds := []float64{5.0, 10.0}
-			val := math.Abs(float64(fish.CreatureData.idealTemperature - fish.CreatureData.Environment.Temperature))
+			val := math.Abs(float64(fish.CreatureData.IdealTemperature - fish.CreatureData.Environment.Temperature))
 			condImg := CheckIconValue(val, threshHolds, indMap)
 			iconSprite.Sprite.LinkedSprite = &sprite.Sprite{
 				Img:   &condImg,
@@ -87,8 +86,8 @@ func MakeFishMenu(forFish uint32) {
 				Y:     iconSprite.Sprite.Y,
 				Scale: registry.Config.ZoomFactor}
 		case "ph":
-			threshHolds := []float64{2.5, 5.0}
-			val := math.Abs(float64(fish.CreatureData.idealPH - fish.CreatureData.Environment.NaturalPHLevel))
+			threshHolds := []float64{0.25, 0.5}
+			val := math.Abs(float64(fish.CreatureData.IdealPH - fish.CreatureData.Environment.ModifiedPHLevel))
 			condImg := CheckIconValue(val, threshHolds, indMap)
 			iconSprite.Sprite.LinkedSprite = &sprite.Sprite{
 				Img: &condImg,
@@ -139,24 +138,6 @@ func CheckIconValue(val float64, thresholds []float64, iconMap map[string]*ebite
 	return *iconMap["thumbsNeutral"]
 }
 
-func ChopUpIcons(inputImage *ebiten.Image, labels []string, size int) (map[string]*ebiten.Image, map[string]*ebiten.Image) {
-	imageMap := make(map[string]*ebiten.Image)
-	indMap := make(map[string]*ebiten.Image)
-
-	for i, icon := range labels {
-		//horizontal slice of square images
-		rect := image.Rect(i*size, 0, (i+1)*size, size)
-
-		if i < 3 {
-			indMap[icon] = ebiten.NewImageFromImage(inputImage.SubImage(rect))
-		} else {
-			imageMap[icon] = ebiten.NewImageFromImage(inputImage.SubImage(rect))
-		}
-	}
-
-	return imageMap, indMap
-}
-
 func InitStomachGraphic(menuBackground *Entity, fishId uint32) uint32 {
 	stomachSprite := LoadStomachGraphic()
 	stomachSprite.X = menuBackground.Sprite.X + 86
@@ -169,6 +150,7 @@ func InitStomachGraphic(menuBackground *Entity, fishId uint32) uint32 {
 	stomachEnt := &Entity{Sprite: stomachSprite}
 	stomachEnt.Z = 13
 	RegisterEntity(stomachEnt)
+	stomachEnt.NoZoom = true
 	return stomachEnt.Id
 }
 

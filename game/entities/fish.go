@@ -25,16 +25,8 @@ const (
 	MollyFish FishList = "mollyFish"
 	Guppy     FishList = "guppy"
 	Kirbensis FishList = "kirbensis"
+	AngelFish FishList = "angelFish"
 )
-
-func IsValidFishType(fishType string) bool {
-	switch FishList(fishType) {
-	case MollyFish, GoldFish, Guppy, Kirbensis:
-		return true
-	default:
-		return false
-	}
-}
 
 type Direction uint8
 
@@ -71,6 +63,8 @@ type CreatureData struct {
 func (e *Entity) FishUpdate(state *GameState) {
 	c := e.CreatureData
 
+	c.TankBoundaries = state.Zbounds[c.TargetZ]
+
 	c.TickClicked = false
 	switch c.State {
 
@@ -100,9 +94,7 @@ func (e *Entity) FishUpdate(state *GameState) {
 
 	e.updateAnimation()
 
-	if state.FocusedEntity == e {
-		e.publishStats("statsMenu")
-	}
+	e.publishStats("statsMenu")
 
 }
 

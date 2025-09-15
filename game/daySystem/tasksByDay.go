@@ -18,7 +18,7 @@ func LoadDay1Tasks(gameLog *sceneManagement.GameLog) {
 	}
 
 	/*	taskCondition12 := func(e tasks.Event) bool {
-		ev, ok := e.(events.UnFocus)
+		ev, ok := e.(events.UnFocusEvent)
 		if !ok {
 			return false
 		}
@@ -109,7 +109,7 @@ func FeedAllFishTask(taskn int) (condition func(e tasks.Event) bool, text string
 		return ok
 	}
 
-	taskText := fmt.Sprintf("%d. Feed all your fish ", taskn)
+	taskText := fmt.Sprintf("%d. Feed your fish ", taskn)
 
 	return taskCondition, taskText
 
@@ -123,7 +123,7 @@ func LoadDefualtTasks(gameLog *sceneManagement.GameLog) {
 	}
 
 	/*	taskCondition12 := func(e tasks.Event) bool {
-		ev, ok := e.(events.UnFocus)
+		ev, ok := e.(events.UnFocusEvent)
 		if !ok {
 			return false
 		}
@@ -139,7 +139,7 @@ func LoadDefualtTasks(gameLog *sceneManagement.GameLog) {
 		return false
 	}*/
 
-	gameLog.TaskManager.NewTask(events.PHGuess{}, "1. Take a ph reading of your tank", taskCondition11)
+	gameLog.TaskManager.NewTask(events.PHGuess{}, "1. Take a ph reading", taskCondition11)
 	//gameTask.UIEffect = uiEvent
 
 	taskCondition4, text := FeedAllFishTask(2)

@@ -35,6 +35,8 @@ type Sprite struct {
 	DOptsUpdaterTag                string //for animating with external function at draw call
 	DOptsUpdaterParams             map[string]float64
 	CurrentAnimation               string
+	IsBuffer                       bool
+	BufferDst                      *ebiten.Image
 	*XYUpdater
 	frameImg   *ebiten.Image
 	drawOpts   *ebiten.DrawImageOptions
@@ -98,14 +100,16 @@ func (s *Sprite) Focus() {
 	if s.NormalMap == nil {
 		s.Shader = registry.ShaderMap["Outline"]
 		if s.ShaderParams == nil {
-			log.Fatal("nil shader param issue when focusing sprite")
+			s.ShaderParams = make(map[string]any)
+			log.Printf("nil shader param issue when focusing sprite")
 		}
 		s.ShaderParams["OutlineColor"] = [4]float32{0.9, 0.9, 0.2, 1.0}
 		s.Focused = true
 	} else {
 		s.Shader = registry.ShaderMap["NormalMapOutline"]
 		if s.ShaderParams == nil {
-			log.Fatal("nil shader param issue when focusing sprite")
+			s.ShaderParams = make(map[string]any)
+			log.Printf("nil shader param issue when focusing sprite")
 		}
 		s.ShaderParams["OutlineColor"] = [4]float32{0.9, 0.9, 0.2, 1.0}
 		s.Focused = true
@@ -123,6 +127,7 @@ func (s *Sprite) UnFocus() {
 }
 
 func (s *Sprite) Draw(screen *ebiten.Image) {
+
 	if s.LinkedSprite != nil {
 		s.LinkedSprite.Draw(screen)
 	}
@@ -153,12 +158,25 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 			s.ShaderParams = make(map[string]any)
 		}
 
+		if s.Scale != 0.0 {
+			shaderOpts.GeoM.Scale(s.Scale, s.Scale)
+		}
+
 		degrees, exists := s.DOptsUpdaterParams["degree"]
 		if exists {
+			// Get the center of the sprite (accounting for scale)
+			b := s.Img.Bounds()
+			centerX := float64(b.Dx()) / 2
+			centerY := float64(b.Dy()) / 2
+			if s.Scale != 0.0 {
+				centerX *= s.Scale
+				centerY *= s.Scale
+			}
+
+			// Translate to center, rotate, translate back
+			shaderOpts.GeoM.Translate(-centerX, -centerY)
 			shaderOpts.GeoM.Rotate(degrees)
-		}
-		if s.Scale != 0.0 {
-			//shaderOpts.GeoM.Scale(s.Scale, s.Scale)
+			shaderOpts.GeoM.Translate(centerX, centerY)
 		}
 
 		if s.DOptsUpdaterTag == "flip" {
@@ -186,6 +204,12 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 
 	if s.DOptsUpdaterTag == "flip" {
 		FlipSprite(s, dOpts)
+	}
+
+	if s.DOptsUpdaterParams["opacity"] > 0 {
+		op := float32(s.DOptsUpdaterParams["opacity"])
+		dOpts.ColorScale.ScaleAlpha(op) // Only affects alpha
+
 	}
 
 	degrees, exists := s.DOptsUpdaterParams["degree"]
@@ -323,11 +347,6 @@ type AnimatedSprite struct {
 
 func (s *Sprite) Coord() (float32, float32) {
 	return s.X, s.Y
-}
-
-func (s *Sprite) LoadShader(shader *ebiten.Shader) {
-	println("loading shader")
-	s.Shader = shader
 }
 
 func (s *Sprite) Highlighted() bool {
@@ -499,10 +518,11 @@ func (s *Sprite) ChangeAnimationSpeed(newSpeed float32) {
 	}
 }
 
-func LoadPulseOutlineShader(us *Sprite) {
-	ols := registry.ShaderMap["Outline"]
+func LoadPulseOutlineNormalShader(us *Sprite) {
+	ols := registry.ShaderMap["NormalMapOutline"]
 	us.Shader = ols
 	us.ShaderParams["Opacity"] = float32(0.0)
+	us.ShaderParams["Cursor"] = []float64{0, 0, 100}
 	us.ShaderParams["OutlineColor"] = [4]float32{0.2, 0.7, 0.2, 1.0}
 	us.UpdateShaderParams = shaders.UpdatePulseWithText
 }

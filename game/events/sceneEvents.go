@@ -24,6 +24,10 @@ type NewDay struct {
 	DayType string
 }
 
+type BedTime struct{}
+
+func (b BedTime) Type() string { return "BedTime" }
+
 func (n NewDay) Type() string {
 	return "NewDay"
 }

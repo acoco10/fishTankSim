@@ -73,17 +73,21 @@ func LoadUISprites(spritesToLoad []entities.Label, environment *system.Environme
 			wbSprite = &entities.WhiteBoardSprite{UiSprite: entity}
 			wbSprite.Subscribe(hub)
 			wbSprite.Init(hub)
-
+		case entities.LightSwitch:
+			entity.Z = 13
+			uSprite.Unfocusable = true
+			uSprite.Flags["noOffset"] = true
 		case entities.FishFood:
-			uSprite.ActivationRect = image.Rect(tankBounds.Min.X, tankBounds.Min.Y-50, tankBounds.Max.X, tankBounds.Min.Y-200)
+			uSprite.ActivationRect = image.Rect(tankBounds.Min.X, tankBounds.Min.Y-80, tankBounds.Max.X, tankBounds.Min.Y-200)
 		case entities.Skimmer:
-			sm := entities.InitStateMachine(entities.UpdateSkimmer, entities.AddUiSpriteXYUpdater, nil)
+			sm := entities.InitStateMachine(nil, entities.UpdateSkimmer, entities.AddUiSpriteXYUpdater, nil)
 			//phys := physics.NewNetBody(float64(uSprite.Sprite.X), float64(int(uSprite.Sprite.Y)+uSprite.Sprite.GetSpriteRect().Dy()), 40, -math.Pi/2, math.Pi/2)
 			entity.StateMachine = sm
 		case entities.Pillow, entities.Door:
 			entity.Draw = false
 			uSprite.Unfocusable = true
 		case entities.Phreader:
+			entity.UiData.Flags["updater"] = true
 			entity.Sprite.AbleToBeUnfocusedAutomatically = true
 		case entities.PiggyBank:
 			entity.Sprite.AbleToBeUnfocusedAutomatically = true
@@ -91,13 +95,23 @@ func LoadUISprites(spritesToLoad []entities.Label, environment *system.Environme
 			entity.Sprite.AnimationMap = LoadPiggyBankAnimationMap(b.Dy(), b.Dx())
 			sm := entities.InitPiggyBankStateMachine()
 			entity.StateMachine = sm
-		case entities.Magazine, entities.GrandpasJournal:
+		case entities.Magazine:
 			uSprite.Unfocusable = true
 		//entity.Draw = false
 		case entities.Thermometer:
-			sm := entities.InitStateMachine(entities.AltImageWhenClickedUpdater, nil, nil)
+			entity.Z = 11
+			entity.UiData.BaseZ = 11
+			sm := entities.InitStateMachine(nil, entities.AltImageWhenClickedUpdater, entities.AddTempGuage, nil)
 			entity.StateMachine = sm
-			uSprite.Unfocusable = true
+			entity.UiData.Flags["updater"] = false
+		case entities.GrandpasJournal:
+			sm := entities.InitStateMachine(nil, entities.AltImageWhenClickedUpdater, nil, nil)
+			sm.AppendState(entities.PublishPickedUpEvent, nil)
+			entity.UiData.Timers["transition1"] = util.NewTimer(1.2)
+			entity.StateMachine = sm
+			entity.UiData.Flags["center"] = true
+			entity.UiData.Flags["autoTransition1"] = true
+			entity.UiData.Flags["revert"] = true
 		}
 
 		//lightingShader := shaders.LoadOnePointLightingNeutral()

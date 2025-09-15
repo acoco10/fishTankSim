@@ -70,3 +70,9 @@ var StomachFill string
 
 //go:embed outlineEffects/normalMap+Outline.kage
 var NormalMapOutlined string
+
+//go:embed uiEffects/pulseHighlight.kage
+var PulseHighlight string
+
+//go:embed outlineEffects/normalMap+pulseOutline.kage
+var PulseOutlineNormal string

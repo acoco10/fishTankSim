@@ -20,6 +20,8 @@ const (
 	Position
 	Print
 	ShaderTest
+	FishSpawn
+	PropSpawn
 )
 
 type GameMode uint8
@@ -61,6 +63,7 @@ func (d *DebugData) Update() {
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		d.DebugOption = Normal
 		d.DebugRect = nil
 		d.DebugPoint = nil
 		d.drawingSomething = false
@@ -87,7 +90,7 @@ func (d *DebugData) Update() {
 			d.drawingSomething = true
 		}
 
-		if inpututil.IsKeyJustPressed(ebiten.KeyP) && !ebiten.IsKeyPressed(ebiten.KeyShift) {
+		if inpututil.IsKeyJustPressed(ebiten.KeyP) {
 			d.DebugText += "Mode: Drawing Point\n"
 			d.DebugPoint = &util.DebugCoord{}
 			d.DebugPoint.Init("new", d.EventHub)
@@ -100,44 +103,67 @@ func (d *DebugData) Update() {
 			d.DebugText += "Mode: Editing UI Sprite position\n"
 			for _, ent := range entities.LiveList {
 				if ent.UiData != nil {
-					ent.StateMachine = entities.InitStateMachine(entities.PositionUpdate, entities.AddUiSpriteXYUpdater, entities.UiSpriteTurnOffEverything)
+					ent.StateMachine = entities.InitStateMachine(nil, entities.PositionUpdate, entities.AddUiSpriteXYUpdater, entities.UiSpriteTurnOffEverything)
 					ent.Sprite.Unfocusable = false
 					ent.SetUIState(entities.Idle)
 				}
 			}
 			d.DebugOption = Position
 			d.drawingSomething = true
+
+		}
+		if ebiten.IsKeyPressed(ebiten.KeyS) && !d.drawingSomething {
+			d.DebugOption = FishSpawn
+			d.drawingSomething = true
+		}
+		if ebiten.IsKeyPressed(ebiten.KeyB) && !d.drawingSomething {
+			d.DebugOption = PropSpawn
+			d.drawingSomething = true
 		}
 
 	}
 
-	if inpututil.IsKeyJustPressed(ebiten.Key1) {
-		d.DebugText += "Current Initiated Prop: Castle\n"
-		id := entities.LoadProp("Castle", d.PropData, d.EventHub, entities.PlacementPicked{}, d.GameState.Zbounds)
-		prop, _ := entities.GetEntity(id)
-		d.InitiatedProp = prop.PropData
+	if d.DebugOption == PropSpawn {
+		if inpututil.IsKeyJustPressed(ebiten.Key1) {
+			d.DebugText += "Current Initiated Prop: Castle\n"
+			id := entities.LoadProp("Castle", d.PropData, d.EventHub, entities.PlacementPicked{}, d.GameState.Zbounds)
+			prop, _ := entities.GetEntity(id)
+			d.InitiatedProp = prop.PropData
 
-	}
+		}
 
-	if inpututil.IsKeyJustPressed(ebiten.Key2) {
-		d.DebugText += "Current Initiated Prop: Log\n"
-		id := entities.LoadProp("Log", d.PropData, d.EventHub, entities.PlacementPicked{}, d.GameState.Zbounds)
-		prop, _ := entities.GetEntity(id)
-		d.InitiatedProp = prop.PropData
-	}
+		if inpututil.IsKeyJustPressed(ebiten.Key2) {
+			d.DebugText += "Current Initiated Prop: Log\n"
+			id := entities.LoadProp("Log", d.PropData, d.EventHub, entities.PlacementPicked{}, d.GameState.Zbounds)
+			prop, _ := entities.GetEntity(id)
+			d.InitiatedProp = prop.PropData
+		}
 
-	if inpututil.IsKeyJustPressed(ebiten.Key3) {
-		d.DebugText += "Current Initiated Buddha: Log\n"
-		id := entities.LoadProp("Buddha", d.PropData, d.EventHub, entities.PlacementPicked{}, d.GameState.Zbounds)
-		prop, _ := entities.GetEntity(id)
-		d.InitiatedProp = prop.PropData
-	}
+		if inpututil.IsKeyJustPressed(ebiten.Key3) {
+			d.DebugText += "Current Initiated Prop: zen friend\n"
+			id := entities.LoadProp("zenFriend", d.PropData, d.EventHub, entities.PlacementPicked{}, d.GameState.Zbounds)
+			prop, _ := entities.GetEntity(id)
+			d.InitiatedProp = prop.PropData
+		}
 
-	if inpututil.IsKeyJustPressed(ebiten.Key4) {
-		d.DebugText += "Current Initiated Bridge: Log\n"
-		id := entities.LoadProp("zenBridge", d.PropData, d.EventHub, entities.PlacementPicked{}, d.GameState.Zbounds)
-		prop, _ := entities.GetEntity(id)
-		d.InitiatedProp = prop.PropData
+		if inpututil.IsKeyJustPressed(ebiten.Key4) {
+			d.DebugText += "Current Initiated Prop: Bridge\n"
+			id := entities.LoadProp("zenBridge", d.PropData, d.EventHub, entities.PlacementPicked{}, d.GameState.Zbounds)
+			prop, _ := entities.GetEntity(id)
+			d.InitiatedProp = prop.PropData
+		}
+		if inpututil.IsKeyJustPressed(ebiten.Key5) {
+			d.DebugText += "Current Initiated Prop: Hot Rock\n"
+			id := entities.LoadProp("hotRock", d.PropData, d.EventHub, entities.PlacementPicked{}, d.GameState.Zbounds)
+			prop, _ := entities.GetEntity(id)
+			d.InitiatedProp = prop.PropData
+		}
+		if inpututil.IsKeyJustPressed(ebiten.Key6) {
+			d.DebugText += "Current Initiated Prop: Cool Rock\n"
+			id := entities.LoadProp("coolRock", d.PropData, d.EventHub, entities.PlacementPicked{}, d.GameState.Zbounds)
+			prop, _ := entities.GetEntity(id)
+			d.InitiatedProp = prop.PropData
+		}
 	}
 
 	if d.InitiatedProp != nil && d.InitiatedProp.State() == entities.SetInPlace {

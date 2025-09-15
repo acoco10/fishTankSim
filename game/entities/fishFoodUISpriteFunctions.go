@@ -21,6 +21,7 @@ func FishFoodUpdate(ent *Entity) {
 	s := ent.Sprite
 
 	if s.XYUpdater == nil {
+		UpdateEntityZAndReSortEntitySlice(ent.Id, 13)
 		s.XYUpdater = sprite.NewUpdater(s)
 	}
 
@@ -35,7 +36,7 @@ func FishFoodUpdate(ent *Entity) {
 
 		s.ShaderParams["OutlineColor"] = [4]float64{0, 1, 0, 1}
 		s.Scale = 0.95
-		UpdateEntityZAndReSortEntitySlice(ent.Id, 0)
+		UpdateEntityZAndReSortEntitySlice(ent.Id, 2)
 
 		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 			leftRect := ff.ActivationRect
@@ -66,6 +67,7 @@ func FishFoodUpdate(ent *Entity) {
 	}
 
 	if !pt.In(ff.ActivationRect) && ff.state == Activatable {
+		UpdateEntityZAndReSortEntitySlice(ent.Id, 13)
 		s.ShaderParams["OutlineColor"] = [4]float64{1, 1, 0, 1}
 		ff.state = Selected
 		s.Scale = 1.0

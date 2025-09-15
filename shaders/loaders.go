@@ -90,7 +90,7 @@ func LoadHandWritingShader() *ebiten.Shader {
 	hws := []byte(HandWritingEffect)
 	s, err := ebiten.NewShader(hws)
 	if err != nil {
-		log.Printf("Couldnt load handwriting shader %q", err)
+		log.Fatal("Couldnt load handwriting shader %q", err)
 	}
 	return s
 }
@@ -197,6 +197,24 @@ func LoadNormalMapOutlined() *ebiten.Shader {
 	s, err := ebiten.NewShader(es)
 	if err != nil {
 		log.Fatal("Couldn't load stomach shader ", err)
+	}
+	return s
+}
+
+func LoadPulseHighlight() *ebiten.Shader {
+	es := []byte(PulseHighlight)
+	s, err := ebiten.NewShader(es)
+	if err != nil {
+		log.Fatal("Couldn't load pulse highlight", err)
+	}
+	return s
+}
+
+func LoadPulseOutlineNormal() *ebiten.Shader {
+	es := []byte(PulseOutlineNormal)
+	s, err := ebiten.NewShader(es)
+	if err != nil {
+		log.Fatal("Couldn't load pulse outline", err)
 	}
 	return s
 }
