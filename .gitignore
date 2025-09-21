@@ -1,2 +1,7 @@
 *.wasm
 *.out
+*.png
+*.ttf
+*.otf
+*.sql
+*.db
