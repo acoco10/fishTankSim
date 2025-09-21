@@ -10,9 +10,68 @@ import (
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
+	"golang.org/x/image/colornames"
 	"image/color"
 	"log"
 	"strings"
+)
+
+// import references for loading from consts in entities
+const (
+	//fish
+	goldfish  = string(entities.GoldFish)
+	mollyFish = string(entities.MollyFish)
+	kirbensis = string(entities.Kirbensis)
+	angelFish = string(entities.AngelFish)
+	guppyFish = string(entities.Guppy)
+
+	//items
+	PHBoost    = string(entities.PhBoost)
+	PHReduce   = string(entities.PhReduce)
+	Plants1    = "plantPack1"
+	Fertilizer = string(entities.Fertilizer)
+
+	//props
+	castle    = string(entities.Castle)
+	zenFriend = string(entities.ZenFriend)
+	zenBridge = string(entities.ZenBridge)
+	logProp   = string(entities.Log)
+	hotRock   = string(entities.HotRock)
+	coolRock  = string(entities.CoolRock)
+
+	//source of truth for ui names of fish visible to user
+	goldFishTitle   = "Goldfish"
+	guppyFishTitle  = "Guppy"
+	angleFishTitle  = "Angel Fish"
+	kirbensisTile   = "Kirbensis"
+	mollyFishTitle  = "Molly Fish"
+	plants1Title    = "Plant Pack One"
+	phBoostTitle    = "pH Boost"
+	phReduceTitle   = "pH Reduce"
+	fertilizerTitle = "Fertilizer"
+
+	zenFriendTitle = "Zen Friend"
+	zenBridgeTitle = "Zen Bridge"
+	logTitle       = "Log"
+	castleTitle    = "Castle"
+
+	buyPrefix        = "Buy:"
+	plantPrefix      = "Plant:"
+	itemPrefix       = "Item:"
+	fishPrefix       = "Fish:"
+	decorationPrefix = "Decoration:"
+	buyButtonTitle   = "Buy"
+
+	//page names
+	Index           = "Index"
+	FishStore       = "Fish Store"
+	plantStore      = "Plant Store"
+	itemStore       = "Item Store"
+	decorationStore = "Decoration Store"
+
+	//tags
+	noNextPage = "noNextPage"
+	noLastPage = "noLastPage"
 )
 
 type PurchaseType int8
@@ -22,6 +81,11 @@ const (
 	Plant
 	Item
 	Fish
+)
+
+const (
+	magazineWidth  = 329
+	magazineHeight = 446
 )
 
 type Magazine struct {
@@ -56,7 +120,7 @@ func (m *Magazine) ActiveWindow() *widget.Container {
 func CreateSimpleMagazine(hub *tasks.EventHub) *Magazine {
 	mag := &Magazine{
 		pages:       make(map[string]*widget.Container),
-		activeIndex: "info",
+		activeIndex: Index,
 	}
 
 	// Set up event subscriptions
@@ -71,15 +135,15 @@ func (m *Magazine) AddTextPage(page *widget.Container, pageName string) error {
 }
 
 // AddStorePage adds a store page with purchasable items
-func (m *Magazine) AddStorePage(items []StoreItem, hub *tasks.EventHub, pageName string) error {
-	page, err := createStorePage(pageName, items, hub)
-	if err != nil {
-		return err
+// keep this wrapper consistent, and we can add to create store page function
+func (m *Magazine) AddStorePage(items []StoreItem, hub *tasks.EventHub, pageName string) {
+	var tag string
+	if pageName == itemStore {
+		tag = noNextPage
 	}
-
+	page := createStorePage(pageName, items, hub, tag)
 	m.pages[pageName] = page
 	m.pageOrder = append(m.pageOrder, pageName)
-	return nil
 }
 
 // AddIndexPage adds a navigation page with buttons to other pages
@@ -143,16 +207,16 @@ func createTextPages(contents []TextContent, hub *tasks.EventHub) *widget.Contai
 	if contents[0].Image != nil {
 		createImagePage(leftPage, contents)
 	} else {
-		createTextPage(contents[0], leftPage)
+		createTextPage(contents[0], leftPage, magazineWidth)
 	}
 	if len(contents) > 1 {
-		createTextPage(contents[1], rightPage)
+		createTextPage(contents[1], rightPage, magazineWidth)
 	}
 
-	button := LoadSubmitButton("Back", hub, "")
+	button := LoadSubmitButton(LastPage, hub, "")
 	leftPage.AddChild(button)
 
-	button2 := LoadSubmitButton("Forward", hub, "")
+	button2 := LoadSubmitButton(NextPage, hub, "")
 	rightPage.AddChild(button2)
 
 	return root
@@ -200,7 +264,7 @@ func createImagePage(container *widget.Container, contents []TextContent) {
 
 }
 
-func createTextPage(content TextContent, container *widget.Container) {
+func createTextPage(content TextContent, container *widget.Container, width int) *widget.Text {
 	textContainer := widget.NewContainer(widget.ContainerOpts.WidgetOpts(
 		widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter})),
 		widget.ContainerOpts.Layout(
@@ -211,33 +275,35 @@ func createTextPage(content TextContent, container *widget.Container) {
 		),
 	)
 
-	face, _ := registry.FontMap["RockSalt"]
+	var contentText *widget.Text
+	titleface := registry.FontMap["RockSalt"]
 	if content.Title != "" {
 
 		titleText := widget.NewText(
-			widget.TextOpts.Text(content.Title, &face, color.RGBA{R: 60, G: 160, B: 200, A: 255}),
-			widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+			widget.TextOpts.Text(content.Title, &titleface, color.RGBA{R: 60, G: 160, B: 200, A: 255}),
+			widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionStart),
 			widget.TextOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter})))
 
 		textContainer.AddChild(titleText)
 	}
-
+	textFace := registry.FontMap["RockSalt_18"]
 	if content.Content != "" {
-		contentText := widget.NewText(
-			widget.TextOpts.Text(content.Content, &face, color.Black),
+		contentText = widget.NewText(
+			widget.TextOpts.Text(content.Content, &textFace, colornames.Darkblue),
 			widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
-			widget.TextOpts.Padding(&widget.Insets{Top: 10, Left: 25, Right: 10, Bottom: 30}),
-			widget.TextOpts.Padding(&widget.Insets{Top: 10, Left: 25, Right: 10, Bottom: 30}),
-			widget.TextOpts.MaxWidth(700),
+			widget.TextOpts.Padding(&widget.Insets{Top: 10, Left: 50, Right: 25, Bottom: 30}),
+			widget.TextOpts.MaxWidth(float64(width)),
 		)
 		textContainer.AddChild(contentText)
 	}
 
 	container.AddChild(textContainer)
+
+	return contentText
 }
 
 // createStorePage creates a page with purchasable items
-func createStorePage(title string, items []StoreItem, hub *tasks.EventHub) (*widget.Container, error) {
+func createStorePage(title string, items []StoreItem, hub *tasks.EventHub, tag string) *widget.Container {
 	root, leftPage, rightPage := createMagazinePageBase()
 
 	face := registry.FontMap["RockSalt"]
@@ -263,9 +329,6 @@ func createStorePage(title string, items []StoreItem, hub *tasks.EventHub) (*wid
 		leftPage.AddChild(itemContainer)
 	}
 
-	button := LoadSubmitButton("Back", hub, "")
-	leftPage.AddChild(button)
-
 	// Add items to right page
 	for _, item := range rightItems {
 		itemContainer := createStoreItemWidget(item, hub)
@@ -273,10 +336,17 @@ func createStorePage(title string, items []StoreItem, hub *tasks.EventHub) (*wid
 
 	}
 
-	button2 := LoadSubmitButton("Forward", hub, "")
-	rightPage.AddChild(button2)
+	if tag != noLastPage {
+		lastButton := LoadSubmitButton(LastPage, hub, "")
+		leftPage.AddChild(lastButton)
+	}
 
-	return root, nil
+	if tag != noNextPage {
+		nextButton := LoadSubmitButton(NextPage, hub, "")
+		rightPage.AddChild(nextButton)
+	}
+
+	return root
 }
 
 // createStoreItemWidget creates a widget for a single store item
@@ -322,7 +392,7 @@ func createStoreItemWidget(item StoreItem, hub *tasks.EventHub) *widget.Containe
 	)
 
 	// Description
-	face, _ := util.LoadFont(12, "nk57")
+	face := registry.FontMap["RockSalt_12"]
 	descText := widget.NewText(
 		widget.TextOpts.Text(item.Description, &face, color.Black),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
@@ -338,9 +408,9 @@ func createStoreItemWidget(item StoreItem, hub *tasks.EventHub) *widget.Containe
 	// Buy button
 	eventName := item.EventName
 	if eventName == "" {
-		eventName = "Buy: " + item.Name
+		eventName = buyPrefix + item.Name
 	}
-	buyButton := LoadSubmitButton("Buy", hub, eventName)
+	buyButton := LoadSubmitButton(buyButtonTitle, hub, eventName)
 
 	textContainer.AddChild(descText, priceText, buyButton)
 	container.AddChild(textContainer)
@@ -355,9 +425,10 @@ func createIndexPage(buttonTexts []string, hub *tasks.EventHub) *widget.Containe
 	// Add title
 	face, _ := registry.FontMap["RockSalt"]
 	titleText := widget.NewText(
-		widget.TextOpts.Text("Index", &face, color.RGBA{R: 60, G: 160, B: 200, A: 255}),
+		widget.TextOpts.Text(Index, &face, color.RGBA{R: 60, G: 160, B: 200, A: 255}),
 		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionEnd),
-	)
+		widget.TextOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter})))
+
 	leftPage.AddChild(titleText)
 
 	// Add buttons
@@ -408,13 +479,13 @@ func setupMagazineEvents(mag *Magazine, hub *tasks.EventHub) {
 			fields := strings.FieldsFunc(ev.ButtonText, f)
 			var buyType PurchaseType
 			switch strings.Trim(fields[1], " ") {
-			case "item":
+			case "Item":
 				buyType = Item
-			case "plant":
+			case "Plant":
 				buyType = Plant
-			case "decoration":
+			case "Decoration":
 				buyType = Decoration
-			case "fish":
+			case "Fish":
 				buyType = Fish
 			}
 
@@ -433,15 +504,15 @@ func setupMagazineEvents(mag *Magazine, hub *tasks.EventHub) {
 func defaultMagSubs(mag *Magazine, hub *tasks.EventHub) {
 	hub.Subscribe(events.ButtonClickedEvent{}, func(e tasks.Event) {
 		ev := e.(events.ButtonClickedEvent)
-		if ev.ButtonText == "Back" {
-			if mag.pageIndex > 0 {
-				mag.pageIndex--
+		if ev.ButtonText == NextPage {
+			if mag.pageIndex < len(mag.pages)-1 {
+				mag.pageIndex++
 				mag.activeIndex = mag.pageOrder[mag.pageIndex]
 			}
 		}
-		if ev.ButtonText == "Forward" {
-			if mag.pageIndex < len(mag.pageOrder)-1 {
-				mag.pageIndex++
+		if ev.ButtonText == LastPage {
+			if mag.pageIndex > 0 {
+				mag.pageIndex--
 				mag.activeIndex = mag.pageOrder[mag.pageIndex]
 			}
 
@@ -458,27 +529,22 @@ func LoadCollectionPage() {
 func CreateFishMagazine(hub *tasks.EventHub) (*Magazine, error) {
 	// Setup cost map
 	costMap := map[string]float64{
-		"kirbensis":  2.0,
-		"mollyFish":  1.0,
-		"goldFish":   1.0,
-		"guppy":      1.0,
-		"angelFish":  5,
-		"phBoost":    0.25,
-		"phReduce":   0.25,
-		"plantPack1": 1.0,
-		"fertilizer": .50,
-		"zenFriend":  12,
-		"zenBridge":  5,
-		"castle":     25,
-		"log":        5,
-		"hotRock":    .75,
-		"coolRock":   .75,
+		kirbensis:  2.0,
+		mollyFish:  1.0,
+		goldfish:   1.0,
+		guppyFish:  1.0,
+		angelFish:  5,
+		PHBoost:    0.25,
+		PHReduce:   0.25,
+		Plants1:    1.0,
+		Fertilizer: .50,
+		zenFriend:  12,
+		zenBridge:  5,
+		castle:     25,
+		logProp:    5,
+		hotRock:    .75,
+		coolRock:   .75,
 	}
-
-	/*	styleCostMap := map[string]float64{
-		"gravelecolor" : 5,
-		"discoball"
-	}*/
 
 	mag := CreateSimpleMagazine(hub)
 	mag.CostMap = costMap
@@ -486,127 +552,104 @@ func CreateFishMagazine(hub *tasks.EventHub) (*Magazine, error) {
 	// Add index page
 
 	// Load fish images
-	fishImages, err := LoadFishSprites()
-	if err != nil {
-		return nil, err
-	}
+	fishImages := LoadFishSprites()
 
 	// Create store items
-	fishDescriptions, fishNames := LoadFishDescriptions()
-	fish := make([]StoreItem, 5)
+	fishDescriptions := LoadFishDescriptions()
+	fishNames := []string{goldfish, mollyFish, kirbensis, guppyFish, angelFish}
+	fishTitle := []string{goldFishTitle, mollyFishTitle, kirbensisTile, guppyFishTitle, angleFishTitle}
+	fish := make([]StoreItem, len(fishNames))
 
 	itemImgs := loadStoreImgs()
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < len(fishNames); i++ {
 		fish[i] = StoreItem{
-			Name:        fishNames[i],
-			Description: fishDescriptions[i],
-			Image:       fishImages[i],
+			Name:        fishTitle[i],
+			Description: fishDescriptions[fishNames[i]],
+			Image:       fishImages[fishNames[i]],
 			Price:       costMap[fishNames[i]],
-			EventName:   "Buy: fish:" + fishNames[i],
+			EventName:   buyPrefix + fishPrefix + fishNames[i],
 		}
 	}
 
-	err = mag.AddStorePage(fish, hub, "fish")
-	if err != nil {
-		return nil, err
+	decorationDescriptions := LoadDecorationDescriptions()
+	decorationNames := []string{castle, zenBridge, zenFriend, logProp}
+	decorationTitles := []string{castleTitle, zenBridgeTitle, zenFriendTitle, logTitle}
+	decorations := make([]StoreItem, len(decorationNames))
+
+	for i := 0; i < len(decorationNames); i++ {
+		decorations[i] = StoreItem{
+			Name:        decorationTitles[i],
+			Description: decorationDescriptions[decorationNames[i]],
+			Image:       itemImgs[decorationNames[i]],
+			Price:       costMap[decorationNames[i]],
+			EventName:   buyPrefix + fishPrefix + decorationNames[i],
+		}
 	}
+
+	mag.AddStorePage(fish, hub, FishStore)
 
 	plantItems := []StoreItem{
 		{
-			Name:        "Plant Pack 1",
-			Description: "A pack of 3 that may contain ferns, grass or leafy plants with a chance at a rare version of each",
-			Price:       costMap["plantPack1"],
-			Image:       itemImgs["plantPack1"],
-			EventName:   "Buy: plant:plantPack1",
+			Name: plants1Title,
+			Description: "A pack of 3 that may contain ferns, grass or leafy plants with a chance at a rare version of each.\n\n" +
+				"Plants boost your ecosystem",
+			Price:     costMap[Plants1],
+			Image:     itemImgs[Plants1],
+			EventName: buyPrefix + plantPrefix + Plants1,
 		},
 		{
-			Name:        "Fertilizer",
+			Name:        fertilizerTitle,
 			Description: "Double chance at a rare on your next plant",
-			Price:       costMap["fertilizer"],
-			Image:       itemImgs["fertilizer"],
-			EventName:   "Buy: item:fertilizer",
+			Price:       costMap[Fertilizer],
+			Image:       itemImgs[Fertilizer],
+			EventName:   buyPrefix + itemPrefix + Fertilizer,
 		},
 	}
 
-	err = mag.AddStorePage(plantItems, hub, "Plants")
-	if err != nil {
-		return nil, err
-	}
+	mag.AddStorePage(plantItems, hub, plantStore)
 
-	decorations := []StoreItem{
-		{
-			Name:        "Zen Friend",
-			Description: "Add some calm and tranquility to your tank.\n\n-Decreases PH by 2.0, \n\n-Decreases fish stress by 1n\n\n-zen set",
-			Price:       costMap["zenFriend"],
-			Image:       itemImgs["zenFriend"],
-			EventName:   "Buy: decoration:zenFriend",
-		},
-		{
-			Name:        "Zen Bridge",
-			Description: "Add some calm and tranquility to your tank.\n\n -Increases PH by 1.0, \n\n-Decreases fish stress by 0.25\n\n-zen set",
-			Price:       costMap["zenBridge"],
-			Image:       itemImgs["zenBridge"],
-			EventName:   "Buy: decoration:zenBridge",
-		},
-		{
-			Name:        "Log",
-			Description: "A cheap nature booster.\n\n -Decrease PH by 2.0, \n\n-Increase environment by 1.0",
-			Price:       costMap["log"],
-			Image:       itemImgs["log"],
-			EventName:   "Buy: decoration:log",
-		},
-		{
-			Name:        "Castle",
-			Description: "A decoration fit for a king.\n\n -Increases PH by 2.0, \n\n-Cave structure",
-			Price:       costMap["castle"],
-			Image:       itemImgs["castle"],
-			EventName:   "Buy: decoration:castle",
-		},
-	}
+	mag.AddStorePage(decorations, hub, decorationStore)
 
-	err = mag.AddStorePage(decorations, hub, "Decorations")
-
-	mag.activeIndex = "info"
+	mag.activeIndex = Index
 	// Add accessories store page
 	accessoryItems := []StoreItem{
 		{
-			Name:        "PH Boost",
-			Description: "Raises tank PH levels",
+			Name:        phBoostTitle,
+			Description: "Raises tank pH level.",
 			Image:       itemImgs["phaidb"],
-			Price:       0.25,
-			EventName:   "Buy: item:phBoost",
+			Price:       costMap[PHBoost],
+			EventName:   buyPrefix + itemPrefix + PHBoost,
 		},
 		{
-			Name:        "PH Reduce",
-			Description: "Lowers tank PH levels",
+			Name:        phReduceTitle,
+			Description: "Lowers tank pH level.",
 			Image:       itemImgs["phaidr"],
-			Price:       0.25,
-			EventName:   "Buy: item:phReduce",
+			Price:       costMap[PHReduce],
+			EventName:   buyPrefix + itemPrefix + PHReduce,
 		},
 		{
 			Name:        "Cool Rock",
-			Description: "Cools down your tank",
+			Description: "Cools down your tank.",
 			Image:       itemImgs["coolRock"],
 			Price:       0.75,
-			EventName:   "Buy: decoration:coolRock",
+			EventName:   buyPrefix + decorationPrefix + coolRock,
 		},
 		{
 			Name:        "Hot Rock",
-			Description: "Heats up your tank",
+			Description: "Heats up your tank.",
 			Image:       itemImgs["hotRock"],
 			Price:       0.75,
-			EventName:   "Buy: decoration:hotRock",
+			EventName:   buyPrefix + decorationPrefix + hotRock,
 		},
 	}
 
-	mag.AddStorePage(accessoryItems, hub, "items")
+	mag.AddStorePage(accessoryItems, hub, itemStore)
 
-	var keys []string
-	for key, _ := range mag.pages {
-		keys = append(keys, key)
-	}
-	mag.AddIndexPage(keys, hub, "info")
+	pageOrder := []string{FishStore, decorationStore, plantStore, itemStore}
+
+	mag.AddIndexPage(pageOrder, hub, Index)
+	mag.activeIndex = Index
 
 	setupMagazineEvents(mag, hub)
 	defaultMagSubs(mag, hub)
@@ -637,35 +680,43 @@ func LoadMagNineSlice() (*eimage.NineSlice, *eimage.NineSlice, error) {
 	return magNineSlice, flipNineSlice, nil
 }
 
-func LoadFishSprites() ([12]*ebiten.Image, error) {
-	fishList := []entities.FishList{entities.Guppy, entities.Kirbensis, entities.GoldFish, entities.MollyFish, entities.AngelFish}
-	imgs := [12]*ebiten.Image{}
-	for i, fish := range fishList {
+func LoadFishSprites() map[string]*ebiten.Image {
+	fishList := []entities.FishList{entities.GoldFish, entities.MollyFish, entities.Kirbensis, entities.Guppy, entities.AngelFish}
+	imgs := make(map[string]*ebiten.Image)
+	for _, fish := range fishList {
 		fishSprite, err := entities.LoadFishAnimations(fish, 2)
 		if err != nil {
 			log.Fatal(err)
 		}
-		imgs[i] = fishSprite["swimming"].GetFirstFrameAsStaticImage()
+		imgs[string(fish)] = fishSprite["swimming"].GetFirstFrameAsStaticImage()
 	}
-
-	return imgs, nil
+	return imgs
 }
 
-func LoadFishDescriptions() ([5]string, [5]string) {
+func LoadDecorationDescriptions() map[string]string {
+	return map[string]string{
+		zenBridge: "Add some calm and tranquility to your tank.\n\n -Increases PH by 1.0, \n\n-Decreases fish stress by 0.25\n\n+zen set",
+		zenFriend: "Add some calm and tranquility to your tank.\n\n-Decreases PH by 2.0, \n\n-Decreases fish stress by 1n\n\n+zen set",
+		logProp:   "A cheap nature booster.\n\n -Increase PH by 2.0, \n\n+Eco System",
+		castle:    "A decoration fit for a king.\n\n -Decreases PH by 2.0, \n\n+Cave structure",
+	}
+}
+
+func LoadFishDescriptions() map[string]string {
 	// Keep your existing implementation
-	descriptionMap := [5]string{
-		"Guppies are Hardy fish that come in a variety of vibrant colors.",
-		"An exotically patterned fish that prefer cave-like structure.",
-		"Goldfish are one of the earliest " +
+	descriptionMap := map[string]string{
+
+		goldfish: "Goldfish are one of the earliest " +
 			"fish to be kept as pets. They are easy to care for and flexible.",
-		"Molly fish are a friendly, active fish. " +
+		mollyFish: "Molly fish are a friendly, active fish. " +
 			"They will swim right up to the glass" +
 			"when they are ready to eat.",
-		"Angel fish need warm temperatures and acidic temperatures. They are famous for their unique shape and beautiful stripe patterns",
+		kirbensis: "An exotically patterned fish that prefer cave-like structure.",
+		guppyFish: "Guppies are Hardy fish that come in a variety of vibrant colors.",
+		angelFish: "Angel fish need warm temperatures and acidic temperatures. They are famous for their unique shape and beautiful stripe patterns",
 	}
 
-	names := [5]string{"Guppy", "Kirbensis", "GoldFish", "MollyFish", "AngelFish"}
-	return descriptionMap, names
+	return descriptionMap
 }
 
 func loadStoreImgs() map[string]*ebiten.Image {

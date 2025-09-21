@@ -4,6 +4,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
+	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image"
 )
@@ -30,15 +31,18 @@ func PHReaderUpdate(e *Entity, gs GameState) {
 				phps2 := NewPhReaderParticleSystem(float64(e.Sprite.X)+float64(e.Sprite.GetSpriteRect().Dx()/2), float64(gs.Zbounds[e.Z-1].Min.Y), gs.Zbounds[e.Z-1])
 				RegisterEntity(&Entity{ParticleSystem: phps, LifeTime: 20, Z: e.Z, Sprite: phps.Sprite})
 				RegisterEntity(&Entity{ParticleSystem: phps2, LifeTime: 20, Z: e.Z, Sprite: phps2.Sprite})
+				uiDat.Timers["doAtTime"].TurnOn()
 			}
 		}
-		ClickForTime(e, gs, phReaderDoAtTime)
 	}
 
 	if uiDat.state == Selected && !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 		if e.Z < 10 {
 			UpdateEntityZAndReSortEntitySlice(e.Id, 10)
+			e.Sprite.DOptsUpdaterTag = ""
+
 		}
+
 	}
 
 	if uiDat.state == JustFocused {
@@ -48,7 +52,7 @@ func PHReaderUpdate(e *Entity, gs GameState) {
 		boxEnt := &Entity{Sprite: boxSprite}
 		boxEnt.Z = 0
 		RegisterEntity(boxEnt)
-		e.LinkedID = boxEnt.Id
+		e.TempLinkedID = boxEnt.Id
 		uiDat.state = Selected
 		AltImageWhenClickedUpdater(e, gs)
 	}
@@ -59,15 +63,14 @@ func PHReaderUpdate(e *Entity, gs GameState) {
 
 	if uiDat.state == ExtraSpriteAnimationCompleted {
 		uiDat.state = FinishedButStayOpen
-		ev := events.UISpriteAction{UiSprite: "phreader", UiSpriteAction: "ph reading"}
-		uiDat.EventHub.Publish(ev)
+
 	}
 }
 
-func phReaderDoAtTime(ent *Entity) {
+func PhReaderDoAtTime(ent *Entity, gs GameState) {
 	ent.Sprite.DOptsUpdaterTag = ""
 
-	RemoveEntity(ent.LinkedID)
+	RemoveEntity(ent.TempLinkedID)
 	us := ent.Sprite
 	uiDat := ent.UiData
 
@@ -87,6 +90,11 @@ func phReaderDoAtTime(ent *Entity) {
 	sp.DOptsUpdaterParams["destinationX"] = 420
 	sp.DOptsUpdaterParams["destinationY"] = float64(registry.Config.ScreenHeight / 10)
 	us.LinkedSprite = sp
+
+	ent.UiData.Timers[PublishAtTime] = util.NewTimer(0.5)
+	ent.UiData.Timers[PublishAtTime].TimerUpdater = PublishAtTimerUpdater
+	ent.UiData.Timers[PublishAtTime].TurnOn()
+	ent.Parameters[PublishAtTime] = events.UISpriteAction{UiSprite: "phreader", UiSpriteAction: "ph reading"}
 
 	//us.UpdateShaderParams = shaders.UpdateCounter
 }

@@ -65,6 +65,9 @@ var FigureOutCoords string
 //go:embed uiEffects/highLight.kage
 var Highlight string
 
+//go:embed uiEffects/lowLight.kage
+var LowLight string
+
 //go:embed uiEffects/stomachFill.kage
 var StomachFill string
 

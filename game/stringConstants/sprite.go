@@ -1,1 +1,6 @@
-package StringConstants
+package stringConstants
+
+const (
+	Swirl = "swirl"
+	Sway  = "sway"
+)

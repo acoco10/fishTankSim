@@ -2,11 +2,10 @@ package loader
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/sprite"
-	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/acoco10/fishTankWebGame/shaders"
 )
 
-func LoadRotatingHighlightOutline(sprite *sprite.Sprite) {
+/*func LoadRotatingHighlightOutline(sprite *sprite.Sprite) {
 
 	b := sprite.Img.Bounds()
 	shaderParams := make(map[string]any)
@@ -28,9 +27,9 @@ func LoadRotatingHighlightOutline(sprite *sprite.Sprite) {
 	sprite.CPUShaderParams = cpuShaderParams
 
 	sprite.UpdateBothParams = shaders.CpuUpdateRotatingOutlineHighlight
-}
+}*/
 
-func LoadRotatingHighlightOutlineAnimated(sprite *sprite.AnimatedSprite) {
+/*func LoadRotatingHighlightOutlineAnimated(sprite *sprite.AnimatedSprite) {
 	subImgRect := sprite.GetAnimation().Rect(0)
 	b := subImgRect.Bounds()
 	scale := sprite.Scale
@@ -55,7 +54,7 @@ func LoadRotatingHighlightOutlineAnimated(sprite *sprite.AnimatedSprite) {
 
 	sprite.UpdateBothParams = shaders.CpuUpdateRotatingOutlineHighlight
 
-}
+}*/
 
 func LoadLightingParamaters(sprite *sprite.AnimatedSprite) {
 

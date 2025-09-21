@@ -5,6 +5,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/system"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
+	"github.com/hajimehoshi/ebiten/v2"
 	"image"
 	"log"
 	"math/rand"
@@ -44,6 +45,7 @@ const (
 
 type CreatureData struct {
 	TargetPoint        *util.Point
+	inBetweenPoint     *util.Point
 	distanceTraveled   float64
 	TargetZ            int
 	TargetParticleId   uint32
@@ -56,14 +58,15 @@ type CreatureData struct {
 	Environment        *system.Environment
 	stressContributors []string
 	MovementFlags      [10]uint32
+	Flags              FishFlags
 	*FishStats
 	Flip bool
 }
 
-func (e *Entity) FishUpdate(state *GameState) {
+func (e *Entity) FishUpdate(state GameState) {
 	c := e.CreatureData
 
-	c.TankBoundaries = state.Zbounds[c.TargetZ]
+	c.TankBoundaries = state.Zbounds[e.Z]
 
 	c.TickClicked = false
 	switch c.State {
@@ -77,24 +80,27 @@ func (e *Entity) FishUpdate(state *GameState) {
 		e.eatingUpdate()
 	}
 
-	dopts := e.TranSlateFishOpts()
-	sopts := e.TranSlateFishShaderOpts()
+	dopts := e.TranSlateFishOpts(ebiten.DrawImageOptions{})
+	e.Sprite.UpdateOpts(&dopts)
 
-	e.Sprite.UpdateOpts(sopts)
-	e.Sprite.UpdateOpts(dopts)
+	if e.Sprite.Shader != nil {
+		sopts := e.TranSlateFishShaderOpts()
+		e.Sprite.UpdateOpts(sopts)
+
+	}
 
 	if registry.Config.Zoom {
-		e.Sprite.Unfocusable = false
+		e.Sprite.UnFocusable = false
 	} else {
 		if e.Sprite.Focused {
 			UnFocus(e.Id)
 		}
-		e.Sprite.Unfocusable = true
+		e.Sprite.UnFocusable = true
 	}
 
 	e.updateAnimation()
 
-	e.publishStats("statsMenu")
+	//e.publishStats("statsMenu")
 
 }
 
@@ -119,6 +125,7 @@ func (e *Entity) updateAnimation() {
 	case Eating:
 
 		e.Sprite.CurrentAnimation = "eating"
+		e.Sprite.GetAnimation().SpeedInTPS = 12
 
 	case Resting:
 		// Use swimming animation for resting or create a resting animation

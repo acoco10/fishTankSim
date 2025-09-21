@@ -1,7 +1,6 @@
 package shaders
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
 )
@@ -88,49 +87,50 @@ func UpdateCounterOneShot(params map[string]any) map[string]any {
 	return params
 }
 
-func CpuUpdateRotatingOutlineHighlight(params map[string]any, cpuParams map[string]any) (map[string]any, map[string]any) {
-	//variables used in game loop to be mutated by update func
-	cpuDirection := cpuParams["direction"].(util.Direction)
-	imageRect := cpuParams["imageRect"].([2]float64)
-	origin := cpuParams["origin"].([2]float64)
-	highLightRect := cpuParams["hlRectPoint"].([2]float64)
+/*
+	func CpuUpdateRotatingOutlineHighlight(params map[string]any, cpuParams map[string]any) (map[string]any, map[string]any) {
+		//variables used in game loop to be mutated by update func
+		cpuDirection := cpuParams["direction"].(util.Direction)
+		imageRect := cpuParams["imageRect"].([2]float64)
+		origin := cpuParams["origin"].([2]float64)
+		highLightRect := cpuParams["hlRectPoint"].([2]float64)
 
-	//variables passed to shader to be mutated by update func
-	rectangleSize := params["HLRectSize"].(float64)
+		//variables passed to shader to be mutated by update func
+		rectangleSize := params["HLRectSize"].(float64)
 
-	updateSpeed := 0.7
+		updateSpeed := 0.7
 
-	X0 := origin[0]
-	Y0 := origin[1]
+		X0 := origin[0]
+		Y0 := origin[1]
 
-	switch cpuDirection {
-	case util.Right:
-		highLightRect[0] += updateSpeed
-		if highLightRect[0]+rectangleSize >= imageRect[0] {
-			cpuParams["direction"] = util.Down
+		switch cpuDirection {
+		case util.Right:
+			highLightRect[0] += updateSpeed
+			if highLightRect[0]+rectangleSize >= imageRect[0] {
+				cpuParams["direction"] = util.Down
+			}
+		case util.Left:
+			highLightRect[0] -= updateSpeed
+			if highLightRect[0] <= 0 {
+				cpuParams["direction"] = util.Up
+			}
+		case util.Down:
+			highLightRect[1] += updateSpeed
+			if highLightRect[1]+rectangleSize >= imageRect[1] {
+				cpuParams["direction"] = util.Left
+			}
+		case util.Up:
+			highLightRect[1] -= updateSpeed
+			if highLightRect[1] <= 0 {
+				cpuParams["direction"] = util.Right
+			}
 		}
-	case util.Left:
-		highLightRect[0] -= updateSpeed
-		if highLightRect[0] <= 0 {
-			cpuParams["direction"] = util.Up
-		}
-	case util.Down:
-		highLightRect[1] += updateSpeed
-		if highLightRect[1]+rectangleSize >= imageRect[1] {
-			cpuParams["direction"] = util.Left
-		}
-	case util.Up:
-		highLightRect[1] -= updateSpeed
-		if highLightRect[1] <= 0 {
-			cpuParams["direction"] = util.Right
-		}
+
+		params["HighLightRect"] = [2]float64{highLightRect[0] + X0, highLightRect[1] + Y0}
+		cpuParams["hlRectPoint"] = highLightRect
+		return params, cpuParams
 	}
-
-	params["HighLightRect"] = [2]float64{highLightRect[0] + X0, highLightRect[1] + Y0}
-	cpuParams["hlRectPoint"] = highLightRect
-	return params, cpuParams
-}
-
+*/
 func FadeLightIntensityForTurnOff(params map[string]any) map[string]any {
 	intensity := params["LightIntensity"].(float64)
 	counter := params["Counter"].(float64)

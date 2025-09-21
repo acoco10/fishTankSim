@@ -16,7 +16,7 @@ type GameState struct {
 	State    []interface{} `json:"state"`
 }
 
-func main() {
+func LoadFromSave() {
 	loadFunc := js.Global().Get("loadSaveData")
 	promise := loadFunc.Invoke()
 	// Wait for it
@@ -53,5 +53,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+}
+
+func main() {
+	g = scenes.NewGame(gameLog, scenes.ExistingUser)
 
 }

@@ -3,7 +3,8 @@ package util
 type InterestPoint uint8
 
 const (
-	Food InterestPoint = iota
+	Nada InterestPoint = iota
+	Food
 	Structure
 	OtherCreature
 	DrawPoint

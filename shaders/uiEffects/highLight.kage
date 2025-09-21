@@ -7,7 +7,7 @@ func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
     var outline bool
     outline = false
     if color.a > 0 {
-       color.rgb += vec3(0.2, 0.2, 0.0)
+       color.rgb += vec3(0.4, 0.4, 0.2)
        for x := -1; x <= 1; x++ {
            for y := -1; y <= 1; y++ {
                if x == 0 && y == 0 {

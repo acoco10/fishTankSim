@@ -10,7 +10,7 @@ import (
 func MakeSpriteEntity(img *ebiten.Image, x float32, y float32, flags SpriteEntFlags) uint32 {
 
 	sp := &sprite.Sprite{Img: img, X: x, Y: y}
-	sp.Unfocusable = flags.Unfocusable
+	sp.UnFocusable = flags.Unfocusable
 	ent := &entities.Entity{Sprite: sp}
 	entities.RegisterEntity(ent)
 

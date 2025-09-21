@@ -30,6 +30,7 @@ type StartScene struct {
 	grandpa           *ebiten.Image
 	resolutionScaling int
 	state             string
+	timers            map[string]*util.Timer
 	textGraphic       int
 }
 
@@ -58,6 +59,9 @@ func NewStartScene(gameLog *sceneManagement.GameLog) *StartScene {
 	timer := util.NewTimer(1)
 	s.nextSceneTrigger = timer
 	s.state = "firstFishSelect"
+
+	s.timers = make(map[string]*util.Timer)
+	s.timers["enterText"] = util.NewTimer(3)
 	return &s
 }
 
@@ -79,6 +83,10 @@ func (s *StartScene) Update() (sceneManagement.SceneId, error) {
 	}
 
 	if s.state == "grandpa" {
+		tState := s.timers["enterText"].Update()
+		if tState == util.Done {
+			s.textGraphic = graphics.NewFadeInTextGraphic("Press Enter to continue", ScreenWidth/2, 75, 0)
+		}
 		graphics.UpdateGraphics()
 		if ebiten.IsKeyPressed(ebiten.KeyEnter) {
 			return sceneManagement.FishTank, nil
@@ -105,6 +113,7 @@ func (s *StartScene) Draw(screen *ebiten.Image) {
 		y := float64(ScreenHeight/2 - s.grandpa.Bounds().Dy()/2)
 		dOpts.GeoM.Translate(x, y)
 		s.smallerResolution.DrawImage(s.grandpa, dOpts)
+		graphics.DrawScaledGraphics(s.smallerResolution)
 
 		dOpts.GeoM.Reset()
 		dOpts.GeoM.Translate(0, registry.Config.YOffsetF)
@@ -112,7 +121,6 @@ func (s *StartScene) Draw(screen *ebiten.Image) {
 		screen.DrawImage(s.smallerResolution, dOpts)
 
 	}
-	graphics.DrawUnScaledGraphics(screen)
 }
 
 func (s *StartScene) FirstLoad() {
@@ -152,7 +160,8 @@ func (s *StartScene) subs(gameLog *sceneManagement.GameLog) {
 			s.gameLog.SoundPlayer.Play(soundFX.SelectSound)
 			s.selectedFish.Name = s.ui.TextInput.GetText()
 			gameLog.Save.Fish = append(gameLog.Save.Fish, s.selectedFish)
-			s.textGraphic = graphics.NewFadeInTextGraphic("Me and Grandpa Al at the Aquarium", ScreenWidth/2, ScreenHeight-100, 500)
+			s.textGraphic = graphics.NewFadeInTextGraphic("You and your late Grandpa Albert at the aquarium.", ScreenWidth/2, 50, 0)
+			s.timers["enterText"].TurnOn()
 			s.state = "grandpa"
 		}
 	})

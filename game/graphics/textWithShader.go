@@ -6,7 +6,6 @@ import (
 	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"math/rand"
 )
 
 type TextWithShader struct {
@@ -42,17 +41,16 @@ func NewTextWithMarkerShader(txt string, buff *ebiten.Image, insets [2]float64, 
 	ts.ShaderParams["MaxCounter"] = int(length) * 2
 	ts.ShaderParams["Counter"] = int(xInset - 2) //counter is space based
 
-	maxOp := max(rand.Float64(), 0.7)
-	ts.ShaderParams["MaxOpacity"] = maxOp
+	ts.ShaderParams["MaxOpacity"] = 0.9
 
 	ts.renderShaderImage = ebiten.NewImage(buff.Bounds().Dx(), buff.Bounds().Dy())
 	ts.buffer = buff
 
 	topts := &text.DrawOptions{}
 
-	topts.ColorScale.SetR(0.1)
-	topts.ColorScale.SetG(0.2)
-	topts.ColorScale.SetB(0.6)
+	topts.ColorScale.SetR(242.0 / 255.0)
+	topts.ColorScale.SetG(68.0 / 255.0)
+	topts.ColorScale.SetB(51.0 / 255.0)
 	topts.ColorScale.SetA(1)
 	topts.GeoM.Translate(ts.textXinset, ts.textYinset)
 	text.Draw(ts.renderShaderImage, ts.text, ts.face, topts)
@@ -75,7 +73,9 @@ func (t *TextWithShader) Update() {
 		println("nil update func for draw text w/ shader")
 		return
 	}
-
+	if t.ShaderParams["Counter"].(int) == t.ShaderParams["MaxCounter"].(int)-50 {
+		t.FullyDrawn = true
+	}
 	t.ShaderParams = t.updateFunc(t.ShaderParams)
 
 }

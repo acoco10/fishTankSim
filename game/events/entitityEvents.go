@@ -47,3 +47,11 @@ type PlacementMode struct {
 func (p PlacementMode) Type() string {
 	return "PlacementMode"
 }
+
+type WritingToWhiteBoard struct {
+	Msg string
+}
+
+func (wtw WritingToWhiteBoard) Type() string {
+	return "WritingToWhiteBoard"
+}

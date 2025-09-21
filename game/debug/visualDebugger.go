@@ -8,8 +8,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"golang.org/x/image/colornames"
 	"image"
+	"image/color"
 	"log"
 )
 
@@ -75,6 +75,7 @@ func (d *DebugData) Update() {
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyQ) {
 		d.GameMode = User
+		d.drawingSomething = false
 		registry.Config.Set(registry.Debug, false)
 
 	}
@@ -104,8 +105,9 @@ func (d *DebugData) Update() {
 			for _, ent := range entities.LiveList {
 				if ent.UiData != nil {
 					ent.StateMachine = entities.InitStateMachine(nil, entities.PositionUpdate, entities.AddUiSpriteXYUpdater, entities.UiSpriteTurnOffEverything)
-					ent.Sprite.Unfocusable = false
+					ent.Sprite.UnFocusable = false
 					ent.SetUIState(entities.Idle)
+					ent.Draw = true
 				}
 			}
 			d.DebugOption = Position
@@ -187,9 +189,9 @@ func (d *DebugData) Draw(screen *ebiten.Image) {
 	}
 
 	if d.showZbounds {
-		color := colornames.Orangered
-		for _, rect := range d.GameState.Zbounds {
-			util.StrokeRectFromImageRect(rect, screen, color, false)
+
+		for i, rect := range d.GameState.Zbounds {
+			util.StrokeRectFromImageRect(rect, screen, util.DebugZColors[i].(color.RGBA), false)
 		}
 
 	}

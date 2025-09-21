@@ -6,7 +6,6 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
-	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"image"
@@ -219,10 +218,7 @@ func ConfigZoom(zoomFactor float64, zoomOffset image.Point) {
 }
 
 func DebugText(debugText string, screen *ebiten.Image) {
-	face, err := util.LoadFont(24.0, "nk57")
-	if err != nil {
-		log.Fatal("Couldnt Load font for debug text", err)
-	}
+	face := registry.FontMap["rockSalt"]
 	dOpts := text.DrawOptions{}
 	dOpts.GeoM.Translate(ScreenWidth/2-float64(len(debugText)*6), ScreenHeight/10)
 	text.Draw(screen, debugText, face, &dOpts)

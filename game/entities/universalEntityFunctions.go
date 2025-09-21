@@ -3,6 +3,7 @@ package entities
 import (
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
+	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image"
@@ -28,7 +29,7 @@ func ClosestHoveredEntityToCursor(cursorX int, cursorY int, entSlice []*Entity) 
 			continue
 		}
 
-		if ent.Sprite.Unfocusable {
+		if ent.Sprite.UnFocusable {
 			continue
 		}
 		if ent.UiData != nil && ent.UiData.state == Disabled {
@@ -96,7 +97,7 @@ func ClosestCreatureZoomed(cursorX int, cursorY int, entSlice []*Entity) *Entity
 			}
 		}
 	}
-	if closestDistance < 200 {
+	if closestDistance < 100 {
 		return distMap[closestDistance]
 	}
 	return nil
@@ -164,5 +165,28 @@ func UpdateCursorForEntitiesWNormals(cursor []float64) {
 				ent.Sprite.ShaderParams["Cursor"] = cursor
 			}
 		}
+	}
+}
+
+func GetParam[T any](ent *Entity, key string) T {
+	value, exists := ent.Parameters[key]
+	if !exists {
+		log.Fatalf("Parameter %s not found", key)
+	}
+
+	typed, ok := value.(T)
+	if !ok {
+		log.Fatalf("Parameter %s has wrong type, expected %T", key, *new(T))
+	}
+	return typed
+}
+
+func PublishAtTimerUpdater(timer *util.Timer, e any) {
+	ent := e.(*Entity)
+	state := timer.Update()
+	if state == util.Done {
+		ent.EventHub.Publish(GetParam[tasks.Event](ent, PublishAtTime))
+		timer.TurnOff()
+
 	}
 }

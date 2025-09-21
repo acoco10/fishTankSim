@@ -153,10 +153,10 @@ func NewStructureProp(ps PropAssets, hub *tasks.EventHub, bounds image.Rectangle
 		PM.loadPropManager()
 	}
 	p := StructureProp{}
-	sp := &sprite.Sprite{Img: ps.layers[0], NormalMap: ps.normalMap, Unfocusable: true}
+	sp := &sprite.Sprite{Img: ps.layers[0], NormalMap: ps.normalMap, UnFocusable: true}
 	if len(ps.layers) > 1 {
 		log.Println("loading second image for structure prop as sprite")
-		sp2 := &sprite.Sprite{Img: ps.layers[1], NormalMap: ps.layers[1], Unfocusable: true}
+		sp2 := &sprite.Sprite{Img: ps.layers[1], NormalMap: ps.layers[1], UnFocusable: true}
 		p.Sprite2 = sp2
 		if ps.normalMap != nil {
 			normalMapShader := registry.ShaderMap["NormalMap"]
@@ -307,6 +307,16 @@ func (e *Entity) UpdateProp(zBounds [13]image.Rectangle) {
 
 			for _, corner := range p.baseCorners {
 				nps := NewGenericParticleSystem(float64(corner.X), float64(corner.Y), zBounds[psz], 0)
+				nps.PConfig = &ParticleConfig{
+					XVariance:         10,
+					YVariance:         10,
+					XVelocityVariance: 10,
+					YVelocityVariance: 10,
+					MaxLife:           0,
+					BaseYVelocity:     -40,
+					RotationSpeed:     rand.NormFloat64() * .01,
+					Scale:             1.5,
+					AlphaDecay:        0.5}
 				RegisterEntity(&Entity{ParticleSystem: nps, Z: psz, EndAfter: 10.0, Sprite: nps.Sprite})
 			}
 
@@ -393,6 +403,7 @@ func plantUpdateFunc(ent *Entity) {
 		ent.UpdateFunc = nil
 		sprite.InitSwayAnimation(ent.Sprite, 15)
 		ent.EventHub.Publish(events.NewProp{PropId: ent.Id})
+
 	}
 }
 
@@ -429,7 +440,7 @@ func LoadPlant(event tasks.Event, data PropData, hub *tasks.EventHub) uint32 {
 	y := ev.Y - float32(pImg.Bounds().Dy()) + 2
 
 	sp := &sprite.Sprite{AnimationMap: map[string]*sprite.Animation{"StartUp": pAni}, CurrentAnimation: "StartUp", X: x, Y: y}
-	sp.Unfocusable = true
+	sp.UnFocusable = true
 	sp.ShaderParams = make(map[string]any)
 	sp.ShaderParams["Cursor"] = []float64{0, 0, 100}
 	if plantName[len(plantName)-4:] == "Rare" {
@@ -453,9 +464,29 @@ func LoadPlant(event tasks.Event, data PropData, hub *tasks.EventHub) uint32 {
 
 	RegisterEntity(ent)
 	pps := NewGenericParticleSystem(float64(ev.X), float64(ev.Y), data.ZBounds[ev.Z], 0)
+	pps.PConfig = &ParticleConfig{
+		XVariance:         10,
+		YVariance:         10,
+		XVelocityVariance: 10,
+		YVelocityVariance: 10,
+		MaxLife:           0,
+		BaseYVelocity:     -50,
+		RotationSpeed:     rand.NormFloat64() * .01,
+		Scale:             1.0,
+		AlphaDecay:        0.5}
 	RegisterEntity(&Entity{ParticleSystem: pps, EndAfter: 10.0, Z: ev.Z, Sprite: pps.Sprite})
 
 	pps2 := NewGenericParticleSystem(float64(ev.X), float64(ev.Y), data.ZBounds[ev.Z], 0)
+	pps2.PConfig = &ParticleConfig{
+		XVariance:         10,
+		YVariance:         10,
+		XVelocityVariance: 10,
+		YVelocityVariance: 10,
+		MaxLife:           0,
+		BaseYVelocity:     -50,
+		RotationSpeed:     rand.NormFloat64() * .01,
+		Scale:             1.0,
+		AlphaDecay:        0.5}
 	RegisterEntity(&Entity{ParticleSystem: pps2, EndAfter: 10.0, Z: ev.Z, Sprite: pps2.Sprite})
 
 	return ent.Id
@@ -519,7 +550,7 @@ func LoadPlaceMentReticule(zBounds [13]image.Rectangle, tag string, hub *tasks.E
 	hub.Publish(ev)
 	x, _, currentZ := positionPointBasedOnCursorOnZslice(zBounds)
 
-	sp := &sprite.Sprite{Img: img, Y: float32(zBounds[currentZ].Max.Y), X: float32(x), Unfocusable: true}
+	sp := &sprite.Sprite{Img: img, Y: float32(zBounds[currentZ].Max.Y), X: float32(x), UnFocusable: true}
 	ent := &Entity{Sprite: sp}
 	ent.Z = 13
 	ent.UpdateFunc = placemenReticuleUpdateFunc
@@ -577,6 +608,7 @@ func placemenReticuleUpdateFunc(ent *Entity) {
 	ent.Sprite.X = float32(x)
 	ent.Sprite.Y = float32(y)
 	ent.Sprite.DOptsUpdaterParams = make(map[string]float64)
+	ent.Sprite.DOptsUpdaterTag = "offSet"
 	ent.Sprite.DOptsUpdaterParams["offSetX"] = -2
 	ent.Sprite.DOptsUpdaterParams["offSetY"] = -4
 

@@ -1,7 +1,8 @@
 package events
 
 type MoneyAvailable struct {
-	Amount float64
+	CurrentAmount float64
+	Amount        float64
 }
 
 func (m MoneyAvailable) Type() string {

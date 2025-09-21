@@ -6,6 +6,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/drawables"
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
+	"github.com/acoco10/fishTankWebGame/game/stringConstants"
 	"github.com/acoco10/fishTankWebGame/game/system"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
@@ -38,11 +39,12 @@ func LoadUISprites(spritesToLoad []entities.Label, environment *system.Environme
 	if err != nil {
 		return nil, nil, err
 	}
-
+	loaded := make(map[string]uint32)
 	for i, elem := range spritesToLoad {
 
 		var spritePosition drawables.SavePositionData
 		if spritePositions[string(elem)] == nil {
+			//if we have a new sprite, just load it at whiteboard
 			spritePosition = *spritePositions[string(entities.WhiteBoard)]
 		} else {
 			spritePosition = *spritePositions[string(elem)]
@@ -66,28 +68,42 @@ func LoadUISprites(spritesToLoad []entities.Label, environment *system.Environme
 		entity.LayerIndex = i
 		entities.RegisterEntity(entity)
 		entities.UiSpriteSubs(hub, entity)
+
+		entity.DoAt = make(map[string]func(entity *entities.Entity, gs entities.GameState))
+		loaded[string(elem)] = entity.Id
 		switch elem {
 
 		case entities.WhiteBoard:
-			uSprite.Unfocusable = true
+			uSprite.UnFocusable = true
 			wbSprite = &entities.WhiteBoardSprite{UiSprite: entity}
 			wbSprite.Subscribe(hub)
 			wbSprite.Init(hub)
 		case entities.LightSwitch:
 			entity.Z = 13
-			uSprite.Unfocusable = true
+			uSprite.UnFocusable = true
 			uSprite.Flags["noOffset"] = true
 		case entities.FishFood:
 			uSprite.ActivationRect = image.Rect(tankBounds.Min.X, tankBounds.Min.Y-80, tankBounds.Max.X, tankBounds.Min.Y-200)
 		case entities.Skimmer:
-			sm := entities.InitStateMachine(nil, entities.UpdateSkimmer, entities.AddUiSpriteXYUpdater, nil)
+			sm := entities.InitStateMachine(nil, entities.AltImageWhenClickedUpdater, entities.AddUiSpriteXYUpdater, nil)
 			//phys := physics.NewNetBody(float64(uSprite.Sprite.X), float64(int(uSprite.Sprite.Y)+uSprite.Sprite.GetSpriteRect().Dy()), 40, -math.Pi/2, math.Pi/2)
 			entity.StateMachine = sm
-		case entities.Pillow, entities.Door:
+		case entities.Pillow:
 			entity.Draw = false
-			uSprite.Unfocusable = true
+			uSprite.UnFocusable = true
 		case entities.Phreader:
+			sm := entities.InitStateMachine(nil, entities.AltImageWhenClickedUpdater, nil, nil)
+			sm.AppendState(entities.ActivationRectUpdater, nil)
+			sm.AppendState(entities.UsedInActivationRect, nil)
+			entity.StateMachine = sm
+			entity.DoAt = make(map[string]func(entity *entities.Entity, gs entities.GameState))
+			entity.DoAt[entities.DoAtTime] = entities.PhReaderDoAtTime
+			entity.UiData.Timers[entities.DoAtTime] = util.NewTimer(2.0)
+
+			entity.UiData.Flags[stringConstants.Swirl] = true
 			entity.UiData.Flags["updater"] = true
+			entity.UiData.Flags["outline"] = true
+			entity.UiData.Flags["autoTransition1"] = true
 			entity.Sprite.AbleToBeUnfocusedAutomatically = true
 		case entities.PiggyBank:
 			entity.Sprite.AbleToBeUnfocusedAutomatically = true
@@ -95,31 +111,50 @@ func LoadUISprites(spritesToLoad []entities.Label, environment *system.Environme
 			entity.Sprite.AnimationMap = LoadPiggyBankAnimationMap(b.Dy(), b.Dx())
 			sm := entities.InitPiggyBankStateMachine()
 			entity.StateMachine = sm
-		case entities.Magazine:
-			uSprite.Unfocusable = true
-		//entity.Draw = false
+			entity.UiData.Flags["lowLight"] = true
+			entity.DoAt[entities.DoAtHovered] = entities.PublishGraphicHovered
 		case entities.Thermometer:
 			entity.Z = 11
 			entity.UiData.BaseZ = 11
 			sm := entities.InitStateMachine(nil, entities.AltImageWhenClickedUpdater, entities.AddTempGuage, nil)
+			sm.AppendState(entities.TurnOffEveryThingOnUnFocus, nil)
 			entity.StateMachine = sm
-			entity.UiData.Flags["updater"] = false
-		case entities.GrandpasJournal:
-			sm := entities.InitStateMachine(nil, entities.AltImageWhenClickedUpdater, nil, nil)
-			sm.AppendState(entities.PublishPickedUpEvent, nil)
-			entity.UiData.Timers["transition1"] = util.NewTimer(1.2)
-			entity.StateMachine = sm
-			entity.UiData.Flags["center"] = true
 			entity.UiData.Flags["autoTransition1"] = true
+			entity.UiData.Flags["updater"] = false
+		case entities.Magazine:
+			sm := entities.InitStateMachine(entities.DisabledState, entities.AltImageHovered,
+				nil, entities.PublishPickedUpEvent)
+			entity.Draw = false
+			entity.UiData.Timers["freeze"] = util.NewTimer(0.5)
 			entity.UiData.Flags["revert"] = true
-		}
+			entity.Sprite.UnFocusable = true
+			entity.UiData.DontDraw = true
+			entity.StateMachine = sm
 
-		//lightingShader := shaders.LoadOnePointLightingNeutral()
-		//sprite.Shader = lightingShader
-		//LoadSpriteLightingParams(sprite.Sprite)
+		case entities.GrandpasJournal:
+			sm := entities.InitStateMachine(nil, entities.AltImageWhenClickedUpdater,
+				nil, nil)
+			sm.AppendState(entities.AltImageHovered, entities.PublishPickedUpEvent)
+			entity.UiData.Timers["freeze"] = util.NewTimer(0.5)
+			entity.StateMachine = sm
+			entity.UiData.Flags["clickTransition"] = true
+			entity.UiData.Flags["revert"] = true
+			entity.Sprite.NoShaderOnFocus = true
+		}
 
 		uiEntities = append(uiEntities, entity)
 
+	}
+
+	//set linked ids now that all ids are loaded
+	ent, exists := entities.GetEntity(loaded[string(entities.GrandpasJournal)])
+	if exists {
+		ent.LinkedID = loaded[string(entities.Magazine)]
+	}
+
+	ent2, exists := entities.GetEntity(loaded[string(entities.Magazine)])
+	if exists {
+		ent2.LinkedID = loaded[string(entities.GrandpasJournal)]
 	}
 
 	return uiEntities, wbSprite, nil

@@ -2,10 +2,14 @@ package sprite
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/registry"
+	"github.com/acoco10/fishTankWebGame/game/stringConstants"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
+	"golang.org/x/image/colornames"
 	"image"
+	color2 "image/color"
 	"log"
 	"math"
 )
@@ -15,7 +19,6 @@ type Sprite struct {
 	LayerIndex                     int
 	Img                            *ebiten.Image
 	NormalMap                      *ebiten.Image
-	Flip                           bool
 	LinkedSprite                   *Sprite
 	Scale                          float64
 	X, Y                           float32 //these could really be 64
@@ -25,17 +28,20 @@ type Sprite struct {
 	CPUShaderParams                map[string]any
 	UpdateShaderParams             func(map[string]any) map[string]any
 	UpdateBothParams               func(map[string]any, map[string]any) (map[string]any, map[string]any)
-	Remove                         bool            //remove the entity that has this sprite
-	UpdateFunc                     func(s *Sprite) //quicky script
+	UpdateFunc                     func(s *Sprite) //quick script (should always self clear after it's done)
 	PublishedGraphicId             []int
+	Remove                         bool //remove the entity that has this sprite
+	Flip                           bool
 	Focused                        bool
-	Unfocusable                    bool
+	UnFocusable                    bool
 	AbleToBeUnfocusedAutomatically bool
 	highlight                      bool
+	NoShaderOnFocus                bool
 	DOptsUpdaterTag                string //for animating with external function at draw call
 	DOptsUpdaterParams             map[string]float64
 	CurrentAnimation               string
 	IsBuffer                       bool
+	ShaderTexture                  *ebiten.Image
 	BufferDst                      *ebiten.Image
 	*XYUpdater
 	frameImg   *ebiten.Image
@@ -97,6 +103,9 @@ func (s *Sprite) Update() {
 }
 
 func (s *Sprite) Focus() {
+	if s.NoShaderOnFocus {
+		return
+	}
 	if s.NormalMap == nil {
 		s.Shader = registry.ShaderMap["Outline"]
 		if s.ShaderParams == nil {
@@ -126,6 +135,18 @@ func (s *Sprite) UnFocus() {
 
 }
 
+func (s *Sprite) DebugDraw(screen *ebiten.Image, z int, zbound image.Rectangle) {
+	s.Draw(screen)
+	if z <= 12 {
+		clr := util.DebugZColors[z].(color2.RGBA)
+		if s.GetSpriteRect().Min.X < zbound.Min.X || s.GetSpriteRect().Max.X > zbound.Max.X {
+			clr = colornames.Crimson
+		}
+		util.StrokeRectFromImageRect(s.GetSpriteRect(), screen, clr, false)
+		vector.StrokeCircle(screen, s.X, s.Y, 2, 1, colornames.Purple, false)
+	}
+}
+
 func (s *Sprite) Draw(screen *ebiten.Image) {
 
 	if s.LinkedSprite != nil {
@@ -142,12 +163,12 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	if s.DOptsUpdaterTag == "sway" {
+	if s.DOptsUpdaterTag == stringConstants.Sway {
 		DrawSwayAnimation(s, screen)
 		return
 	}
 
-	if s.DOptsUpdaterTag == "swirl" {
+	if s.DOptsUpdaterTag == stringConstants.Swirl {
 		DrawSwirlSprite(s, screen)
 		return
 	}
@@ -223,7 +244,7 @@ func (s *Sprite) Draw(screen *ebiten.Image) {
 
 	dOpts.GeoM.Translate(float64(s.X), float64(s.Y))
 
-	if s.DOptsUpdaterParams != nil {
+	if s.DOptsUpdaterTag == "offset" {
 		dOpts.GeoM.Translate(s.DOptsUpdaterParams["offSetX"], s.DOptsUpdaterParams["offSetY"])
 	}
 	screen.DrawImage(s.Img, dOpts)
@@ -311,6 +332,15 @@ func (s *Sprite) GetSpriteRect() image.Rectangle {
 	height := s.SpriteHeight()
 	rect := image.Rect(int(s.X), int(s.Y), int(s.X)+width, int(s.Y)+height)
 
+	if s.DOptsUpdaterTag == "custom" {
+		//setting for fish sprites which have middle origin for easier sprite flipping and collisions
+		x := s.X - float32(width/2)
+		y := s.Y - float32(height/2)
+
+		rect = image.Rect(int(x), int(y), int(x)+width, int(y)+height)
+		return rect
+	}
+
 	return rect
 }
 
@@ -366,6 +396,16 @@ func UpdateSpriteAnimation(as *Sprite) {
 	ani := as.GetAnimation()
 	shaderOpts := &ebiten.DrawRectShaderOptions{}
 
+	as.UpdateShader()
+
+	as.GetAnimation().Update()
+
+	UpdateSpriteFrameImg(as)
+
+	if as.DOptsUpdaterTag == "custom" {
+		return
+	}
+
 	if as.Scale > 0 {
 		shaderOpts.GeoM.Scale(as.Scale, as.Scale)
 	}
@@ -385,11 +425,6 @@ func UpdateSpriteAnimation(as *Sprite) {
 
 	drawOpts.GeoM.Translate(float64(as.X), float64(as.Y-ani.OffSetY))
 	as.drawOpts = drawOpts
-	as.UpdateShader()
-
-	as.GetAnimation().Update()
-
-	UpdateSpriteFrameImg(as)
 }
 
 func (s *Sprite) SetAnimation(Ani string) {
@@ -455,6 +490,7 @@ func DrawAnimation(as *Sprite, screen *ebiten.Image) {
 		screen.DrawRectShader(b.Dx(), b.Dy(), as.Shader, as.shaderOpts)
 		return
 	}
+
 	if as.drawOpts == nil {
 		as.drawOpts = &ebiten.DrawImageOptions{}
 	}

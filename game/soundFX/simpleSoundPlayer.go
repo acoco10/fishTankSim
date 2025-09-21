@@ -9,10 +9,11 @@ import (
 )
 
 type SoundPlayer struct {
-	sounds      map[resource.AudioID]*audio.Player
-	timers      map[resource.AudioID]*util.Timer
-	updateFuncs map[resource.AudioID]func(id *audio.Player, targetVol float64, currentVol float64, time float64)
-	counter     float64
+	sounds           map[resource.AudioID]*audio.Player
+	timers           map[resource.AudioID]*util.Timer
+	updateFuncs      map[resource.AudioID]func(id *audio.Player, targetVol float64, currentVol float64, time float64)
+	counter          float64
+	TimerQueuedSongs []resource.AudioID
 }
 
 func (s *SoundPlayer) LoadPlayer(playerType string) {
@@ -20,11 +21,6 @@ func (s *SoundPlayer) LoadPlayer(playerType string) {
 	soundList := []resource.AudioID{
 		CardBoard,
 		Coins1,
-		Crash,
-		MoneyCounter,
-		Kaching,
-		MowerRunning,
-		FailedStart,
 		PickUpOne,
 		PlopSound,
 		PouringFood,
@@ -40,8 +36,8 @@ func (s *SoundPlayer) LoadPlayer(playerType string) {
 		BestAdventureEver,
 		DayTimeJazz,
 		TropicalHouse,
-		IndieCafe,
 		ElectricBuzz,
+		SunsetVibes,
 	}
 
 	if playerType == "sound" {

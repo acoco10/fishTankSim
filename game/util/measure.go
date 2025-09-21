@@ -9,9 +9,6 @@ import (
 
 func MeasureText(outputText string, fontsize float64, font string) (float64, float64) {
 	face := registry.FontMap[font]
-	if fontsize != 16 {
-		face, _ = LoadFont(fontsize, font)
-	}
 
 	return text.Measure(outputText, face, 2)
 }

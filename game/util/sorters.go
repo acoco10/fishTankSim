@@ -1,9 +1,27 @@
 package util
 
 import (
+	"golang.org/x/image/colornames"
 	"image"
+	"image/color"
 	"math"
 )
+
+var DebugZColors = []color.Color{
+	colornames.Blue,            // 1
+	colornames.Royalblue,       // 2
+	colornames.Dodgerblue,      // 3
+	colornames.Deepskyblue,     // 4
+	colornames.Skyblue,         // 5
+	colornames.Lightblue,       // 6
+	colornames.Cyan,            // 7
+	colornames.Turquoise,       // 8
+	colornames.Mediumturquoise, // 9
+	colornames.Lightseagreen,   // 10
+	colornames.Mediumseagreen,  // 11
+	colornames.Seagreen,        // 12
+	colornames.Green,           // 13
+}
 
 func ClosestPoint(point1 image.Point, candidates []image.Point) image.Point {
 	distMap := make(map[float64]image.Point)

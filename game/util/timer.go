@@ -2,6 +2,8 @@ package util
 
 type TimerState uint8
 
+type TimerUpdater func(timer *Timer, thingUsingTimer any)
+
 const (
 	Reset TimerState = iota
 	Active
@@ -12,6 +14,7 @@ type Timer struct {
 	Duration int //ok as int because ebiten only uses ticks(no fractional tics)(I think)
 	Elapsed  int
 	TimerState
+	TimerUpdater
 	On bool
 }
 
@@ -27,7 +30,6 @@ func NewTimer(durationSeconds float64) *Timer {
 }
 
 func (t *Timer) Update() TimerState {
-
 	if t.On {
 		switch t.TimerState {
 		case Active:

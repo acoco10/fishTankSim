@@ -183,6 +183,15 @@ func LoadHighlightShader() *ebiten.Shader {
 	return s
 }
 
+func LoadLowLightShader() *ebiten.Shader {
+	es := []byte(LowLight)
+	s, err := ebiten.NewShader(es)
+	if err != nil {
+		log.Fatal("Couldn't load lowlight shader ", err)
+	}
+	return s
+}
+
 func LoadStomachFillShader() *ebiten.Shader {
 	es := []byte(StomachFill)
 	s, err := ebiten.NewShader(es)

@@ -8,6 +8,7 @@ import (
 type Player struct {
 	Money            float64
 	EventHub         *tasks.EventHub
+	Food             int
 	ActionsTaken     int
 	ActionsAvailable int
 }

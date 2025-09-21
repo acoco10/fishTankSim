@@ -49,7 +49,7 @@ func MakeFishMenu(forFish uint32) {
 
 	bground.Sprite.PublishedGraphicId = append(bground.Sprite.PublishedGraphicId, nameId, factorsID, currlvlId, ageId)
 
-	fish.LinkedID = bground.Id
+	fish.TempLinkedID = bground.Id
 
 	bground.NoZoom = true
 
@@ -97,10 +97,10 @@ func MakeFishMenu(forFish uint32) {
 		case "structures":
 		}
 
-		if bground.LinkedID == 0 {
-			bground.LinkedID = iconSprite.Id
+		if bground.TempLinkedID == 0 {
+			bground.TempLinkedID = iconSprite.Id
 		} else {
-			lastSprite.LinkedID = iconSprite.Id
+			lastSprite.TempLinkedID = iconSprite.Id
 		}
 
 		lastSprite = iconSprite
@@ -119,7 +119,7 @@ func MakeFishMenu(forFish uint32) {
 
 	stomachId := InitStomachGraphic(bground, fish.Id)
 
-	lastSprite.LinkedID = stomachId
+	lastSprite.TempLinkedID = stomachId
 
 	ZSortEntities()
 

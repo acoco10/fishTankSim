@@ -22,16 +22,18 @@ var img, _ = util.LoadImageAssetAsEbitenImage("textures/particleTexture")
 //5 = bone white 2x2
 //6 = 1x1 bubble
 //7 = 1x1 bubbleLessOpaque
+//8 = 2x2 gold
 
-var Textures = [8]*ebiten.Image{
+var Textures = [9]*ebiten.Image{
 	img.SubImage(image.Rect(8, 0, 9, 1)).(*ebiten.Image),
-	img.SubImage(image.Rect(18, 0, 25, 6)).(*ebiten.Image),
-	img.SubImage(image.Rect(25, 2, 31, 3)).(*ebiten.Image),
+	img.SubImage(image.Rect(18, 0, 27, 9)).(*ebiten.Image),
+	img.SubImage(image.Rect(27, 2, 33, 6)).(*ebiten.Image),
 	img.SubImage(image.Rect(1, 0, 3, 2)).(*ebiten.Image),
 	img.SubImage(image.Rect(0, 2, 4, 6)).(*ebiten.Image),
 	img.SubImage(image.Rect(16, 0, 18, 2)).(*ebiten.Image),
 	img.SubImage(image.Rect(0, 0, 1, 1)).(*ebiten.Image),
 	img.SubImage(image.Rect(3, 0, 4, 1)).(*ebiten.Image),
+	img.SubImage(image.Rect(8, 0, 10, 2)).(*ebiten.Image),
 }
 
 //0=  prop spawn rate
@@ -76,13 +78,14 @@ type GenParticle struct {
 	MaxHeight     float64
 	Alpha         float64
 	typeFlag      uint32
+	AlphaDecay    float64
 }
 
 func NewBubbleSystem(x float64, y float64, bounds image.Rectangle) *ParticleSystem {
 
 	return &ParticleSystem{
 		Particles:    make([]GenParticle, 0, 400),
-		Sprite:       &sprite.Sprite{Img: ebiten.NewImage(bounds.Dx(), bounds.Dy()), X: float32(bounds.Min.X), Y: float32(bounds.Min.Y), Unfocusable: true},
+		Sprite:       &sprite.Sprite{Img: ebiten.NewImage(bounds.Dx(), bounds.Dy()), X: float32(bounds.Min.X), Y: float32(bounds.Min.Y), UnFocusable: true},
 		SpawnRate:    50.0, // particles per second
 		MaxParticles: 1000,
 		Bounds:       bounds,
@@ -100,7 +103,7 @@ func NewPhReaderParticleSystem(x, y float64, bounds image.Rectangle) *ParticleSy
 	return &ParticleSystem{
 		Particles:    make([]GenParticle, 0, 200),
 		SpawnRate:    400,
-		Sprite:       &sprite.Sprite{Img: ebiten.NewImage(bounds.Dx(), bounds.Dy()), X: float32(bounds.Min.X), Y: float32(bounds.Min.Y), Unfocusable: true},
+		Sprite:       &sprite.Sprite{Img: ebiten.NewImage(bounds.Dx(), bounds.Dy()), X: float32(bounds.Min.X), Y: float32(bounds.Min.Y), UnFocusable: true},
 		MaxParticles: 200,
 		SpawnPointX:  x - float64(bounds.Min.X),
 		SpawnPointY:  y - float64(bounds.Min.Y),
@@ -125,7 +128,7 @@ func NewGenericParticleSystem(x float64, y float64, bounds image.Rectangle, text
 	return &ParticleSystem{
 		Particles:    make([]GenParticle, 0, 200),
 		SpawnRate:    spawnRate[SpawnRate], // particles per second
-		Sprite:       &sprite.Sprite{Img: ebiten.NewImage(bounds.Dx(), bounds.Dy()), X: float32(bounds.Min.X), Y: float32(bounds.Min.Y), Unfocusable: true, DOptsUpdaterParams: make(map[string]float64)},
+		Sprite:       &sprite.Sprite{Img: ebiten.NewImage(bounds.Dx(), bounds.Dy()), X: float32(bounds.Min.X), Y: float32(bounds.Min.Y), UnFocusable: true, DOptsUpdaterParams: make(map[string]float64)},
 		MaxParticles: 300,
 		SpawnPointX:  x - float64(bounds.Min.X),
 		SpawnPointY:  y - float64(bounds.Min.Y),
@@ -141,7 +144,7 @@ func NewGenericParticleSystem(x float64, y float64, bounds image.Rectangle, text
 func NewFertilizerParticleSystem(x float64, y float64, bounds image.Rectangle) *ParticleSystem {
 	return &ParticleSystem{
 		Particles:    make([]GenParticle, 0, 200),
-		Sprite:       &sprite.Sprite{Img: ebiten.NewImage(bounds.Dx(), bounds.Dy()), X: float32(bounds.Min.X), Y: float32(bounds.Min.Y), Unfocusable: true},
+		Sprite:       &sprite.Sprite{Img: ebiten.NewImage(bounds.Dx(), bounds.Dy()), X: float32(bounds.Min.X), Y: float32(bounds.Min.Y), UnFocusable: true},
 		SpawnRate:    20.0, // particles per second
 		MaxParticles: 200,
 		SpawnPointX:  x - float64(bounds.Min.X),
@@ -162,6 +165,7 @@ func (ps *ParticleSystem) Update() {
 			if ps.Sprite.DOptsUpdaterParams == nil {
 				ps.Sprite.DOptsUpdaterParams = make(map[string]float64)
 			}
+			ps.Sprite.DOptsUpdaterTag = "offset"
 			ps.Sprite.DOptsUpdaterParams["offSetY"] = -(14 + rand.Float64()*5)
 			ps.flags["zoomed"] = true
 		}
@@ -189,7 +193,7 @@ func (ps *ParticleSystem) Update() {
 	for i := len(ps.Particles) - 1; i >= 0; i-- {
 
 		p := &ps.Particles[i]
-
+		p.Alpha -= p.AlphaDecay
 		// Physics
 		p.X += p.VelX * deltaTime
 		p.Y += p.VelY * deltaTime * ((p.Y + 20) / float64(ps.Bounds.Dy())) //very hacky buoyancy
@@ -245,25 +249,35 @@ type ParticleConfig struct {
 	YVariance         float64
 	XVelocityVariance float64
 	YVelocityVariance float64
+	BaseYVelocity     float64
 	MaxLife           float64
+	Scale             float64
+	AlphaDecay        float64
+	RotationSpeed     float64
 }
 
 func (ps *ParticleSystem) configurableParticleSpawn(config ParticleConfig) {
 	if len(ps.Particles) >= ps.MaxParticles {
 		return
 	}
+
+	if ps.PConfig.Scale == 0 {
+		ps.PConfig.Scale = 1
+	}
+
 	particle := GenParticle{
 		X:             ps.SpawnPointX + (rand.NormFloat64())*config.XVariance, // Random spread
 		Y:             ps.SpawnPointY + (rand.NormFloat64())*config.YVariance,
-		VelX:          (rand.NormFloat64()) * config.XVelocityVariance, // Random horizontal drift
-		VelY:          (rand.NormFloat64()) * config.YVelocityVariance, // Float downward
-		Life:          2.0 + rand.Float64()*config.MaxLife,             // 2-5 seconds
+		VelX:          (rand.NormFloat64()) * config.XVelocityVariance,                      // Random horizontal drift
+		VelY:          (rand.NormFloat64())*config.YVelocityVariance + config.BaseYVelocity, // Float downward
+		Life:          2.0 + rand.Float64()*config.MaxLife,                                  // 2-5 seconds
 		MaxLife:       0,
 		MaxHeight:     0,
-		Size:          1.0,
+		Size:          ps.PConfig.Scale,
 		Rotation:      0,
-		RotationSpeed: (rand.Float64() - 0.5) * 2, // Gentle spin
+		RotationSpeed: ps.PConfig.RotationSpeed, // Gentle spin
 		Alpha:         1.0,
+		AlphaDecay:    config.AlphaDecay,
 	}
 	particle.MaxLife = particle.Life
 
@@ -313,7 +327,7 @@ func (ps *ParticleSystem) SpawnBubble() {
 		MaxLife:       0,
 		Size:          0.5 + rand.Float64()*1.0, // Random size
 		Rotation:      0,
-		RotationSpeed: (rand.Float64() - 0.5) * 2,
+		RotationSpeed: (rand.Float64() - 0.5) * 0.01,
 		typeFlag:      typeFlag,
 	}
 	particle.MaxLife = particle.Life
@@ -412,7 +426,13 @@ func (ps *ParticleSystem) Draw() {
 	opts := &ebiten.DrawImageOptions{}
 	for _, p := range ps.Particles {
 		opts.GeoM.Reset()
+		if p.Size != 0 {
+			opts.GeoM.Scale(p.Size, p.Size)
+		}
 		opts.GeoM.Translate(p.X, p.Y)
+
+		opts.GeoM.Rotate(p.Rotation)
+		opts.ColorScale.SetA(float32(p.Alpha))
 		if ps.img == nil {
 			log.Fatal("error particle system image in draw call")
 		}

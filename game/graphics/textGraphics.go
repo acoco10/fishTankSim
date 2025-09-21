@@ -2,10 +2,8 @@ package graphics
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/registry"
-	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"log"
 )
 
 type HorizontalPosition uint8
@@ -39,7 +37,17 @@ type FadeInText struct {
 	lifeTime           int
 }
 
-func NewGraphicText(face text.Face, face2 text.Face, outputText *string, x float64, y float64, pulse bool, color ebiten.ColorScale, spriteSize float64, fade bool, frameLife int) int {
+func NewGraphicText(face text.Face,
+	face2 text.Face,
+	outputText *string,
+	x float64,
+	y float64,
+	pulse bool,
+	color ebiten.ColorScale,
+	spriteSize float64,
+	fade bool,
+	frameLife int) FadeInText {
+
 	ft := FadeInText{
 		text: outputText,
 		face: face,
@@ -48,8 +56,8 @@ func NewGraphicText(face text.Face, face2 text.Face, outputText *string, x float
 
 	width, height := text.Measure(*outputText, face, 2)
 
-	ft.x = x*registry.Config.ResolutionScalingF + (spriteSize * registry.Config.ResolutionScalingF / 2) - width/2
-	ft.y = y*registry.Config.ResolutionScalingF - height + registry.Config.YOffsetF
+	ft.x = x + (spriteSize / 2) - width/2
+	ft.y = y - height
 
 	ft.opacity = 0.0
 	ft.pulse = pulse
@@ -62,32 +70,33 @@ func NewGraphicText(face text.Face, face2 text.Face, outputText *string, x float
 
 	ft.altColoreScale = color
 	ft.colorScale = *cs
-
-	ft.GraphicId = AssignAndIncrement(&ft)
 	ft.deposeAfterNFrames = frameLife
 	if !fade {
 		ft.opacity = 1.0
 	}
 
 	ft.face2 = face2
+	return ft
+
+}
+
+func newOutlineGraphicText(outputText *string, x float64, y float64, pulse bool, color ebiten.ColorScale, spriteSize float64, fade bool, frameLife int) int {
+
+	face := registry.FontMap["RockSalt_16"]
+
+	face2 := registry.FontMap["RockSalt_16"]
+	ft := NewGraphicText(face, face2, outputText, x, y, pulse, color, spriteSize, fade, frameLife)
+
+	ft.GraphicId = AssignAndIncrement(&ft)
 	return ft.GraphicId
 
 }
 
-func NewOutlineGraphicText(outputText *string, fontsize float64, x float64, y float64, pulse bool, color ebiten.ColorScale, spriteSize float64, fade bool, frameLife int) int {
-
-	face := registry.FontMap["RockSalt"]
-
-	face2 := registry.FontMap["RockSalt"]
-	return NewGraphicText(face, face2, outputText, x, y, pulse, color, spriteSize, fade, frameLife)
-}
-
 func NewNkTextGraphic(outputText *string, fontsize float64, x float64, y float64, pulse bool, color ebiten.ColorScale, spriteSize float64, fade bool, frameLife int) int {
-	face, err := util.LoadFont(fontsize, "nk57")
-	if err != nil {
-		log.Fatal("font dont exist or something")
-	}
-	return NewGraphicText(face, nil, outputText, x, y, pulse, color, spriteSize, fade, frameLife)
+	face := registry.FontMap["nkf7"]
+	ft := NewGraphicText(face, nil, outputText, x, y, pulse, color, spriteSize, fade, frameLife)
+	ft.GraphicId = AssignAndIncrement(&ft)
+	return ft.GraphicId
 }
 
 func (ft *FadeInText) Draw(screen *ebiten.Image) {
@@ -111,19 +120,29 @@ func (ft *FadeInText) Draw(screen *ebiten.Image) {
 }
 
 func (ft *FadeInText) Scaled() ScaledType {
-	return UnScaled
+	return NormalScaled
 }
 
 func (ft *FadeInText) Update() {
-	if ft.opacity < 1.0 {
-		ft.opacity += 0.05 // adjust fade-in speed here
+	if ft.pulse {
+		if ft.opacity < 1.0 {
+			ft.opacity += 0.015 // adjust fade-in speed here
+		}
+
+		if ft.opacity > 1.0 && ft.pulse {
+			ft.opacity = 0.0
+		}
+
+	} else {
+		if ft.opacity < 1.0 {
+			ft.opacity += 0.05 // adjust fade-in speed here
+		}
+
+		if ft.opacity > 1.0 {
+			ft.opacity = 1.0
+		}
 	}
-	if ft.opacity > 1.0 && ft.pulse {
-		ft.opacity = 0.0
-	}
-	if ft.opacity > 1.0 && !ft.pulse {
-		ft.opacity = 1.0
-	}
+
 	if ft.lifeTime >= ft.deposeAfterNFrames && ft.deposeAfterNFrames != 0 {
 		DeInitGraphicId(ft.GraphicId)
 	}

@@ -1,6 +1,7 @@
 package graphics
 
 import (
+	"fmt"
 	"github.com/acoco10/fishTankWebGame/game/events"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
@@ -9,37 +10,103 @@ import (
 	"log"
 )
 
+const (
+	DeInit  = "deInit"
+	Trigger = "trigger"
+	Trig1   = "trig1"
+	Trig2   = "trig2"
+)
+
+type GmState uint8
+
+const (
+	InProgress GmState = iota
+	Finished
+)
+
 type GraphicManager struct {
-	Tag                   string
-	publishedGraphics     []int
-	Params                map[string]any
-	Timers                map[string]*util.Timer
-	DstImage              *ebiten.Image
-	GraphicsToBePublished []*SpriteGraphic
-	texts                 []*TextWithShader
+	GmState
+	Tag                       string
+	UpdateableText            *string
+	UpdateableFloat           float64
+	UpdateableFloatStop       float64
+	publishedGraphics         []int
+	Params                    map[string]any
+	Timers                    map[string]*util.Timer
+	DstImage                  *ebiten.Image
+	TextGraphicsToBePublished []*FadeInText
+	GraphicsToBePublished     []*SpriteGraphic
+	texts                     []*TextWithShader
+	TextPosition              []float64
+	Strings                   []string
+	textID                    int
+	FinishedFunc              func(any) //flexible cleanup func based on gm state
+}
+
+func DeInitGraphicTimerUpdater(timer *util.Timer, graphicManager any) {
+	gm, ok := graphicManager.(*GraphicManager)
+	if !ok {
+		log.Fatal("graphic manager timer update func got non graphic manager")
+	}
+
+	state := timer.Update()
+	if state == util.Done {
+		println("De-initiating graphics in:", gm.Tag)
+		DeInitGraphics(gm.publishedGraphics)
+		timer.TurnOff()
+	}
+}
+
+func CashUpdaterTimerUpdater(timer *util.Timer, graphicManager any) {
+	gm, ok := graphicManager.(*GraphicManager)
+	if !ok {
+		log.Fatal("graphic manager timer update func got non graphic manager")
+	}
+	state := timer.Update()
+	if state == util.Done {
+		if gm.UpdateableFloat <= gm.UpdateableFloatStop {
+			newString := fmt.Sprintf("$%0.2f", gm.UpdateableFloat)
+			NewTextGraphic(newString, gm.TextPosition[0], gm.TextPosition[1], 10)
+			gm.UpdateableFloat += 0.25
+		} else {
+			newString := fmt.Sprintf("$%0.2f", gm.UpdateableFloatStop)
+			NewPulseGraphic(newString, gm.TextPosition[0], gm.TextPosition[1], 180)
+			gm.GmState = Finished
+			timer.TurnOff()
+		}
+	}
+}
+
+func TriggerTimerUpdater(timer *util.Timer, graphicManager any) {
+	gm, ok := graphicManager.(*GraphicManager)
+	if !ok {
+		log.Fatal("graphic manager timer update func got non graphic manager")
+	}
+	state := timer.Update()
+	if state == util.Done {
+		if len(gm.Strings) != 0 {
+			NewFadeInTextGraphicCentered(gm.Strings[0], 100)
+			gm.Strings = gm.Strings[1:]
+		}
+		if len(gm.GraphicsToBePublished) != 0 {
+			AddGraphic(gm.GraphicsToBePublished[0])
+			gm.GraphicsToBePublished = gm.GraphicsToBePublished[1:]
+		} else if len(gm.GraphicsToBePublished) <= 0 {
+			if gm.UpdateableFloat != 0 {
+				newString := fmt.Sprintf("$%0.2f", gm.UpdateableFloat)
+				NewFadeInTextGraphic(newString, gm.TextPosition[0], gm.TextPosition[1], 2)
+				secondTime := gm.Params[Trig2].(string)
+				gm.Timers[secondTime].TurnOn()
+				timer.TurnOff()
+			}
+		}
+	}
 }
 
 func (g *GraphicManager) UpdateTimers() {
-	for key, timer := range g.Timers {
-		switch key {
-		case "DeInit":
-			state := timer.Update()
-			if state == util.Done {
-				println("De-initiating graphics in:", g.Tag)
-				DeInitGraphics(g.publishedGraphics)
-				timer.TurnOff()
-			}
-		case "Trigger":
-			state := timer.Update()
-			if state == util.Done {
-				if len(g.GraphicsToBePublished) != 0 {
-					AddGraphic(g.GraphicsToBePublished[0])
-					g.GraphicsToBePublished = g.GraphicsToBePublished[1:]
-				}
-				if len(g.GraphicsToBePublished) <= 0 {
-					timer.TurnOff()
-				}
-			}
+	for _, timer := range g.Timers {
+		if timer.TimerUpdater != nil {
+			timer.TimerUpdater(timer, g)
 		}
 	}
 }
@@ -71,12 +138,12 @@ func WhiteBoardGMSubs(manager *GraphicManager, hub *tasks.EventHub) {
 
 	hub.Subscribe(tasks.AllTasksCompleted{}, func(e tasks.Event) {
 		AddClothGraphiC(manager)
-		manager.Timers["DeInit"].TurnOn()
+		manager.Timers[DeInit].TurnOn()
 	})
 
 	hub.Subscribe(events.DayOver{}, func(e tasks.Event) {
 		AddClothGraphiC(manager)
-		manager.Timers["DeInit"].TurnOn()
+		manager.Timers[DeInit].TurnOn()
 		manager.Params["Index"] = 0
 	})
 

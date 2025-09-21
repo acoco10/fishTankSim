@@ -8,7 +8,6 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
-	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/ebitenui/ebitenui"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
@@ -71,16 +70,9 @@ func LoadStartMenu(hub *tasks.EventHub, resolutionScaling float64) (*StartMenu, 
 
 func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64, resolutionScalar float64) error {
 
-	headerText := "Pick Your Starter GoldFish!"
+	headerText := "Pick Your First Fish!"
 
-	face, err := util.LoadFont(headerFontSize, "reglisseOutline") //white center text
-
-	face2, err := util.LoadFont(headerFontSize, "reglisseOutlined") //black outline
-
-	if err != nil {
-		println("error loading new font")
-		return err
-	}
+	face := registry.FontMap["RockSalt_32"]
 
 	borders := eimage.NewBorder(4, 4, 4, 4, colornames.Lightgoldenrodyellow)
 	nineSliceImage := eimage.NewAdvancedNineSliceColor(colornames.Lightcoral, borders)
@@ -140,13 +132,14 @@ func LoadStartMenuUI(startMenu *StartMenu, headerFontSize float64, resolutionSca
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()))
 
 	headerLbl := widget.NewText(
-		widget.TextOpts.Text(headerText, &face, colornames.Aliceblue),
+		widget.TextOpts.Text(headerText, &face, colornames.Darkblue),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
 	)
 
 	headerLblOutline := widget.NewText(
-		widget.TextOpts.Text(headerText, &face2, colornames.Black),
+		widget.TextOpts.Text(headerText, &face, colornames.Aliceblue),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
+		widget.TextOpts.Padding(&widget.Insets{Top: -4, Left: -4}),
 	)
 
 	headerContainer.AddChild(headerLbl)

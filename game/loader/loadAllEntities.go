@@ -1,7 +1,6 @@
 package loader
 
 import (
-	"fmt"
 	"github.com/acoco10/fishTankWebGame/game/entities"
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/system"
@@ -11,13 +10,13 @@ import (
 	"math/rand"
 )
 
-func LoadAllEntities(uiSpritesToLoad []entities.Label, fishList []entities.SavedFish, environment *system.Environment, hub *tasks.EventHub, collisions map[string]image.Rectangle) ([]*entities.Entity, *entities.WhiteBoardSprite) {
+func LoadAllEntities(uiSpritesToLoad []entities.Label, fishList []entities.SavedFish, environment *system.Environment, hub *tasks.EventHub, collisions map[string]image.Rectangle, gs entities.GameState) ([]*entities.Entity, *entities.WhiteBoardSprite) {
 
 	var entitySlice []*entities.Entity
 	var wbSprite *entities.WhiteBoardSprite
 
 	for _, fishName := range fishList {
-		ent := InitFish(fishName, environment, hub, collisions)
+		ent := InitFish(fishName, environment, hub, gs)
 		entitySlice = append(entitySlice, ent)
 	}
 
@@ -32,27 +31,29 @@ func LoadAllEntities(uiSpritesToLoad []entities.Label, fishList []entities.Saved
 	return entitySlice, wbSprite
 }
 
-func InitFish(fishName entities.SavedFish, environment *system.Environment, hub *tasks.EventHub, collisions map[string]image.Rectangle) *entities.Entity {
+func InitFish(fishName entities.SavedFish, environment *system.Environment, hub *tasks.EventHub, state entities.GameState) *entities.Entity {
 
-	z := rand.Intn(11) + 2
-	zLayer := fmt.Sprintf("z%d", z)
+	z := rand.Intn(10) + 2
 
-	fish := entities.NewFishData(environment, hub, collisions[zLayer], fishName)
+	fish := entities.NewFishData(environment, hub, state.Zbounds[z], fishName)
 	fish.TargetZ = z
 	newFishEntity := &entities.Entity{CreatureData: fish, Z: z}
 	println("loaded fish entity:", fishName.FishType)
 
 	//mutates entity to have sprite and animations loaded
 	entities.LoadFishSprite(newFishEntity)
+	newFishEntity.Sprite.DOptsUpdaterTag = "custom"
 
-	fp := getFirstPoint(collisions[zLayer])
+	fp := getFirstPoint(state.Zbounds[z])
 
 	newFishEntity.Sprite.X = float32(fp.X)
 	newFishEntity.Sprite.Y = float32(fp.Y)
 
-	firstPoint := newFishEntity.RandomTarget(newFishEntity.CreatureData.MovementFlags)
-	newFishEntity.MakeTargetPoint(firstPoint)
+	firstPoint := newFishEntity.RandomTarget()
+	newFishEntity.SetTargetPoint(firstPoint)
 	newFishEntity.EventHub = hub
+	newFishEntity.FishUpdate(state)
+	newFishEntity.Sprite.Update() //update the animations draw opts so it doesnt draw at 0,0 lolololol
 
 	entities.CreatureEventSubscriptions(newFishEntity)
 	entities.RegisterEntity(newFishEntity)
@@ -66,13 +67,13 @@ func InitFish(fishName entities.SavedFish, environment *system.Environment, hub 
 
 func getFirstPoint(bounds image.Rectangle) image.Point {
 	forgivingRect := bounds
-	forgivingRect.Min.X += 5
-	forgivingRect.Min.Y += 5
-	forgivingRect.Max.X -= 5
-	forgivingRect.Min.X += 5
+	forgivingRect.Min.X += 50
+	forgivingRect.Min.Y += 50
+	forgivingRect.Max.X -= 50
+	forgivingRect.Max.Y -= 50
 
-	firstPointX := forgivingRect.Min.X + 5 + rand.Intn(bounds.Max.X-5-bounds.Min.X+5)
-	firstPointY := forgivingRect.Min.Y + 5 + rand.Intn(bounds.Max.X-5-bounds.Min.Y+5)
+	firstPointX := forgivingRect.Min.X + rand.Intn(forgivingRect.Max.X-forgivingRect.Min.X)
+	firstPointY := forgivingRect.Min.Y + rand.Intn(forgivingRect.Max.Y-forgivingRect.Min.Y)
 	pt := image.Point{firstPointX, firstPointY}
 
 	return pt

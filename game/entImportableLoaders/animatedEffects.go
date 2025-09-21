@@ -27,7 +27,7 @@ func LoadEffect(eff string) *sprite.Sprite {
 	ani.Img = image
 
 	se := &sprite.Sprite{CurrentAnimation: "Default", AnimationMap: map[string]*sprite.Animation{"Default": ani}}
-	se.Unfocusable = true
+	se.UnFocusable = true
 	return se
 }
 

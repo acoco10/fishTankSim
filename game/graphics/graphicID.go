@@ -75,6 +75,32 @@ func NewFadeInTextGraphicCentered(msg string, lifetime int) int {
 	return id
 }
 
+func NewTextGraphic(msg string, x, y float64, lifeTime int) int {
+	cs := ebiten.ColorScale{}
+	cs.SetR(0.9)
+	cs.SetB(0.9)
+	cs.SetG(0.9)
+	cs.SetA(1.0)
+
+	/*x = x * registry.Config.ResolutionScalingF
+	y = (y + float64(registry.Config.YOffset)) * registry.Config.ResolutionScalingF*/
+	id := newOutlineGraphicText(&msg, x, y, false, cs, 0, false, lifeTime)
+	return id
+}
+
+func NewPulseGraphic(msg string, x, y float64, lifeTime int) int {
+	cs := ebiten.ColorScale{}
+	cs.SetR(0.9)
+	cs.SetB(0.9)
+	cs.SetG(0.9)
+	cs.SetA(1.0)
+
+	/*x = x * registry.Config.ResolutionScalingF
+	y = (y + float64(registry.Config.YOffset)) * registry.Config.ResolutionScalingF*/
+	id := newOutlineGraphicText(&msg, x, y, true, cs, 0, true, lifeTime)
+	return id
+}
+
 func NewFadeInTextGraphic(msg string, x, y float64, lifeTime int) int {
 	cs := ebiten.ColorScale{}
 	cs.SetR(0.9)
@@ -84,7 +110,7 @@ func NewFadeInTextGraphic(msg string, x, y float64, lifeTime int) int {
 
 	/*x = x * registry.Config.ResolutionScalingF
 	y = (y + float64(registry.Config.YOffset)) * registry.Config.ResolutionScalingF*/
-	id := NewOutlineGraphicText(&msg, 48, x, y, false, cs, 0, true, lifeTime)
+	id := newOutlineGraphicText(&msg, x, y, false, cs, 0, true, lifeTime)
 	return id
 }
 
@@ -95,7 +121,7 @@ func NewFadeInTextGraphicSmall(msg string, x, y float64, lifetime int) int {
 	cs.SetG(0.9)
 	cs.SetA(1.0)
 
-	id := NewOutlineGraphicText(&msg, 24, x, y, false, cs, 0, true, lifetime)
+	id := newOutlineGraphicText(&msg, x, y, false, cs, 0, true, lifetime)
 	return id
 }
 
@@ -106,7 +132,7 @@ func NewUpdateAbleTextGraphic(msg *string, x, y float64, lifetime int) int {
 	cs.SetG(0.9)
 	cs.SetA(1.0)
 
-	id := NewOutlineGraphicText(msg, 48, x, y, false, cs, 0, true, lifetime)
+	id := newOutlineGraphicText(msg, x, y, false, cs, 0, true, lifetime)
 	return id
 }
 

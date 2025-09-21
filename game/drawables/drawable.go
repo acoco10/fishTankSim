@@ -1,5 +1,9 @@
 package drawables
 
+//moved away from interfaces to giant struct architecture,
+//but I still use them for saving
+//because I don't feel like updating that logic
+
 import (
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"

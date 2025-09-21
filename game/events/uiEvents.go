@@ -34,7 +34,9 @@ func (c CloseWindow) Type() string {
 	return "CloseWindow"
 }
 
-type WindowClosed struct{}
+type WindowClosed struct {
+	Window string
+}
 
 func (w WindowClosed) Type() string {
 	return "WindowClosed"
@@ -86,4 +88,12 @@ type CursorSpeedChanged struct {
 
 func (c CursorSpeedChanged) Type() string {
 	return "CursorSpeedChanged"
+}
+
+type NewSpecies struct {
+	Species string
+}
+
+func (n NewSpecies) Type() string {
+	return "NewSpeciesDiscovered"
 }

@@ -1,0 +1,29 @@
+//kage:unit pixels
+package main
+
+
+func Fragment(dstCoord vec4, texCoord vec2, _ vec4) vec4 {
+     color := imageSrc0UnsafeAt(texCoord)
+     var outline bool
+     outline = false
+     if color.a > 0 {
+        color.rgb -= vec3(0.1, 0.1, 0.0)
+        for x := -1; x <= 1; x++ {
+            for y := -1; y <= 1; y++ {
+                if x == 0 && y == 0 {
+                    continue
+                }
+                sampleCoord := texCoord + vec2(float(x), float(y))
+                sample := imageSrc0UnsafeAt(sampleCoord)
+                if sample.a == 0 {
+                    outline = true
+                }
+            }
+       }
+    }
+     if outline{
+            return vec4(0.6,0.6,0.8,1)
+     }
+     return color 
+
+  }

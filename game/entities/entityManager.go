@@ -10,14 +10,17 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
+	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 	box2d "github.com/oliverbestmann/box2d-go"
+	"golang.org/x/image/colornames"
 	"image"
 	"log"
 )
 
-var currentEntID uint32
+var currentEntID uint32 = 1
 
 var EntityCatalogue = make(map[uint32]*Entity)
 
@@ -25,7 +28,11 @@ var LiveList []*Entity
 
 var SpriteList [20][]*Entity
 
+var UiEffectSpriteList [10][]*Entity
+
 var ParticleList []*Entity
+
+var CreatureList []*Entity
 
 var GraphicList []*Entity
 
@@ -42,11 +49,15 @@ func RegisterEntity(ent *Entity) uint32 {
 	}
 	hasBuffer := ent.Sprite != nil && ent.Sprite.BufferDst != nil
 
-	if !hasBuffer {
+	if !hasBuffer && !ent.IsOverUI() {
 		if ent.Z > 20 {
-			log.Fatal(ent)
+			log.Fatal("Z is out of bounds in register Entity function", ent)
 		}
 		SpriteList[ent.Z] = append(SpriteList[ent.Z], ent)
+	}
+
+	if ent.IsOverUI() {
+		UiEffectSpriteList[ent.Z] = append(UiEffectSpriteList[ent.Z], ent)
 	}
 
 	if hasBuffer {
@@ -62,12 +73,19 @@ func RegisterEntity(ent *Entity) uint32 {
 		GraphicList = append(GraphicList, ent)
 		return ent.Id
 	}
+	if ent.CreatureData != nil {
+		CreatureList = append(CreatureList, ent)
+	}
+
 	LiveList = append(LiveList, ent)
 	ZSortEntities()
 	return ent.Id
 }
 
 func GetEntity(id uint32) (*Entity, bool) {
+	if id == 0 {
+		return nil, false
+	}
 	entity, exists := EntityCatalogue[id]
 	if exists {
 		return entity, true
@@ -117,13 +135,16 @@ func RemoveEntity(id uint32) {
 }
 
 type Entity struct {
+	flags                       uint8
 	Id                          uint32
-	LinkedID                    uint32 //sometimes we want to manipulate entities from a central update entity like ph strip and box of ph strips
+	TempLinkedID                uint32 //sometimes we want to manipulate entities from a central update entity like ph strip and box of ph strips
+	LinkedID                    uint32
 	Z                           int
 	LayerIndex                  int // optional parameter for tightly defined layers
 	Sprite                      *sprite.Sprite
 	CreatureData                *CreatureData
 	UiData                      *UiSpriteData
+	DoAt                        map[string]func(entity *Entity, gs GameState) //subState one off functions (smaller state one offs that would be cumbersome to populate into a state machine for testing
 	PropData                    *StructureProp
 	ParticleData                *FoodParticle
 	TriggeredAnimation          string
@@ -132,6 +153,7 @@ type Entity struct {
 	GraphicManager              *graphics.GraphicManager
 	UpdateFunc                  func(entity *Entity)
 	Parameters                  map[string]any
+	Flags                       map[string]bool
 	physics                     box2d.Body
 	TankMovement                *TankCharacter
 	MovementState               *movement.State
@@ -144,12 +166,25 @@ type Entity struct {
 	LifeTime                    float64
 	EndAfter                    float64
 	Graphic                     *graphics.TextWithShader
+	PublishedGraphicIDs         []int
 	effectHandler               DeInitFunc
+	UIWidget                    *widget.Container
 }
 
 type StateMachine struct {
 	States       map[int]*StateHandler
 	CurrentState int
+	ResetFunc    EntityTransitioner
+}
+
+type EntityTransitioner func(entity *Entity)
+type EntityUpdater func(entity *Entity, gs GameState)
+
+func (s *StateMachine) Reset(ent *Entity) {
+	if s.ResetFunc != nil {
+		s.ResetFunc(ent)
+	}
+	s.CurrentState = 1
 }
 
 func (s *StateMachine) Transition(ent *Entity) {
@@ -157,6 +192,10 @@ func (s *StateMachine) Transition(ent *Entity) {
 		s.States[s.CurrentState].TransitionFunc(ent)
 	}
 	s.CurrentState = s.States[s.CurrentState].TransitionTo
+
+	if s.States[s.CurrentState] == nil {
+		s.Reset(ent)
+	}
 
 }
 
@@ -181,6 +220,8 @@ type GameState struct {
 	CollisionMap         map[string]image.Rectangle
 	Zbounds              [13]image.Rectangle
 	PhysicsObjects       []uint32
+	Player               *Player
+	Debug                string
 }
 type FishCollision struct {
 	image.Rectangle
@@ -218,10 +259,6 @@ func UpdateEntities(gs *GameState) {
 		}
 
 		if ent.Sprite != nil {
-			if ent.Sprite.Remove {
-				RemoveEntity(ent.Id)
-				return
-			}
 			if ent.Sprite.CurrentAnimation != "" {
 				animation := ent.Sprite.GetAnimation()
 				if animation.Frame() == animation.LastF {
@@ -249,9 +286,6 @@ func UpdateEntities(gs *GameState) {
 			ent.UpdateUiSprite(gs)
 		}
 
-		if ent.CreatureData != nil {
-			ent.FishUpdate(gs)
-		}
 		if ent.PropData != nil {
 			ent.UpdateProp(gs.Zbounds)
 		}
@@ -261,7 +295,22 @@ func UpdateEntities(gs *GameState) {
 
 		if ent.GraphicManager != nil {
 			ent.GraphicManager.Update()
+			if ent.GraphicManager.GmState == graphics.Finished {
+				if ent.GraphicManager.FinishedFunc != nil {
+					ent.GraphicManager.FinishedFunc(ent)
+				}
+				ent.GraphicManager = nil
+			}
 		}
+
+		filtered := ent.PublishedGraphicIDs[:0] // reuse underlying array
+		for _, graphicId := range ent.PublishedGraphicIDs {
+			if _, exists := graphics.GraphMap[graphicId]; exists {
+				filtered = append(filtered, graphicId)
+			}
+		}
+		ent.PublishedGraphicIDs = filtered
+
 	}
 
 	for _, ps := range ParticleList {
@@ -274,6 +323,10 @@ func UpdateEntities(gs *GameState) {
 
 	for _, sp := range SpriteWithBufferDst {
 		sp.Sprite.Update()
+	}
+
+	for _, creature := range CreatureList {
+		creature.FishUpdate(*gs)
 	}
 
 }
@@ -336,10 +389,28 @@ func DrawEntities(screen *ebiten.Image, gs *GameState) {
 	}
 
 	//draw all sprites in correct order
+
 	for z := 0; z < 20; z++ {
 		for _, ent := range SpriteList[z] {
 			if ent.Draw && ent.Sprite != nil {
-				ent.Sprite.Draw(screen)
+				if gs.Debug == "DebugOn" {
+					if ent.Z <= 12 {
+						ent.Sprite.DebugDraw(screen, ent.Z, gs.Zbounds[ent.Z])
+					}
+				} else {
+					ent.Sprite.Draw(screen)
+				}
+			}
+		}
+	}
+
+	if gs.Debug == "DebugOn" {
+		for _, ent := range CreatureList {
+
+			vector.StrokeCircle(screen, ent.CreatureData.TargetPoint.X, ent.CreatureData.TargetPoint.Y, 3, 1, colornames.Lightgreen, false)
+			if ent.CreatureData.inBetweenPoint != nil {
+				vector.StrokeCircle(screen, ent.CreatureData.inBetweenPoint.X, ent.CreatureData.inBetweenPoint.Y, 3, 1, colornames.Darkorange, false)
+
 			}
 		}
 	}
@@ -363,11 +434,16 @@ func DrawEntities(screen *ebiten.Image, gs *GameState) {
 		}*/
 }
 
-func DrawFocusedEntityNoLightingShader(screen *ebiten.Image, gs *GameState) {
-	if gs.FocusedEntity != nil {
-		gs.FocusedEntity.Sprite.Draw(screen)
+func DrawUIfx(screen *ebiten.Image) {
+	for z := 0; z < 10; z++ {
+		for _, ent := range UiEffectSpriteList[z] {
+			if ent.Draw && ent.Sprite != nil {
+				ent.Sprite.Draw(screen)
+			}
+		}
 	}
 }
+
 func DrawNonZoomedEntities(screen *ebiten.Image) {
 	for _, ent := range LiveList {
 
@@ -407,7 +483,7 @@ func ZSortEntities() {
 
 	// Re-populate from LiveList
 	for _, ent := range LiveList {
-		if ent.Sprite != nil {
+		if ent.Sprite != nil && !ent.IsOverUI() {
 			if ent.Z > 20 {
 				log.Fatal(ent)
 			}
@@ -428,11 +504,15 @@ func UnFocus(ID uint32) {
 		e.Sprite.PublishedGraphicId = []int{}
 	}
 
-	if e.UiData != nil {
-		//UiSpriteTurnOffEverything(e)
-	}
+	/*	if e.UiData != nil {
+		//	e.UiData.Timers["unFocusBuffer"].TurnOn()
+		//e.UiData.state = Disabled
+	}*/
 
 	if e.CreatureData != nil {
+		if e.effectHandler != nil {
+			e.effectHandler()
+		}
 		UpdateEntityZAndReSortEntitySlice(e.Id, 1)
 	}
 
@@ -442,8 +522,8 @@ func UnFocus(ID uint32) {
 		println(e.Id)
 	}
 
-	if e.LinkedID != 0 {
-		DeInitLinkedEnts(e.LinkedID)
+	if e.TempLinkedID != 0 {
+		DeInitLinkedEnts(e.TempLinkedID)
 	}
 	ZSortEntities()
 }
@@ -453,13 +533,13 @@ func DeInitLinkedEnts(id uint32) {
 	if !exists {
 		return
 	}
-	for curEnt.LinkedID != 0 {
+	for curEnt.TempLinkedID != 0 {
 		if curEnt.Sprite != nil {
 			if len(curEnt.Sprite.PublishedGraphicId) > 0 {
 				graphics.DeInitGraphics(curEnt.Sprite.PublishedGraphicId)
 			}
 		}
-		linkedId := curEnt.LinkedID
+		linkedId := curEnt.TempLinkedID
 		RemoveEntity(curEnt.Id)
 		curEnt, exists = GetEntity(linkedId)
 		if !exists {
@@ -485,7 +565,7 @@ func Focus(ID uint32) {
 	if e.CreatureData != nil {
 		e.CreatureData.TargetZ = 10
 		LoadCreatureEffect("Day", e)
-		MakeFishMenu(e.Id)
+		//MakeFishMenu(e.Id)
 	}
 
 	if e.EventHub != nil {
@@ -502,13 +582,27 @@ func LoadCreatureEffect(state string, ent *Entity) {
 
 	switch state {
 	case "Night":
-		LoadFollowEffectAsEnt("zzz", ent.Id, ent.EventHub, nil)
+		if ent.effectHandler != nil {
+			ent.effectHandler()
+		}
+		ent.effectHandler = LoadFollowEffectAsEnt("zzz", ent.Id, ent.EventHub, nil)
 	case "Day":
 		switch ent.CreatureData.HealthState {
 		case Healthy:
-			LoadFollowEffectAsEnt("happy", ent.Id, ent.EventHub, nil)
+			if ent.effectHandler != nil {
+				ent.effectHandler()
+			}
+			ent.effectHandler = LoadFollowEffectAsEnt("happy", ent.Id, ent.EventHub, nil)
 		case Stressed:
-			LoadFollowEffectAsEnt("stressed", ent.Id, ent.EventHub, nil)
+			if ent.effectHandler != nil {
+				ent.effectHandler()
+			}
+			ent.effectHandler = LoadFollowEffectAsEnt("stressed", ent.Id, ent.EventHub, nil)
+		case Sick:
+			if ent.effectHandler != nil {
+				ent.effectHandler()
+			}
+			ent.effectHandler = LoadFollowEffectAsEnt("stressed", ent.Id, ent.EventHub, nil)
 		}
 	}
 }
@@ -548,8 +642,8 @@ type DeInitFunc func()
 
 func LoadFollowEffectAsEnt(eff string, targID uint32, hub *tasks.EventHub, params map[string]any) DeInitFunc {
 	effect := entImportableLoaders.LoadEffect(eff)
-	effect.Unfocusable = true
-	effEnt := &Entity{Sprite: effect, UpdateFunc: FollowEnt, LinkedID: targID, Parameters: params}
+	effect.UnFocusable = true
+	effEnt := &Entity{Sprite: effect, UpdateFunc: FollowEnt, TempLinkedID: targID, Parameters: params}
 	effEnt.Z = 13
 	effect.AnimationMap[effect.CurrentAnimation].SpeedInTPS = 8
 	RegisterEntity(effEnt)
@@ -558,11 +652,19 @@ func LoadFollowEffectAsEnt(eff string, targID uint32, hub *tasks.EventHub, param
 }
 
 func FollowEnt(ent *Entity) {
-	targetEnt, exists := GetEntity(ent.LinkedID)
+	targetEnt, exists := GetEntity(ent.TempLinkedID)
 
-	if !exists {
+	x, ok := ent.Parameters["x"].(int)
+	if !exists && !ok {
 		log.Println("Follow effect lined to de initated sprite, deinitiating effect")
 		RemoveEntity(ent.Id)
+	}
+
+	if ok {
+		y, _ := ent.Parameters["y"].(int)
+		ent.Sprite.X = float32(x)
+		ent.Sprite.Y = float32(y)
+		return
 	}
 
 	pos, ok := ent.Parameters["position"].(string)
@@ -574,7 +676,6 @@ func FollowEnt(ent *Entity) {
 	if pos == "center" {
 		ent.Sprite.X = targetEnt.Sprite.X + float32(targetEnt.Sprite.GetSpriteRect().Dx()/3+ent.Sprite.GetSpriteRect().Dx()/2)
 		ent.Sprite.Y = targetEnt.Sprite.Y - 20
-
 	}
 
 	if targetEnt.CreatureData != nil {

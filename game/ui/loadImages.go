@@ -2,13 +2,13 @@ package ui
 
 import (
 	"github.com/acoco10/fishTankWebGame/game/events"
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image/color"
-	"log"
 )
 
 func loadBackButtonImage() (*widget.ButtonImage, error) {
@@ -34,9 +34,10 @@ func loadBackButtonImage() (*widget.ButtonImage, error) {
 	}, nil
 }
 
-func loadSubmitButtonImage() *widget.ButtonImage {
+func loadHighlightSubmitButtonImage() *widget.ButtonImage {
 
-	img, _ := util.LoadImageAssetAsEbitenImage("menuAssets/submitButton3")
+	img, _ := util.LoadImageAssetAsEbitenImage("menuAssets/submitButtonHighlight")
+	img2, _ := util.LoadImageAssetAsEbitenImage("menuAssets/submitButtonDisabled")
 
 	imgClicked, _ := util.LoadImageAssetAsEbitenImage("menuAssets/submitButtonAlt")
 
@@ -44,27 +45,58 @@ func loadSubmitButtonImage() *widget.ButtonImage {
 
 	nineSliceImageClicked := eimage.NewNineSlice(imgClicked, [3]int{9, img.Bounds().Dx() - 18, 9}, [3]int{8, 9, 10})
 
+	nineSliceDisabled := eimage.NewNineSlice(img2, [3]int{9, img.Bounds().Dx() - 18, 9}, [3]int{8, 9, 10})
+
 	idle := nineSliceImage
 
 	hover := nineSliceImage
 
 	pressed := nineSliceImageClicked
 
+	disabled := nineSliceDisabled
+
 	return &widget.ButtonImage{
 		Idle:         idle,
 		Hover:        hover,
 		Pressed:      pressed,
 		PressedHover: pressed,
-		Disabled:     pressed,
+		Disabled:     disabled,
+	}
+}
+
+func loadSubmitButtonImage() *widget.ButtonImage {
+
+	img, _ := util.LoadImageAssetAsEbitenImage("menuAssets/submitButton3")
+	img2, _ := util.LoadImageAssetAsEbitenImage("menuAssets/submitButtonDisabled")
+
+	imgClicked, _ := util.LoadImageAssetAsEbitenImage("menuAssets/submitButtonAlt")
+
+	nineSliceImage := eimage.NewNineSlice(img, [3]int{12, img.Bounds().Dx() - 24, 12}, [3]int{8, 10, 10})
+
+	nineSliceImageClicked := eimage.NewNineSlice(imgClicked, [3]int{12, img.Bounds().Dx() - 24, 12}, [3]int{8, 10, 10})
+
+	nineSliceDisabled := eimage.NewNineSlice(img2, [3]int{9, img.Bounds().Dx() - 18, 9}, [3]int{8, 9, 10})
+
+	idle := nineSliceImage
+
+	hover := nineSliceImage
+
+	pressed := nineSliceImageClicked
+
+	disabled := nineSliceDisabled
+
+	return &widget.ButtonImage{
+		Idle:         idle,
+		Hover:        hover,
+		Pressed:      pressed,
+		PressedHover: pressed,
+		Disabled:     disabled,
 	}
 }
 
 func LoadStackSpriteSelectButton(buttonText string, fishImg *ebiten.Image, hub *tasks.EventHub, params map[string]any) (*widget.Container, error) {
 
-	face, err := util.LoadFont(12, "rockSalt")
-	if err != nil {
-		log.Fatal(err)
-	}
+	face := registry.FontMap["RockSalt_18"]
 
 	imgScale := params["imageScale"].(int)
 
