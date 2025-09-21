@@ -3,12 +3,11 @@ package main
 import (
 	"encoding/json"
 	"github.com/acoco10/fishTankWebGame/game/entities"
-	"github.com/acoco10/fishTankWebGame/game/loader"
+	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sceneManagement"
 	"github.com/acoco10/fishTankWebGame/game/scenes"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
-	"net/http"
 	_ "net/http/pprof"
 )
 
@@ -19,9 +18,9 @@ type GameState struct {
 
 func main() {
 
-	go func() {
+	/*	go func() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
+	}()*/
 
 	// Your game code here
 
@@ -38,8 +37,8 @@ func main() {
 		log.Fatal(err)
 	}*/
 
-	loader.LoadShaderRegistry()
-	loader.LoadFontRegistry()
+	registry.LoadShaderRegistry()
+	registry.LoadFontRegistry()
 	var state entities.SaveGameState
 
 	b, err := json.Marshal(data.State)
@@ -53,7 +52,7 @@ func main() {
 	}
 
 	gameLog := sceneManagement.NewGameLog(state, "")
-	
+
 	g := scenes.NewGame(gameLog, scenes.NewUser)
 	err = ebiten.RunGame(g)
 	if err != nil {
