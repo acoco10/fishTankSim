@@ -37,7 +37,6 @@ func main() {
 		log.Fatal(err)
 	}*/
 
-	registry.LoadShaderRegistry()
 	registry.LoadFontRegistry()
 	var state entities.SaveGameState
 
