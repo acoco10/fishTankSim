@@ -1,7 +1,6 @@
 package entities
 
 import (
-	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
@@ -12,7 +11,7 @@ import (
 	"math/rand"
 )
 
-var img, _ = util.LoadImageAssetAsEbitenImage("textures/particleTexture")
+var particleImg, _ = util.LoadImageAssetAsEbitenImage("textures/particleTexture")
 
 //0= bright gold 1x1
 //1= plus sign 3x3
@@ -25,15 +24,15 @@ var img, _ = util.LoadImageAssetAsEbitenImage("textures/particleTexture")
 //8 = 2x2 gold
 
 var Textures = [9]*ebiten.Image{
-	img.SubImage(image.Rect(8, 0, 9, 1)).(*ebiten.Image),
-	img.SubImage(image.Rect(18, 0, 27, 9)).(*ebiten.Image),
-	img.SubImage(image.Rect(27, 2, 33, 6)).(*ebiten.Image),
-	img.SubImage(image.Rect(1, 0, 3, 2)).(*ebiten.Image),
-	img.SubImage(image.Rect(0, 2, 4, 6)).(*ebiten.Image),
-	img.SubImage(image.Rect(16, 0, 18, 2)).(*ebiten.Image),
-	img.SubImage(image.Rect(0, 0, 1, 1)).(*ebiten.Image),
-	img.SubImage(image.Rect(3, 0, 4, 1)).(*ebiten.Image),
-	img.SubImage(image.Rect(8, 0, 10, 2)).(*ebiten.Image),
+	particleImg.SubImage(image.Rect(8, 0, 9, 1)).(*ebiten.Image),
+	particleImg.SubImage(image.Rect(18, 0, 27, 9)).(*ebiten.Image),
+	particleImg.SubImage(image.Rect(27, 2, 33, 6)).(*ebiten.Image),
+	particleImg.SubImage(image.Rect(1, 0, 3, 2)).(*ebiten.Image),
+	particleImg.SubImage(image.Rect(0, 2, 4, 6)).(*ebiten.Image),
+	particleImg.SubImage(image.Rect(16, 0, 18, 2)).(*ebiten.Image),
+	particleImg.SubImage(image.Rect(0, 0, 1, 1)).(*ebiten.Image),
+	particleImg.SubImage(image.Rect(3, 0, 4, 1)).(*ebiten.Image),
+	particleImg.SubImage(image.Rect(8, 0, 10, 2)).(*ebiten.Image),
 }
 
 //0=  prop spawn rate
@@ -159,17 +158,6 @@ func NewFertilizerParticleSystem(x float64, y float64, bounds image.Rectangle) *
 }
 
 func (ps *ParticleSystem) Update() {
-
-	if registry.Config.Zoom {
-		if ps.flags != nil && !ps.flags["zoomed"] {
-			if ps.Sprite.DOptsUpdaterParams == nil {
-				ps.Sprite.DOptsUpdaterParams = make(map[string]float64)
-			}
-			ps.Sprite.DOptsUpdaterTag = "offset"
-			ps.Sprite.DOptsUpdaterParams["offSetY"] = -(14 + rand.Float64()*5)
-			ps.flags["zoomed"] = true
-		}
-	}
 
 	ps.lifeTime += 0.016
 	deltaTime := 0.016

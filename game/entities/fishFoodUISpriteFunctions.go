@@ -17,6 +17,9 @@ type FishFoodSprite struct {
 }
 
 func FishFoodUpdate(ent *Entity) {
+	if ent.Sprite.DOptsUpdaterTag != "" {
+		ent.Sprite.DOptsUpdaterTag = ""
+	}
 	ff := ent.UiData
 	s := ent.Sprite
 

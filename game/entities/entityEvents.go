@@ -1,10 +1,14 @@
 package entities
 
-import "github.com/acoco10/fishTankWebGame/game/tasks"
+import (
+	"github.com/acoco10/fishTankWebGame/game/tasks"
+	"github.com/acoco10/fishTankWebGame/game/util"
+)
 
 type CreatureReachedPoint struct {
-	PointID    uint32
-	CreatureID uint32
+	PointTypeReached util.InterestPoint
+	PointID          uint32
+	CreatureID       uint32
 }
 
 func (c CreatureReachedPoint) Type() string {
@@ -81,13 +85,58 @@ func (p PlacementPicked) Type() string {
 
 type WriteToWhiteBoard struct {
 	Msg               string
-	PreferredPosition string
+	PreferredPosition uint8
 	NoErase           bool
 	Later             bool
 	EventDriven       tasks.Event
-	EventToPublish    tasks.Event
+	EventToPublish    []tasks.Event
+	EraseAfterFlag    bool
+	Insets            [2]float64 //this is set from preferred position once we get to whiteboard,
+	// not super intuitive but allows to reuse the data structures
 }
 
 func (w WriteToWhiteBoard) Type() string {
 	return "WriteToWhiteBoard"
+}
+
+type DisableWhiteBoard struct {
+	UnLockEvent tasks.Event
+	Condition   func(event tasks.Event) bool
+}
+
+func (dwb DisableWhiteBoard) Type() string {
+	return "DisableWhiteBoard"
+}
+
+type WhiteBoardErased struct {
+	When uint8
+}
+
+func (wbc WhiteBoardErased) Type() string {
+	return "WhiteBoard"
+}
+
+type EraseRequest struct {
+	time    uint8
+	onClick bool
+}
+
+func (er EraseRequest) Type() string {
+	return "EraseRequest"
+}
+
+type RequestZoom struct {
+	Reason ZoomState
+}
+
+func (z RequestZoom) Type() string {
+	return "RequestZoom"
+}
+
+type DebrisCaptured struct {
+	Id uint32
+}
+
+func (z DebrisCaptured) Type() string {
+	return "DebrisCaptured"
 }

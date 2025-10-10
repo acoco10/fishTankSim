@@ -11,6 +11,7 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"golang.org/x/image/colornames"
 	"image"
 	"io/fs"
 	"log"
@@ -40,7 +41,7 @@ const (
 var PM PropManager
 
 type PropManager struct {
-	placedProps              []StructureProp
+	placedProps              []*StructureProp
 	placementReticule        *ebiten.Image
 	invalidPlacementReticule *ebiten.Image
 }
@@ -52,10 +53,11 @@ type PropAssets struct {
 }
 
 type PropData struct {
-	CollisionMap    map[string]image.Rectangle
-	PtMap           map[string][]image.Point
-	PlacementParams map[string]any
-	ZBounds         [13]image.Rectangle
+	CollisionMap            map[string]image.Rectangle
+	PtMap                   map[string][]image.Point
+	PlacementParams         map[string]any
+	ZBounds                 [13]image.Rectangle
+	SubscriptionForNextProp tasks.Event
 }
 
 type StructureProp struct {
@@ -68,9 +70,11 @@ type StructureProp struct {
 	StaticShadow    bool
 	baseY           float32
 	Tag             string
+	alreadyPlaced   bool
 	cornerOffsets   [4]image.Point
 	baseCorners     [4]image.Point //0-4 leftUpperCorner rightUpperCorner leftLowerCorner rightLowerCorner
 	particleSystems []*ParticleSystem
+	OnLanding       func(ent *Entity)
 }
 
 func (pm *PropManager) loadPropManager() {
@@ -187,148 +191,303 @@ func NewStructureProp(ps PropAssets, hub *tasks.EventHub, bounds image.Rectangle
 	}
 
 	p.Tag = tag
+
 	return &p
 }
 
-func (e *Entity) UpdateProp(zBounds [13]image.Rectangle) {
-	p := e.PropData
+func InitPropStateMachine() *StateMachine {
+	propUpdater1 := &StateHandler{Updater: MoveableUpdater, TransitionTo: 2}
+	propUpdater2 := &StateHandler{Updater: SettingInPlaceUpdaterNew, TransitionTo: 3}
+	propUpdater3 := &StateHandler{Updater: PropFallingUpdater, TransitionTo: 4}
+	propUpdater4 := &StateHandler{Updater: TransitionToSetInPlace, TransitionTo: 5}
+	propUpdater5 := &StateHandler{Updater: SetInPlaceUpdater, TransitionTo: 6}
+	propUpdater6 := &StateHandler{Updater: SetInPlaceSelected, TransitionTo: 1}
 
-	if p.state == Moveable {
-		newCorners, z := updateCorners(p.baseCorners, zBounds)
-		p.baseCorners = newCorners
-		p.Sprite.Y = float32(p.baseCorners[0].Y-p.cornerOffsets[0].Y) - 45
-		p.Sprite.X = float32(p.baseCorners[0].X - p.cornerOffsets[0].X)
-		e.Z = min(z, 12)
-		e.Z = max(1, z)
+	states := map[int]*StateHandler{
+		1: propUpdater1,
+		2: propUpdater2,
+		3: propUpdater3,
+		4: propUpdater4,
+		5: propUpdater5,
+		6: propUpdater6,
+	}
 
-		var lastSprite *sprite.Sprite
-		if p.LinkedSprite == nil {
-			for _, corner := range p.baseCorners {
-				placeMentSprite := &sprite.Sprite{Img: PM.placementReticule, X: float32(corner.X), Y: float32(corner.Y)}
-				if lastSprite != nil {
-					lastSprite.LinkedSprite = placeMentSprite
-					lastSprite = placeMentSprite
-				} else {
-					p.LinkedSprite = placeMentSprite
-					lastSprite = p.LinkedSprite
-				}
-			}
-		}
-		ls := p.LinkedSprite
-		good := true
+	PropStateMachine := &StateMachine{States: states, CurrentState: 1}
+	return PropStateMachine
+
+}
+
+func MoveableUpdater(ent *Entity, gs GameState) {
+	p := ent.PropData
+
+	placementEnt, exists := ent.GetLinkedEnt()
+	if !exists {
+		log.Fatal("placement ent id for prop at moveable state not working")
+	}
+
+	ent.Sprite.X = placementEnt.Sprite.X
+	ent.Sprite.Y = placementEnt.Sprite.Y - float32(placementEnt.Sprite.SpriteHeight()) - 100
+
+	newCorners := updateCorners(p.baseCorners, p.cornerOffsets, ent.Sprite.X, ent.Sprite.Y)
+	p.baseCorners = newCorners
+
+	//ent.Z = min(z, 12)
+
+	/*var lastSprite *sprite.Sprite
+	if p.LinkedSprite == nil {
 		for _, corner := range p.baseCorners {
-			ls.X = float32(corner.X)
-			ls.Y = float32(corner.Y)
-			for _, otherProp := range PM.placedProps {
-				if pointInPolygon(corner, otherProp.baseCorners) {
-					good = false
-					ls.Img = PM.invalidPlacementReticule
-				} else {
-					ls.Img = PM.placementReticule
-				}
-			}
-			if !good {
-				p.ShaderParams["OutlineColor"] = [4]float32{0.7, 0.2, 0.2, 1.0}
+			placeMentSprite := &sprite.Sprite{Img: PM.placementReticule, X: float32(corner.X), Y: float32(corner.Y)}
+			if lastSprite != nil {
+				lastSprite.LinkedSprite = placeMentSprite
+				lastSprite = placeMentSprite
 			} else {
-				p.ShaderParams["OutlineColor"] = [4]float32{0.2, 0.7, 0.2, 1.0}
+				p.LinkedSprite = placeMentSprite
+				lastSprite = p.LinkedSprite
 			}
+		}
+	}*/
 
-			ls = ls.LinkedSprite
+	good := true
+	for _, corner := range p.baseCorners {
 
+		for _, otherProp := range PM.placedProps {
+			if pointInPolygon(corner, otherProp.baseCorners) {
+				good = false
+			}
 		}
 
-		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && p.CheckPropPointsValid() {
-
-			p.LinkedSprite = nil
-
-			spriteMidPoint := e.Sprite.GetSpriteRect().Dx() / 2
-
-			DrawSpotLight(e.Sprite.X + float32(spriteMidPoint))
-			p.state = SettingInPlace
-
-			for i, corner := range p.baseCorners {
-
-				psZ := e.Z
-				psZ = min(psZ, len(zBounds)-1)
-				psZ = max(psZ, 1)
-				if i > 1 {
-					psZ = min(psZ+2, len(zBounds)-1)
-				}
-
-				nps := NewBubbleSystem(float64(corner.X-zBounds[psZ].Min.X), float64(corner.Y-zBounds[psZ].Min.Y), zBounds[psZ])
-				nps.SpawnRate = 5000
-				nps.On = true
-				e.PropData.particleSystems = append(e.PropData.particleSystems, nps)
-				RegisterEntity(&Entity{ParticleSystem: nps, Z: psZ, EndAfter: 10.0, Sprite: nps.Sprite})
-
-			}
-			psZ := e.Z
-			psZ = min(psZ, len(zBounds)-1)
-			psZ = max(psZ-2, 1)
-			nps := NewBubbleSystem(float64(p.baseCorners[0].X-zBounds[psZ].Min.X+p.Sprite.GetSpriteRect().Dx()/2+rand.Intn(15)), float64(p.baseCorners[0].Y-zBounds[psZ].Min.Y), zBounds[psZ])
-			nps.SpawnRate = 5000
-			nps.On = true
-			e.PropData.particleSystems = append(e.PropData.particleSystems, nps)
-			RegisterEntity(&Entity{ParticleSystem: nps, Z: psZ, EndAfter: 10.0, Sprite: nps.Sprite})
-
-			nps2 := NewBubbleSystem(float64(p.baseCorners[0].X-zBounds[psZ].Min.X+p.Sprite.GetSpriteRect().Dx()/4-rand.Intn(15)), float64(p.baseCorners[0].Y-zBounds[psZ].Min.Y), zBounds[psZ])
-			nps2.SpawnRate = 5000
-			nps2.On = true
-			e.PropData.particleSystems = append(e.PropData.particleSystems, nps2)
-			RegisterEntity(&Entity{ParticleSystem: nps, Z: psZ, EndAfter: 10.0, Sprite: nps2.Sprite})
-
-		}
-	}
-
-	if p.Sprite2 != nil {
-		p.Sprite2.X = p.X
-		p.Sprite2.Y = p.Y
-	}
-
-	//p.baseCorners = updateCorners(p.baseCorners, zBounds)
-	if p.state == SettingInPlace {
-		p.Sprite.UnLoadShader()
-		p.Sprite.Shader = registry.ShaderMap["NormalMap"]
-		p.Y++
-	}
-	if p.Y == float32(p.baseCorners[0].Y-p.cornerOffsets[0].Y) {
-		if p.stateWas == SettingInPlace {
-			for _, ps := range e.PropData.particleSystems {
-				ps.On = false
-			}
-			e.EventHub.Publish(events.NewProp{PropId: e.Id, Name: p.Tag})
-			TurnOffSpotLight()
-			maxY := max(e.PropData.baseCorners[3].Y, e.PropData.baseCorners[2].Y)
-			_, _, z := PositionPointOnZ(e.PropData.baseCorners[3].X, maxY, zBounds)
-			e.Z = z
-
-			psz := max(e.Z, 0)
-			psz = min(psz, 12) // Fix the min function
-
-			for _, corner := range p.baseCorners {
-				nps := NewGenericParticleSystem(float64(corner.X), float64(corner.Y), zBounds[psz], 0)
-				nps.PConfig = &ParticleConfig{
-					XVariance:         10,
-					YVariance:         10,
-					XVelocityVariance: 10,
-					YVelocityVariance: 10,
-					MaxLife:           0,
-					BaseYVelocity:     -40,
-					RotationSpeed:     rand.NormFloat64() * .01,
-					Scale:             1.5,
-					AlphaDecay:        0.5}
-				RegisterEntity(&Entity{ParticleSystem: nps, Z: psz, EndAfter: 10.0, Sprite: nps.Sprite})
-			}
-
-			ZSortEntities()
-			p.state = SetInPlace
-			PM.placedProps = append(PM.placedProps, *e.PropData)
+		if !good {
+			p.ShaderParams["OutlineColor"] = [4]float32{0.7, 0.2, 0.2, 1.0}
+		} else {
+			p.ShaderParams["OutlineColor"] = [4]float32{0.2, 0.7, 0.2, 1.0}
 		}
 
 	}
 
-	p.stateWas = p.state
+	if registry.ClickCheck() && p.CheckPropPointsValid() {
+		ent.Transition()
+	}
 
+	_, _, ent.Z = PositionPointOnZ(int(placementEnt.Sprite.X), int(placementEnt.Sprite.Y)+placementEnt.Sprite.SpriteHeight(), gs.Zbounds)
+
+}
+
+func MakeBaseCornerPlacementSprite(baseCorners [4]image.Point, propImgSize image.Rectangle) *sprite.Sprite {
+	top, bottom, left, right := findTopBottomCornersAndLeftRightCornerIndexes(baseCorners)
+
+	img := ebiten.NewImage(baseCorners[right].X-baseCorners[left].X+(PM.placementReticule.Bounds().Dx()*2), baseCorners[top].Y-baseCorners[bottom].Y+PM.placementReticule.Bounds().Dy())
+	dopts := &ebiten.DrawImageOptions{}
+
+	for _, corner := range baseCorners {
+		dopts.GeoM.Reset()
+		x := float64(corner.X)
+		y := float64(corner.Y - baseCorners[bottom].Y)
+
+		dopts.GeoM.Translate(x, y)
+		img.DrawImage(PM.placementReticule, dopts)
+	}
+
+	sp := &sprite.Sprite{Img: img}
+	sp.DOptsUpdaterTag = "offset"
+	sp.DOptsUpdaterParams = make(map[string]float64)
+	sp.DOptsUpdaterParams["offSetX"] = -6
+	sp.DOptsUpdaterParams["offSetY"] = -12
+
+	return sp
+}
+
+func findTopBottomCornersAndLeftRightCornerIndexes(baseCorners [4]image.Point) (top int, bottom int, left int, right int) {
+
+	topMostCornerIndex := 0
+	bottomMostCornerIndex := 0
+
+	leftMostCornerIndex := 0
+	rightMostCornerIndex := 0
+
+	for i := 1; i < 4; i++ {
+		if baseCorners[i].X < baseCorners[leftMostCornerIndex].X {
+			leftMostCornerIndex = i
+		}
+		if baseCorners[i].X > baseCorners[rightMostCornerIndex].X {
+			rightMostCornerIndex = i
+		}
+
+		if baseCorners[i].Y < baseCorners[topMostCornerIndex].Y {
+			bottomMostCornerIndex = i
+		}
+		if baseCorners[i].Y > baseCorners[bottomMostCornerIndex].Y {
+			topMostCornerIndex = i
+		}
+	}
+
+	return topMostCornerIndex, bottomMostCornerIndex, leftMostCornerIndex, rightMostCornerIndex
+}
+
+func SettingInPlaceUpdaterNew(ent *Entity, gs GameState) {
+	//this is really a transition func but we need game state for z bounds, feels weird to break either pattern:
+	//making entity store global state z bound data or having update func do one off transition stuff
+	p := ent.PropData
+	p.Sprite.UnLoadShader()
+	p.Sprite.Shader = registry.ShaderMap["NormalMap"]
+
+	p.LinkedSprite = nil
+	spriteMidPoint := ent.Sprite.GetSpriteRect().Dx() / 2
+
+	ent.AddDeInitHandler(DrawSpotLight(ent.Sprite.X+float32(spriteMidPoint), EffectParams{}))
+	p.state = SettingInPlace
+
+	placementEnt, exists := ent.GetLinkedEnt()
+	if !exists {
+		log.Fatal("placement ent id for prop at moveable state not working")
+	}
+
+	placementEnt.Draw = false
+
+	for i, corner := range p.baseCorners {
+
+		psZ := ent.Z
+		psZ = min(psZ, len(gs.Zbounds)-2)
+		psZ = max(psZ, 1)
+		if i > 1 {
+			psZ = min(psZ+2, len(gs.Zbounds)-2)
+		}
+
+		nps := NewBubbleSystem(float64(corner.X-gs.Zbounds[psZ].Min.X), float64(corner.Y-gs.Zbounds[psZ].Min.Y), gs.Zbounds[psZ])
+		nps.SpawnRate = 5000
+		nps.On = true
+		ent.PropData.particleSystems = append(ent.PropData.particleSystems, nps)
+		RegisterEntity(&Entity{ParticleSystem: nps, Z: psZ, EndAfter: 10.0, Sprite: nps.Sprite})
+
+	}
+
+	psZ := ent.Z
+	psZ = min(psZ, len(gs.Zbounds)-2)
+	psZ = max(psZ-2, 1)
+	nps := NewBubbleSystem(float64(p.baseCorners[0].X-gs.Zbounds[psZ].Min.X+p.Sprite.GetSpriteRect().Dx()/2+rand.Intn(15)), float64(p.baseCorners[0].Y-gs.Zbounds[psZ].Min.Y), gs.Zbounds[psZ])
+	nps.SpawnRate = 5000
+	nps.On = true
+	ent.PropData.particleSystems = append(ent.PropData.particleSystems, nps)
+	RegisterEntity(&Entity{ParticleSystem: nps, Z: psZ, EndAfter: 10.0, Sprite: nps.Sprite})
+
+	nps2 := NewBubbleSystem(float64(p.baseCorners[0].X-gs.Zbounds[psZ].Min.X+p.Sprite.GetSpriteRect().Dx()/4-rand.Intn(15)), float64(p.baseCorners[0].Y-gs.Zbounds[psZ].Min.Y), gs.Zbounds[psZ])
+	nps2.SpawnRate = 5000
+	nps2.On = true
+	ent.PropData.particleSystems = append(ent.PropData.particleSystems, nps2)
+	RegisterEntity(&Entity{ParticleSystem: nps, Z: psZ, EndAfter: 10.0, Sprite: nps2.Sprite})
+	ent.Transition()
+}
+
+func PropFallingUpdater(ent *Entity, gs GameState) {
+
+	p := ent.PropData
+	p.Y++
+
+	newCorners := updateCorners(p.baseCorners, p.cornerOffsets, ent.Sprite.X, ent.Sprite.Y)
+	p.baseCorners = newCorners
+
+	placementEnt, exists := ent.GetLinkedEnt()
+	if !exists {
+		log.Fatal("placement ent id for prop at moveable state not working")
+	}
+	//ent.Sprite.Y = placementEnt.Sprite.Y - float32(placementEnt.Sprite.SpriteHeight()) - 100
+
+	if ent.Sprite.Y+float32(ent.Sprite.SpriteHeight()) > placementEnt.Sprite.Y-float32(placementEnt.Sprite.DOptsUpdaterParams["offSetY"]) {
+		RemoveEntity(ent.LinkedID)
+		ent.Transition()
+	}
+
+	_, _, ent.Z = PositionPointOnZ(int(placementEnt.Sprite.X), int(placementEnt.Sprite.Y)+placementEnt.Sprite.SpriteHeight(), gs.Zbounds)
+
+}
+
+func TransitionToSetInPlace(ent *Entity, gs GameState) {
+
+	p := ent.PropData
+
+	for _, ps := range ent.PropData.particleSystems {
+		ps.On = false
+	}
+
+	if !p.alreadyPlaced {
+		ent.EventHub.Publish(events.NewProp{PropId: ent.Id, Name: p.Tag})
+	}
+
+	ent.DeInitEffects() // turn off spotlight effect
+
+	psz := max(ent.Z, 0)
+	psz = min(psz, 12) // Fix thent.min function
+
+	for _, corner := range p.baseCorners {
+		nps := NewGenericParticleSystem(float64(corner.X), float64(corner.Y), gs.Zbounds[psz], 0)
+		nps.PConfig = &ParticleConfig{
+			XVariance:         10,
+			YVariance:         10,
+			XVelocityVariance: 10,
+			YVelocityVariance: 10,
+			MaxLife:           0,
+			BaseYVelocity:     -40,
+			RotationSpeed:     rand.NormFloat64() * .01,
+			Scale:             1.5,
+			AlphaDecay:        0.5}
+		RegisterEntity(&Entity{ParticleSystem: nps, Z: psz, EndAfter: 10.0, Sprite: nps.Sprite})
+	}
+	ZSortEntities()
+	p.state = SetInPlace
+	if p.OnLanding != nil {
+		p.OnLanding(ent)
+	}
+
+	PM.placedProps = append(PM.placedProps, ent.PropData)
+	p.alreadyPlaced = true
+	ent.Transition()
+}
+
+func SetInPlaceUpdater(ent *Entity, gs GameState) {
+	if gs.Debug == "DebugOn" {
+		return
+	}
+
+	if gs.ZoomedFor == NotZoomed {
+		return
+	}
+
+	if ent.Parameters.Ints[IndexCounter] < 120 {
+		ent.Parameters.Ints[IndexCounter]++
+		return
+	}
+
+	if registry.ClickCheck() && ent.Sprite.SpriteHovered() {
+		ent.Sprite.AddColoredOutlineShader(colornames.Yellow)
+		ent.Transition()
+	}
+}
+
+func SetInPlaceSelected(ent *Entity, gs GameState) {
+	if registry.ClickCheck() && ent.Sprite.SpriteHovered() {
+
+		filtered := PM.placedProps[:0]
+
+		for _, prop := range PM.placedProps {
+			if prop != ent.PropData {
+				filtered = append(filtered, prop)
+			}
+		}
+
+		PM.placedProps = filtered
+
+		sp := MakeBaseCornerPlacementSprite(ent.PropData.cornerOffsets, ent.Sprite.Img.Bounds())
+		sp.X = ent.Sprite.X
+		sp.Y = ent.Sprite.Y + float32(ent.Sprite.SpriteHeight()) + 100
+		ent3 := &Entity{Sprite: sp, Z: 10}
+		ent3.UpdateFunc = MoveRectEnt
+		RegisterEntity(ent3)
+		ent.LinkedID = ent3.Id
+		ent.Transition()
+	}
+}
+
+func AddEffectOnLanding(ent *Entity) {
+	DrawSmoke(ent.Sprite.X, ent.Sprite.Y, EffectParams{Cycles: 10})
 }
 
 func LoadProp(propName string, pd PropData, eventhub *tasks.EventHub, event tasks.Event, zbounds [13]image.Rectangle) uint32 {
@@ -359,9 +518,10 @@ func LoadProp(propName string, pd PropData, eventhub *tasks.EventHub, event task
 	}
 
 	prop := NewStructureProp(propAssets, eventhub, zbounds[0], propName)
-	if len(points) == 0 {
+	if len(points) < 4 {
 		points = pd.PtMap["Castle"]
 	}
+
 	prop.cornerOffsets = [4]image.Point(points[0:4])
 
 	x, y, _ := positionPointBasedOnCursorOnZslice(zbounds)
@@ -374,37 +534,241 @@ func LoadProp(propName string, pd PropData, eventhub *tasks.EventHub, event task
 
 	prop.Sprite.X = float32(x)
 	prop.Sprite.Y = float32(prop.baseCorners[0].Y - 45 - prop.Img.Bounds().Dy())
+
 	if prop.Sprite2 != nil {
 		prop.Sprite2.X = float32(x)
 		prop.Sprite2.Y = prop.Sprite.Y
 	}
 
+	if propName == string(HotRock) {
+		prop.OnLanding = AddEffectOnLanding
+	}
+
 	ent := &Entity{PropData: prop, Sprite: prop.Sprite, EventHub: eventhub}
+	ent.StateMachine = InitPropStateMachine()
 	ent.EventHub = eventhub
 	ent.Z = 6
 	RegisterEntity(ent)
+
 	if prop.Sprite2 != nil {
 		ent2 := &Entity{Sprite: prop.Sprite2, EventHub: eventhub}
 		ent2.Z = 0
-		ent.EventHub = eventhub
 		RegisterEntity(ent2)
 	}
+
 	eventhub.Publish(events.PlacementMode{})
+
+	sp := MakeBaseCornerPlacementSprite(ent.PropData.cornerOffsets, ent.Sprite.Img.Bounds())
+	sp.X = 400
+	sp.Y = 400
+	ent3 := &Entity{Sprite: sp, Z: 10}
+	ent3.UpdateFunc = MoveRectEnt
+	RegisterEntity(ent3)
+
+	selectRepositionChain := func(ent *Entity, gs GameState) {
+		if registry.ClickCheck() {
+			RemoveEntity(ent.Id)
+			RemoveEntity(ent.Parameters.EntIds[LinkedGraphic1])
+			DrawControlEffect(float64(ent.Sprite.X), float64(ent.Sprite.Y), EffectParams{Zoom: true}, ClickHere, "Reposition", ClearEnterGraphicOnClick)
+		}
+	}
+
+	if pd.SubscriptionForNextProp != nil {
+		ent.SubWUnsubAfterCompletion(pd.SubscriptionForNextProp, func(event tasks.Event) {
+			effectX := float64(ent.Sprite.X) + float64(ent.Sprite.SpriteWidth()/2)
+			effectY := float64(ent.Sprite.Y) + float64(ent.Sprite.SpriteHeight()/2)
+			DrawControlEffect(effectX, effectY, EffectParams{Zoom: true}, ClickHere, "Select", selectRepositionChain)
+		})
+	}
+
+	ent.LinkedID = ent3.Id
 
 	return ent.Id
 }
 
-func plantUpdateFunc(ent *Entity) {
+func plantUpdateFunc(ent *Entity, gs GameState) {
 	if ent.Sprite.CurrentAnimation == "StartUp" && ent.AnimationCycles == 1 {
 		ani := ent.Sprite.GetAnimation()
 		ent.Sprite.Img = ani.GetLastFrameAsStaticImage()
 		ent.Sprite.NormalMap = ani.GetLastFrameNormalAsStaticImage()
 		ent.Sprite.CurrentAnimation = ""
-		ent.UpdateFunc = nil
+		ent.UpdateFunc = movePlantUpdateFunc
 		sprite.InitSwayAnimation(ent.Sprite, 15)
 		ent.EventHub.Publish(events.NewProp{PropId: ent.Id})
-
 	}
+}
+
+func movePlantUpdateFunc(ent *Entity, gs GameState) {
+	if registry.ClickCheck() && ent.Sprite.SpriteHovered() && gs.ZoomedFor == PlayerZoomed {
+		ent.Sprite.AddColoredOutlineShader(colornames.Yellow)
+		ent.Parameters.Ints[lastZ] = ent.Z
+		ent.UpdateFunc = MoveEnt
+	}
+}
+
+func MoveEnt(ent *Entity, gs GameState) {
+	x := ent.Sprite.X
+	y := ent.Sprite.Y
+	spriteBounds := ent.Sprite.GetSpriteRect()
+
+	newX, newY, newZ := MovePoint(x, y, spriteBounds, gs, ent.Parameters.Ints[lastZ])
+
+	ent.Sprite.X = newX
+	ent.Sprite.Y = newY
+	ent.Parameters.Ints[lastZ] = newZ
+	ent.Z = newZ
+}
+
+func MoveRectEnt(ent *Entity, gs GameState) {
+	x := ent.Sprite.X
+	y := ent.Sprite.Y
+
+	spriteBounds := ent.Sprite.GetSpriteRect()
+	if ent.Sprite.DOptsUpdaterTag == "offset" {
+		spriteBounds.Max.Y += int(ent.Sprite.DOptsUpdaterParams["offSetY"] * 1.5) // arbitrary scalar based on what looks good with position reticule
+	}
+
+	entslastZ := ent.Z
+
+	newX, newY, newZ := MovePoint(x, y, spriteBounds, gs, entslastZ)
+
+	ent.Sprite.X = newX
+	ent.Sprite.Y = newY
+	ent.Parameters.Ints[lastZ] = newZ
+
+	if ent.Sprite.Y+6 < float32(gs.Zbounds[0].Max.Y) {
+		ent.Sprite.Y = float32(gs.Zbounds[0].Max.Y) - 6
+	}
+
+}
+
+func MovePoint(x float32, y float32, objectBeingMovedBounds image.Rectangle, gs GameState, lastZ int) (float32, float32, int) {
+	Dy := 0.0
+	Dx := 0.0
+
+	width := objectBeingMovedBounds.Dx()
+	height := objectBeingMovedBounds.Dy()
+
+	if registry.LeftCheck() {
+		Dx -= 1
+	}
+	if registry.RightCheck() {
+		Dx += 1
+	}
+	if registry.UpCheck() {
+		Dy -= 1
+	}
+	if registry.DownCheck() {
+		Dy += 1
+	}
+
+	_, _, z := PositionPointOnZ(int(x), int(y)+height, gs.Zbounds)
+
+	if z != lastZ {
+		slices := SliceRectangle(gs.Zbounds[z], 5)
+		positionIndex := FindSliceIndex(x, slices)
+		switch positionIndex {
+		case 0:
+			if Dy > 0 {
+				Dx -= 1
+			} else if Dy < 0 {
+				Dx += 1
+			}
+		case 1:
+			if Dy > 0 {
+				Dx -= 0.5
+			} else if Dy < 0 {
+				Dx += 0.5
+			}
+		case 2:
+			//keep change
+		case 3:
+			if Dy > 0 {
+				Dx += 0.5
+			} else if Dy < 0 {
+				Dx -= 0.5
+			}
+		case 4:
+			if Dy > 0 {
+				Dx += 1
+			} else if Dy < 0 {
+				Dx -= 1
+			}
+		}
+	}
+
+	x += float32(Dx)
+	y += float32(Dy)
+
+	upperBounds := float32(gs.Zbounds[12].Max.Y - height)
+	leftBounds := float32(gs.Zbounds[z].Min.X)
+	rightBounds := float32(gs.Zbounds[z].Max.X - width)
+
+	if y > upperBounds {
+		y = upperBounds
+	}
+	/*if ent.Sprite.Y < lowerBounds {
+		ent.Sprite.Y = lowerBounds
+	}*/
+	if x < leftBounds {
+		x = leftBounds
+	}
+	if x > rightBounds {
+		x = rightBounds
+	}
+	if z == 0 {
+		lowerBounds := float32(gs.Zbounds[0].Max.Y - height)
+		if y < lowerBounds {
+			y = lowerBounds
+		}
+	}
+
+	return x, y, z
+
+}
+
+func SliceRectangle(rect image.Rectangle, numSlices int) []float32 {
+	if numSlices <= 0 {
+		return []float32{}
+	}
+
+	width := float32(rect.Dx())
+	startPoint := float32(rect.Min.X)
+	sliceWidth := width / float32(numSlices)
+
+	slices := make([]float32, numSlices+1)
+	slices[0] = startPoint
+
+	for i := 1; i <= numSlices; i++ {
+		slices[i] = startPoint + sliceWidth*float32(i)
+	}
+
+	return slices
+}
+
+func FindSliceIndex(x float32, sliceBounds []float32) int {
+	if len(sliceBounds) == 0 {
+		return -1
+	}
+
+	// Before first boundary
+	if x < sliceBounds[0] {
+		return -1
+	}
+
+	// After last boundary
+	if x >= sliceBounds[len(sliceBounds)-1] {
+		return len(sliceBounds) - 1
+	}
+
+	// Find which slice the x falls into
+	for i := 0; i < len(sliceBounds)-1; i++ {
+		if x >= sliceBounds[i] && x < sliceBounds[i+1] {
+			return i
+		}
+	}
+
+	return -1
 }
 
 func LoadPlant(event tasks.Event, data PropData, hub *tasks.EventHub) uint32 {
@@ -436,8 +800,8 @@ func LoadPlant(event tasks.Event, data PropData, hub *tasks.EventHub) uint32 {
 
 	pAni := LoadPlantAnimation(plantName)
 	pImg := pAni.Img
-	x := +ev.X + 2 - float32(pImg.Bounds().Dx()/(pAni.LastF+1))/2
-	y := ev.Y - float32(pImg.Bounds().Dy()) + 2
+	x := +ev.X - float32(pImg.Bounds().Dx()/(pAni.LastF+1))/2
+	y := ev.Y - float32(pImg.Bounds().Dy())
 
 	sp := &sprite.Sprite{AnimationMap: map[string]*sprite.Animation{"StartUp": pAni}, CurrentAnimation: "StartUp", X: x, Y: y}
 	sp.UnFocusable = true
@@ -457,7 +821,7 @@ func LoadPlant(event tasks.Event, data PropData, hub *tasks.EventHub) uint32 {
 	}
 
 	ent := &Entity{Sprite: sp}
-	ent.Z = ev.Z
+	ent.Z = max(1, ev.Z)
 	ent.EventHub = hub
 	ent.UpdateFunc = plantUpdateFunc
 	println("Z picked for plant=", ent.Z)
@@ -544,25 +908,10 @@ func LoadPlacementImg() (*ebiten.Image, *ebiten.Image) {
 	return img, img2
 }
 
-func LoadPlaceMentReticule(zBounds [13]image.Rectangle, tag string, hub *tasks.EventHub) {
-	img, _ := LoadPlacementImg()
-	ev := events.PlacementMode{}
-	hub.Publish(ev)
-	x, _, currentZ := positionPointBasedOnCursorOnZslice(zBounds)
-
-	sp := &sprite.Sprite{Img: img, Y: float32(zBounds[currentZ].Max.Y), X: float32(x), UnFocusable: true}
-	ent := &Entity{Sprite: sp}
-	ent.Z = 13
-	ent.UpdateFunc = placemenReticuleUpdateFunc
-	RegisterEntity(ent)
-	ent.Parameters["zBounds"] = zBounds
-	ent.Parameters["Tag"] = tag
-	ent.EventHub = hub
-
-}
-
 func positionPointBasedOnCursorOnZslice(zBounds [13]image.Rectangle) (int, int, int) {
 	x, y := util.GetScaledCursorPosition()
+	x -= 6
+	y -= 5
 	xMod, yMod, z := PositionPointOnZ(x, y, zBounds)
 	return xMod, yMod, z
 }
@@ -591,119 +940,23 @@ func PositionPointOnZ(x, y int, zBounds [13]image.Rectangle) (int, int, int) {
 	if x > maxX {
 		x = maxX
 	}
+
 	minX := zBounds[currentZ].Min.X
 	if x < minX {
 		x = minX
 	}
+
+	currentZ = max(currentZ, 11)
 	return x, y, currentZ
 }
 
-func placemenReticuleUpdateFunc(ent *Entity) {
-	zBounds, ok := ent.Parameters["zBounds"].([13]image.Rectangle)
-	if !ok {
-		log.Fatal("incorrect params passed to reticule")
-	}
-	x, y, currentZ := positionPointBasedOnCursorOnZslice(zBounds)
-
-	ent.Sprite.X = float32(x)
-	ent.Sprite.Y = float32(y)
-	ent.Sprite.DOptsUpdaterParams = make(map[string]float64)
-	ent.Sprite.DOptsUpdaterTag = "offSet"
-	ent.Sprite.DOptsUpdaterParams["offSetX"] = -2
-	ent.Sprite.DOptsUpdaterParams["offSetY"] = -4
-
-	valid := true
-	for _, prop := range PM.placedProps {
-		valid = !pointInPolygon(image.Point{int(ent.Sprite.X), int(ent.Sprite.Y)}, prop.baseCorners)
+func updateCorners(baseCorners [4]image.Point, cornerOffsets [4]image.Point, x, y float32) [4]image.Point {
+	for i, _ := range baseCorners {
+		baseCorners[i].X = int(x) + cornerOffsets[i].X
+		baseCorners[i].Y = int(y) + cornerOffsets[i].Y
 	}
 
-	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) && valid {
-		tag, ok := ent.Parameters["Tag"].(string)
-		if !ok {
-			log.Fatal("placement reticule got non string Tag")
-		}
-		ent.EventHub.Publish(PlacementPicked{PlacementFor: tag, X: ent.Sprite.X, Y: ent.Sprite.Y, Z: currentZ})
-		RemoveEntity(ent.Id)
-	}
-
-}
-
-func updateCorners(baseCorners [4]image.Point, zBounds [13]image.Rectangle) ([4]image.Point, int) {
-	x, y, currentZ := positionPointBasedOnCursorOnZslice(zBounds)
-
-	// Calculate current center of the corners
-	currentCenterX := (baseCorners[0].X + baseCorners[1].X + baseCorners[2].X + baseCorners[3].X) / 4
-	currentCenterY := (baseCorners[0].Y + baseCorners[1].Y + baseCorners[2].Y + baseCorners[3].Y) / 4
-
-	// Calculate how much to shift to center on cursor
-	shiftX := x - currentCenterX
-	shiftY := y - currentCenterY
-
-	// Apply the shift to all corners
-	for i := 0; i < 4; i++ {
-		baseCorners[i].X += shiftX
-		baseCorners[i].Y += shiftY
-	}
-
-	// Apply X boundary constraints (your existing logic)
-	leftMostCornerIndex := 0
-	rightMostCornerIndex := 0
-	for i := 1; i < 4; i++ {
-		if baseCorners[i].X < baseCorners[leftMostCornerIndex].X {
-			leftMostCornerIndex = i
-		}
-		if baseCorners[i].X > baseCorners[rightMostCornerIndex].X {
-			rightMostCornerIndex = i
-		}
-	}
-
-	if baseCorners[leftMostCornerIndex].X < zBounds[currentZ].Min.X {
-		shift := zBounds[currentZ].Min.X - baseCorners[leftMostCornerIndex].X
-		for i := 0; i < 4; i++ {
-			baseCorners[i].X += shift
-		}
-	}
-
-	if baseCorners[rightMostCornerIndex].X > zBounds[currentZ].Max.X {
-		shift := baseCorners[rightMostCornerIndex].X - zBounds[currentZ].Max.X
-		for i := 0; i < 4; i++ {
-			baseCorners[i].X -= shift
-		}
-	}
-
-	// Add Y boundary constraints
-	if baseCorners[0].Y < zBounds[0].Max.Y {
-		shift := zBounds[0].Max.Y - baseCorners[0].Y
-		for i := 0; i < 4; i++ {
-			baseCorners[i].Y += shift
-		}
-
-	}
-
-	if baseCorners[1].Y < zBounds[0].Max.Y {
-		shift := zBounds[0].Max.Y - baseCorners[1].Y
-		for i := 0; i < 4; i++ {
-			baseCorners[i].Y += shift
-		}
-	}
-
-	if baseCorners[2].Y > zBounds[11].Max.Y {
-		currentZ = 2
-		shift := baseCorners[2].Y - zBounds[11].Max.Y
-		for i := 0; i < 4; i++ {
-			baseCorners[i].Y -= shift
-		}
-	}
-
-	if baseCorners[3].Y > zBounds[11].Max.Y {
-		shift := baseCorners[3].Y - zBounds[11].Max.Y
-		currentZ = 11
-		for i := 0; i < 4; i++ {
-			baseCorners[i].Y -= shift
-		}
-	}
-
-	return baseCorners, max(currentZ+shiftY, currentZ)
+	return baseCorners
 }
 
 func pointInPolygon(point image.Point, polygon [4]image.Point) bool {

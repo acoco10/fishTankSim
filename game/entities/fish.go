@@ -8,8 +8,9 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"image"
 	"log"
-	"math/rand"
 )
+
+type State uint8
 
 type FishState uint8
 
@@ -17,6 +18,8 @@ const (
 	Swimming FishState = iota
 	Eating
 	Resting
+	Captured
+	Falling
 )
 
 type FishList string
@@ -45,16 +48,17 @@ const (
 
 type CreatureData struct {
 	TargetPoint        *util.Point
+	ArrivedAtPoint     uint32
 	inBetweenPoint     *util.Point
 	distanceTraveled   float64
 	TargetZ            int
 	TargetParticleId   uint32
-	ParticlePointQueue map[uint32]*util.Point
+	ParticlePointQueue []uint32
 	EventHub           *tasks.EventHub
 	TankBoundaries     image.Rectangle
 	Timers             map[FishState]*util.Timer
 	State              FishState
-	TickClicked        bool
+	StateWas           FishState
 	Environment        *system.Environment
 	stressContributors []string
 	MovementFlags      [10]uint32
@@ -63,43 +67,123 @@ type CreatureData struct {
 	Flip bool
 }
 
-func (e *Entity) FishUpdate(state GameState) {
-	c := e.CreatureData
+func InitFishStateMachine() *StateMachine {
+	sm := &StateMachine{}
 
-	c.TankBoundaries = state.Zbounds[e.Z]
+	swimmingUpdater := StateHandler{Updater: swimmingUpdate, TransitionTo: 2, TransitionToFunc: TransitionToSwimming}
+	restingUpdater := StateHandler{Updater: restingUpdate, TransitionTo: 3, TransitionOutFunc: nil}
+	eatingUpdater := StateHandler{Updater: eatingUpdate, TransitionTo: 1, TransitionToFunc: TransitionToEating}
+	fallingUpdater := StateHandler{Updater: FallingUpdate, TransitionTo: 4, TransitionOutFunc: nil}
+	fishCaptureUpdater := StateHandler{Updater: fishCapturedUpdater, TransitionTo: 3, TransitionToFunc: transitionToCaptured, TransitionOutFunc: transitionFromCaptured}
 
-	c.TickClicked = false
-	switch c.State {
-
-	case Swimming:
-		e.swimmingUpdate(state.ActiveCollisions)
-	case Resting:
-		e.restingUpdate(state.ActiveCollisions)
-	case Eating:
-
-		e.eatingUpdate()
+	sm.States = map[int]*StateHandler{
+		1: &swimmingUpdater,
+		2: &restingUpdater,
+		3: &eatingUpdater,
+		4: &fallingUpdater,
+		5: &fishCaptureUpdater,
 	}
 
-	dopts := e.TranSlateFishOpts(ebiten.DrawImageOptions{})
-	e.Sprite.UpdateOpts(&dopts)
+	sm.stateController = FishStateController
+	sm.CurrentState = 1
+	sm.EveryUpdate = append(sm.EveryUpdate, FishUpdate)
 
-	if e.Sprite.Shader != nil {
-		sopts := e.TranSlateFishShaderOpts()
-		e.Sprite.UpdateOpts(sopts)
+	return sm
+}
+
+func TransitionToEating(ent *Entity) {
+	point, exists := GetEntity(ent.CreatureData.ArrivedAtPoint)
+	if !exists {
+		log.Fatal("WARNING fish is is trying to eat unregistered point")
+	}
+
+	ent.CreatureData.State = Eating
+	ent.CreatureData.Timers[Eating].TurnOn()
+
+	ent.CreatureData.Hunger++
+	ent.Add1expGraphic()
+	ent.CreatureData.progress += 1
+
+	ev := CreatureReachedPoint{
+		PointTypeReached: point.ParticleData.PType,
+		PointID:          ent.CreatureData.TargetParticleId,
+		CreatureID:       ent.Id,
+	}
+
+	ent.EventHub.Publish(ev)
+
+	ent.CreatureData.TargetParticleId = 0
+
+	point.StopParticle()
+}
+
+func TransitionToSwimming(ent *Entity) {
+
+	ent.CreatureData.State = Swimming
+}
+
+func FishStateController(ent *Entity) int {
+	//core assumption: transition is actively called within a state, not arbitrarily enacted at set intervals
+	//has boundaries == captured
+	if ent.CreatureData.TankBoundaries.Dy() < 150 {
+		return 5
+	}
+
+	if ent.CreatureData.State == 5 {
+		return 4
+	}
+
+	if ent.CreatureData.ArrivedAtPoint != 0 {
+		point, exists := GetEntity(ent.CreatureData.ArrivedAtPoint)
+		if !exists {
+			log.Println("WARNING fish arrived at unregistered point")
+			return 1
+		}
+		if point.ParticleData.PType == util.Food {
+			return 3
+		}
+	}
+
+	if ent.CreatureData.TargetPoint == nil {
+		ent.ProcessTargetPointQueue()
+	}
+
+	//resting timer triggerd = resting
+	if ent.CreatureData.Timers[Resting].On {
+		return 2
+	}
+
+	//swimming
+	return 1
+}
+
+func FishUpdate(ent *Entity, gs GameState) {
+	c := ent.CreatureData
+
+	if c.State != Captured {
+		//update always for z changes if not captured
+		c.TankBoundaries = gs.Zbounds[ent.Z]
+	}
+
+	dopts := ent.TranSlateFishOpts(ebiten.DrawImageOptions{})
+	ent.Sprite.UpdateOpts(&dopts)
+
+	if ent.Sprite.Shader != nil {
+		sopts := ent.TranSlateFishShaderOpts()
+		ent.Sprite.UpdateOpts(sopts)
 
 	}
 
 	if registry.Config.Zoom {
-		e.Sprite.UnFocusable = false
+		ent.Sprite.UnFocusable = false
 	} else {
-		if e.Sprite.Focused {
-			UnFocus(e.Id)
+		if ent.Sprite.Focused {
+			UnFocus(ent.Id)
 		}
-		e.Sprite.UnFocusable = true
+		ent.Sprite.UnFocusable = true
 	}
 
-	e.updateAnimation()
-
+	ent.updateAnimation()
 	//e.publishStats("statsMenu")
 
 }
@@ -134,55 +218,61 @@ func (e *Entity) updateAnimation() {
 
 }
 
-func (e *Entity) swimmingUpdate(collisions []FishCollision) {
-
-	e.Move(collisions)
-	c := e.CreatureData
-	tState := c.Timers[Swimming].Update()
-
-	if tState == util.Done {
-
-		c.Timers[Swimming].Duration = rand.Intn(40)
-		if c.energy > 0 {
-			c.State = Swimming
-		} else {
-			c.State = Resting
-		}
+func swimmingUpdate(ent *Entity, gs GameState) {
+	if len(ent.CreatureData.ParticlePointQueue) > 0 && ent.CreatureData.ArrivedAtPoint != 0 {
+		ent.Transition()
 	}
+	ent.Move(gs.ActiveCollisions)
+
 }
 
-func (e *Entity) restingUpdate(collisions []FishCollision) {
-	c := e.CreatureData
+func restingUpdate(ent *Entity, gs GameState) {
+	c := ent.CreatureData
 	c.speed = 0.4
-	e.Move(collisions)
-
-	if c.Timers[Resting].On == false {
-		c.Timers[Resting].TurnOn()
-	}
+	ent.Move(gs.ActiveCollisions)
 
 	tState := c.Timers[Resting].Update()
 	if tState == util.Done {
+		c.Timers[Resting].TurnOff()
 		c.energy += 10
-		if c.energy > 15 {
-			c.State = Swimming
-		}
+		ent.Transition()
 	}
 }
 
-func (e *Entity) eatingUpdate() {
+func eatingUpdate(ent *Entity, gs GameState) {
 
-	if e.CreatureData == nil {
-		log.Fatal("called a creature data func on a non creature some how")
-	}
-	c := e.CreatureData
-	if !c.Timers[Eating].On {
-		c.Timers[Eating].TurnOn()
-	}
+	c := ent.CreatureData
 
 	tState := c.Timers[Eating].Update()
 	if tState == util.Done {
-		c.State = Swimming
 		c.energy += 4
-		DoneEating(e)
+		c.Timers[Eating].TurnOff()
+		RemoveEntity(ent.CreatureData.ArrivedAtPoint)
+		ent.CreatureData.ArrivedAtPoint = 0
+		ent.StateMachine.Transition(ent)
 	}
+}
+
+func fishCapturedUpdater(ent *Entity, gs GameState) {
+	ent.Z = 5
+	ent.CreatureData.TargetZ = 5
+	ent.Move(gs.ActiveCollisions)
+}
+
+func FallingUpdate(ent *Entity, gs GameState) {
+	if ent.Sprite.Y < float32(ent.CreatureData.TankBoundaries.Min.Y) {
+		ent.Sprite.Y += 9.8
+		//fall until we are back in the tank boundaries which were reset when captured condition was removed
+	} else {
+		ent.Transition()
+	}
+}
+
+func transitionToCaptured(ent *Entity) {
+	ent.CreatureData.State = Captured
+	ent.AddDeInitHandler(LoadFollowEffectAsEnt("angry", ent.Id, ent.EventHub, EntityParameters{}))
+}
+
+func transitionFromCaptured(ent *Entity) {
+	ent.DeInitEffects()
 }

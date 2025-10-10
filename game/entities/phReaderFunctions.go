@@ -54,7 +54,7 @@ func PHReaderUpdate(e *Entity, gs GameState) {
 		RegisterEntity(boxEnt)
 		e.TempLinkedID = boxEnt.Id
 		uiDat.state = Selected
-		AltImageWhenClickedUpdater(e, gs)
+		ClickedUpdater(e, gs)
 	}
 
 	if us.UpdateFunc == nil && uiDat.state == Animation {
@@ -94,7 +94,7 @@ func PhReaderDoAtTime(ent *Entity, gs GameState) {
 	ent.UiData.Timers[PublishAtTime] = util.NewTimer(0.5)
 	ent.UiData.Timers[PublishAtTime].TimerUpdater = PublishAtTimerUpdater
 	ent.UiData.Timers[PublishAtTime].TurnOn()
-	ent.Parameters[PublishAtTime] = events.UISpriteAction{UiSprite: "phreader", UiSpriteAction: "ph reading"}
+	ent.Parameters.Events[EventAtTime] = events.UISpriteAction{UiSprite: "phreader", UiSpriteAction: "ph reading"}
 
 	//us.UpdateShaderParams = shaders.UpdateCounter
 }

@@ -20,4 +20,8 @@ const (
 	Fertilizer      Label = "fertilizer"
 	GrandpasJournal Label = "grandpasJournal"
 	LightSwitch     Label = "lightSwitch"
+	OldContainer    Label = "oldContainer"
+	MiniTank        Label = "miniTank"
+	PlantPack       Label = "plantPack"
+	RockProp        Label = "rockProp"
 )

@@ -16,8 +16,8 @@ const (
 
 func InitPiggyBankStateMachine() *StateMachine {
 	States := make(map[int]*StateHandler)
-	disabled := &StateHandler{Updater: NotClickable, TransitionFunc: nil, TransitionTo: 2}
-	idle := &StateHandler{Updater: UISpriteIdleUpdater, TransitionFunc: PiggyBankTransitionFunc, TransitionTo: 3}
+	disabled := &StateHandler{Updater: NotClickable, TransitionOutFunc: nil, TransitionTo: 2}
+	idle := &StateHandler{Updater: UISpriteIdleUpdater, TransitionOutFunc: PiggyBankTransitionFunc, TransitionTo: 3}
 	pickedUp := &StateHandler{Updater: AnimationCompletedMonitor, TransitionTo: 1}
 	States[1] = disabled
 	States[2] = idle
@@ -37,9 +37,7 @@ func PiggyBankTransitionFunc(ent *Entity) {
 func AnimationCompletedMonitor(e *Entity, gs GameState) {
 	if e.Sprite.CurrentAnimation != "" {
 		money := e.UiData.variables[AmountAvailable]
-		if e.effectHandler != nil {
-			e.effectHandler()
-		}
+		e.DeInitEffects()
 		if e.AnimationCycles >= 1 {
 			e.Sprite.GetAnimation().Reset()
 			e.Sprite.CurrentAnimation = ""

@@ -122,18 +122,16 @@ func NewFishData(environment *system.Environment, hub *tasks.EventHub, tankSize 
 	c := CreatureData{
 
 		TargetPoint:        nil,
-		ParticlePointQueue: map[uint32]*util.Point{},
+		ParticlePointQueue: []uint32{},
 		EventHub:           hub,
 		TankBoundaries:     tankSize,
 		Timers:             timers,
 		State:              Swimming,
-		TickClicked:        false,
 		Environment:        environment,
 		FishStats:          fs,
 		Flip:               false,
 	}
 	//LoadRotatingHighlightOutlineAnimated(c.AnimatedSprite)
-	c.ParticlePointQueue = make(map[uint32]*util.Point)
 	return &c
 }
 
@@ -142,7 +140,7 @@ func LoadFishSprite(creature *Entity) {
 		//no level 4+ sprites yet
 		Sprite, err := LoadFishAnimations(creature.CreatureData.FishType, creature.CreatureData.Size)
 		if err != nil {
-			//just load goldfish img as default level up sprite
+			//just load goldfish particleImg as default level up sprite
 			Sprite, _ = LoadFishAnimations("GoldFish", creature.CreatureData.Size)
 		}
 		creature.Sprite = &sprite.Sprite{CurrentAnimation: "swimming", Scale: 1, AbleToBeUnfocusedAutomatically: true, ShaderParams: make(map[string]any)}

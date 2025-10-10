@@ -6,515 +6,623 @@ import (
 	"github.com/acoco10/fishTankWebGame/game/graphics"
 	"github.com/acoco10/fishTankWebGame/game/registry"
 	"github.com/acoco10/fishTankWebGame/game/sprite"
-	"github.com/acoco10/fishTankWebGame/game/stringConstants"
 	"github.com/acoco10/fishTankWebGame/game/tasks"
 	"github.com/acoco10/fishTankWebGame/game/util"
 	"github.com/acoco10/fishTankWebGame/shaders"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"golang.org/x/image/colornames"
 	"image"
 	"log"
-	"math/rand"
-	"strings"
+)
+
+const (
+	//whiteBoardTimers
+	clickableAfterTimer = iota
 )
 
 const (
 	dailyTasks = "Daily Tasks"
-
-	UpperCenter = "upperCenter"
-	Center      = "center"
-
-	CrossOut = "crossOut"
-
-	//timers
-	Defer = "defer"
+	allDone    = "All Done =)"
+	CrossOut   = "crossOut"
 
 	//state
-	IdleWB            = 0
-	Writing           = 1
-	NotReceivingTasks = 2
+	DisabledWB = iota
+	IdleWB
+	WritingTask
+	WritingRequest
+	Erasing
+	CrossingOut
+	ClickTransition
+)
+
+const (
+	//task state
+	NotReceivingTasks = iota
+	ReadyToClick
+	ReceivingTasks
+	AllTaskCompleted
+	ClickToCompleteAfterWriting
+)
+
+const (
+	//day state
+	JustStarted = iota
+	DayTime
+	NightTime
+	DayOver
+)
+
+const (
+	//positions
+	Center = iota
+	UpperCenter
+	LowerCenter
+
+	UpperLeft
+	UpperRight
+
+	LowerLeft
+	LowerRight
 )
 
 type WhiteBoardSprite struct {
-	currentTask               *tasks.Task
-	textBeingWritten          *graphics.TextWithShader
-	DstImg                    *sprite.Sprite
-	NoEraseDst                *sprite.Sprite
-	dstShader                 *ebiten.Shader
-	state                     uint8
-	allTasksCompleted         bool
-	timers                    map[string]*util.Timer
-	allTasksBufferDone        bool
-	numberOfTasksToday        int
-	dayOver                   bool
-	graphicManager            *graphics.GraphicManager
-	tasksCompletedToday       int
-	UiSprite                  *Entity
-	taskJustCompleted         bool
-	lastTaskID                int
-	spacing                   int
-	clickme                   bool
-	windowOpen                bool
-	tIds                      []uint32
-	msgsToWriteLater          []WriteToWhiteBoard
-	occupied                  map[string]float64
-	crossOutTexture           *ebiten.Image
-	pubQueue                  []tasks.Event
-	clickAfterWriting         bool
+	currentTask      *tasks.Task
+	textBeingWritten *graphics.TextWithShader
+	DstImg           *sprite.Sprite
+	NoEraseDst       *sprite.Sprite
+	graphicManager   *graphics.GraphicManager
+
+	wbState             uint8
+	taskState           uint8
+	dayState            uint8
+	allTasksCompleted   bool
+	timers              [7]*util.Timer
+	numberOfTasksToday  int
+	tasksCompletedToday int
+	UiSprite            *Entity
+	lastTaskID          int
+	spacing             int
+	header              bool
+
+	textGraphicEntityIDs    map[uint32]struct{}
+	crossOutGraphicEntityID map[uint32]struct{}
+	noEraseTextGraphicEntID map[uint32]struct{}
+	msgsToWriteLater        []WriteToWhiteBoard
+	occupied                map[uint8]int
+	crossOutTexture         *ebiten.Image
+
+	drawingEnt uint32
+
+	pubQueue                       []tasks.Event
+	taskCreatedEventQueue          []tasks.TaskCreated
+	taskRequirementsCompletedEvent *tasks.TaskRequirementsCompleted
+	writeToWhiteBoardQueue         []WriteToWhiteBoard
+	eraseRequest                   *EraseRequest
+
+	unlockEvent     tasks.Event
+	unlockEventType string
+
 	day                       int
 	YSelectOptionsForCrossOut []int
+	wbStateMachine            *WhiteBoardStateMachine
 }
 
-func (w *WhiteBoardSprite) Init(eventHub *tasks.EventHub) {
-	w.spacing = 20
-	imgSizeWidth := w.UiSprite.Sprite.Img.Bounds().Dx()
-	imgSizeHeight := w.UiSprite.Sprite.Img.Bounds().Dy()
+func (wb *WhiteBoardSprite) Init() {
+	wb.spacing = 20
+	imgSizeWidth := wb.UiSprite.Sprite.Img.Bounds().Dx()
+	imgSizeHeight := wb.UiSprite.Sprite.Img.Bounds().Dy()
 	dstImg := ebiten.NewImage(imgSizeWidth, imgSizeHeight)
 
-	w.DstImg = &sprite.Sprite{Img: dstImg, X: w.UiSprite.Sprite.X, Y: w.UiSprite.Sprite.Y, IsBuffer: true}
-	RegisterEntity(&Entity{Sprite: w.DstImg, Z: 2})
+	wb.DstImg = &sprite.Sprite{Img: dstImg, X: wb.UiSprite.Sprite.X, Y: wb.UiSprite.Sprite.Y, IsBuffer: true}
+	RegisterEntity(&Entity{Sprite: wb.DstImg, Z: 2})
 
 	noEraseDstImg := ebiten.NewImage(imgSizeWidth, imgSizeHeight)
-	w.NoEraseDst = &sprite.Sprite{Img: noEraseDstImg, X: w.UiSprite.Sprite.X, Y: w.UiSprite.Sprite.Y, IsBuffer: true}
-	RegisterEntity(&Entity{Sprite: w.NoEraseDst, Z: 2})
+	wb.NoEraseDst = &sprite.Sprite{Img: noEraseDstImg, X: wb.UiSprite.Sprite.X, Y: wb.UiSprite.Sprite.Y, IsBuffer: true}
+	RegisterEntity(&Entity{Sprite: wb.NoEraseDst, Z: 2})
 
-	w.timers = make(map[string]*util.Timer)
-	w.timers["AllTasksCompletedBuffer"] = util.NewTimer(1)
-	w.timers["EraseAnimationCompleted"] = util.NewTimer(2)
-	w.timers["FirstTask"] = util.NewTimer(2.5)
-	w.timers["UnderLine"] = util.NewTimer(1.5)
-	w.timers["DayOver"] = util.NewTimer(2.5)
-	w.timers["Later"] = util.NewTimer(2.0)
-	w.timers["Publish"] = util.NewTimer(0.5)
+	wb.DstImg.ShaderParams = make(map[string]any)
 
-	w.DstImg.ShaderParams = make(map[string]any)
+	wb.graphicManager = &graphics.GraphicManager{}
+	wb.graphicManager.Params = make(map[string]any)
+	wb.graphicManager.GMParams.Coordinates = [2]float32{wb.UiSprite.Sprite.X, wb.UiSprite.Sprite.Y}
+	wb.graphicManager.DstImage = wb.DstImg.Img
 
-	w.graphicManager = &graphics.GraphicManager{}
-	w.graphicManager.Params = make(map[string]any)
-	w.graphicManager.Params["Coordinates"] = image.Point{X: int(w.UiSprite.Sprite.X), Y: int(w.UiSprite.Sprite.Y)}
-	w.graphicManager.Params["Width"] = float32(imgSizeWidth)
-	w.graphicManager.Params["Height"] = imgSizeHeight
-	w.graphicManager.Params["Index"] = 0
-	w.graphicManager.Params["Spacing"] = w.spacing
-	w.graphicManager.DstImage = w.DstImg.Img
+	wb.graphicManager.Timers = make(map[string]*util.Timer)
+	wb.graphicManager.Timers[graphics.DeInit] = util.NewTimer(2)
+	wb.graphicManager.Timers[graphics.DeInit].TimerUpdater = graphics.DeInitGraphicTimerUpdater
 
-	w.graphicManager.Timers = make(map[string]*util.Timer)
-	w.graphicManager.Timers[graphics.DeInit] = util.NewTimer(1)
-	w.graphicManager.Timers[graphics.DeInit].TimerUpdater = graphics.DeInitGraphicTimerUpdater
+	wb.graphicManager.Tag = "whiteBoard"
+	wb.YSelectOptionsForCrossOut = []int{0, 1, 2, 3}
 
-	w.graphicManager.Tag = "whiteBoard"
-	w.YSelectOptionsForCrossOut = []int{0, 1, 2, 3}
-	w.occupied = make(map[string]float64)
+	wb.occupied = make(map[uint8]int)
+	wb.crossOutGraphicEntityID = make(map[uint32]struct{})
+	wb.textGraphicEntityIDs = make(map[uint32]struct{})
+	wb.noEraseTextGraphicEntID = make(map[uint32]struct{})
 
 	markerCrossOutTexture, err := util.LoadImageAssetAsEbitenImage("textures/crossOutTexture")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	w.crossOutTexture = markerCrossOutTexture
+	wb.timers[clickableAfterTimer] = util.NewTimer(0.5)
 
-	graphics.WhiteBoardGMSubs(w.graphicManager, eventHub)
-}
+	wb.crossOutTexture = markerCrossOutTexture
 
-func (w *WhiteBoardSprite) ResetImg() {
-	w.DstImg.Img.Clear()
-}
-
-func (w *WhiteBoardSprite) Update() {
-
-	sp := w.UiSprite.Sprite
-	w.graphicManager.UpdateTimers()
-
-	if w.state == Writing {
-		if w.CheckDoneWriting() {
-			w.state = 0
-		}
-	}
-
-	if w.clickAfterWriting && w.state != Writing {
-		AddClickme(w)
-		w.clickAfterWriting = false
-	}
-
-	if sp.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && w.taskJustCompleted {
-		if !w.windowOpen {
-			w.tasksCompletedToday++
-			w.taskJustCompleted = false
-			ev2 := tasks.TaskCompleted{Task: *w.currentTask}
-			w.UiSprite.EventHub.Publish(ev2)
-			w.UiSprite.Sprite.DOptsUpdaterTag = ""
-			w.UiSprite.Sprite.Shader = nil
-		}
-
-	}
-
-	if w.allTasksCompleted {
-		w.allTasksCompleted = false
-		w.timers["AllTasksCompletedBuffer"].TurnOn()
-	}
-
-	if w.allTasksBufferDone && w.clickme {
-		AddClickme(w)
-
-	}
-
-	if w.allTasksBufferDone && sp.SpriteHovered() && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		w.allTasksBufferDone = false
-		w.UiSprite.Sprite.DOptsUpdaterTag = ""
-		w.UiSprite.Sprite.Shader = nil
-		w.UiSprite.EventHub.Publish(tasks.AllTasksCompleted{})
-	}
-
-	if w.DstImg.Shader != nil {
-		maxCounter, ok := w.DstImg.ShaderParams["MaxCounter"].(int)
-		if ok {
-			counter := w.DstImg.ShaderParams["Counter"].(int)
-			if counter >= maxCounter {
-				w.DstImg.Shader = nil
-			}
-		}
-	}
-	w.UpdateTimers()
-}
-
-func (w *WhiteBoardSprite) CheckDoneWriting() bool {
-	allDone := true
-	for _, tid := range w.tIds {
-		tEnt, exists := GetEntity(tid)
-		if !exists {
-			continue
-		}
-		if tEnt.Graphic != nil && !tEnt.Graphic.FullyDrawn {
-			allDone = false
-		}
-	}
-
-	return allDone
+	wb.wbStateMachine = initWBStateMachine()
 
 }
 
-func AddClickme(w *WhiteBoardSprite) {
-	w.clickme = false
-	w.UiSprite.Sprite.Shader = registry.ShaderMap[registry.Highlight]
-	w.UiSprite.Sprite.DOptsUpdaterTag = stringConstants.Swirl
+func (wb *WhiteBoardSprite) ResetImgAndClearGraphics() {
+	wb.DstImg.Img.Clear()
+	for entId, _ := range wb.textGraphicEntityIDs {
+		RemoveEntity(entId)
+	}
+	for entId, _ := range wb.crossOutGraphicEntityID {
+		RemoveEntity(entId)
+	}
+
+	wb.DstImg.Shader = nil
 }
 
-func (w *WhiteBoardSprite) UpdateTimers() {
+type WhiteBoardUpdater struct {
+	state             uint8
+	updater           func(wb *WhiteBoardSprite, gs GameState)
+	transitionOutFunc func(wb *WhiteBoardSprite)
+	transitionToFunc  func(wb *WhiteBoardSprite)
+	autoTransition    bool
+	requireClickFlag  bool
+}
 
-	for key, timer := range w.timers {
-		state := timer.Update()
-		switch key {
+type WhiteBoardStateMachine struct {
+	State         uint8
+	onClickState  uint8
+	StateUpdaters [10]WhiteBoardUpdater
+}
 
-		case "AllTasksCompletedBuffer":
-			//Write out in marker effect/animation is completed
-			if state == util.Done {
-				timer.TurnOff()
-				w.allTasksBufferDone = true
-				w.clickme = true
-			}
+func (wsb *WhiteBoardStateMachine) Update(wb *WhiteBoardSprite, gs GameState) {
+	gameStateProcessor(wb, gs) //early returns if window is open (things we want all states to consider)
+	state := wsb.StateUpdaters[wsb.State]
+	state.updater(wb, gs)
+}
 
-		case "EraseAnimationCompleted":
-			//wipe away animation is completed
-			if state == util.Done {
-				for _, id := range w.tIds {
-					RemoveEntity(id)
-				}
-				w.DstImg.Img.Clear()
-				timer.TurnOff()
-				if !w.dayOver {
-					w.appendTextToBestSpot(WriteToWhiteBoard{Msg: "All Done =)", PreferredPosition: "upperCenter"})
-					w.timers["UnderLine"].TurnOn()
-					w.timers["Later"].TurnOn()
-				}
-			}
-		case "FirstTask":
-			if state == util.Done {
-				w.appendTextToOpenSlot(w.currentTask.Text)
-				timer.TurnOff()
-			}
-		case "UnderLine":
-			if state == util.Done {
-				rect := image.Rect(60, 32, 200, 48)
-				sParams := defaultCrossOutShaderParams()
-				sParams["Speed"] = 5.0
-				dParams := defaultCrossOutDrawOptParams()
-				w.AddCrossOutGraphicEntity(20, 70, &rect, sParams, dParams)
-				timer.TurnOff()
-			}
-		case "Later":
-			if state == util.Done {
-				if len(w.msgsToWriteLater) <= 0 {
+func (wsb *WhiteBoardStateMachine) Transition(wb *WhiteBoardSprite) {
+	state := wsb.StateUpdaters[wsb.State]
+	if state.transitionOutFunc != nil {
+		state.transitionOutFunc(wb) //at transitio func
+	}
+
+	newState := wb.MapStateBasedOnEventQueues()
+
+	newUpdater := wsb.StateUpdaters[newState]
+
+	if newUpdater.requireClickFlag {
+		if newState == Erasing {
+			if !wb.eraseRequest.onClick {
+				wsb.State = newState
+				if newUpdater.transitionToFunc != nil {
+					newUpdater.transitionToFunc(wb)
 					return
 				}
-				w.appendTextToBestSpot(w.msgsToWriteLater[0])
-				if w.msgsToWriteLater[0].EventToPublish != nil {
-					w.timers["Publish"].TurnOn()
-					w.pubQueue = append(w.pubQueue, w.msgsToWriteLater[0].EventToPublish)
-				}
-
-				if len(w.msgsToWriteLater) > 0 {
-					w.msgsToWriteLater = w.msgsToWriteLater[1:]
-				}
-
-				if len(w.msgsToWriteLater) > 0 {
-					if w.msgsToWriteLater[0].EventDriven != nil {
-						timer.TurnOff()
-					}
-				} else {
-					timer.TurnOff()
-				}
-
-				if len(w.msgsToWriteLater) <= 0 {
-					timer.TurnOff()
-				}
-
-			}
-		case "Publish":
-			if state == util.Done {
-				w.UiSprite.EventHub.Publish(w.pubQueue[0])
-				timer.TurnOff()
 			}
 		}
+
+		wsb.onClickState = newState
+		wsb.State = ClickTransition
+		wsb.StateUpdaters[ClickTransition].transitionToFunc(wb)
+	} else {
+		wsb.State = newState
+		if newUpdater.transitionToFunc != nil {
+			newUpdater.transitionToFunc(wb)
+		}
+	}
+
+}
+
+func initWBStateMachine() *WhiteBoardStateMachine {
+
+	wsb := &WhiteBoardStateMachine{}
+
+	writingUpdate := WhiteBoardUpdater{
+		state:             WritingTask,
+		updater:           WriteHeaderMonitor,
+		transitionToFunc:  writeTask,
+		requireClickFlag:  false,
+		transitionOutFunc: nil}
+
+	writeRequestUpdater := WhiteBoardUpdater{
+		state:             WritingRequest,
+		updater:           WriteHeaderMonitor,
+		transitionToFunc:  writeRequest,
+		transitionOutFunc: nil,
+		requireClickFlag:  false,
+	}
+
+	crossOutUpdate := WhiteBoardUpdater{
+		state:             CrossingOut,
+		updater:           WriteHeaderMonitor,
+		transitionToFunc:  intoCrossOutTransition,
+		requireClickFlag:  true,
+		transitionOutFunc: nil}
+
+	eraseUpdate := WhiteBoardUpdater{
+		state:             Erasing,
+		updater:           monitorErase,
+		transitionToFunc:  intoErasingTransition,
+		requireClickFlag:  true,
+		transitionOutFunc: outOfErase}
+
+	clickUpdate := WhiteBoardUpdater{
+		state:             ClickTransition,
+		updater:           OnClickUpdater,
+		transitionToFunc:  OnClickTransition,
+		transitionOutFunc: nil,
+		requireClickFlag:  false,
+	}
+
+	idleUpdate := WhiteBoardUpdater{
+		state:             IdleWB,
+		updater:           WBIdleQueueMonitor,
+		transitionToFunc:  nil,
+		transitionOutFunc: nil,
+		requireClickFlag:  false,
+	}
+
+	wsb.State = IdleWB
+	wsb.StateUpdaters = [10]WhiteBoardUpdater{}
+	wsb.StateUpdaters[IdleWB] = idleUpdate
+	wsb.StateUpdaters[WritingTask] = writingUpdate
+	wsb.StateUpdaters[WritingRequest] = writeRequestUpdater
+	wsb.StateUpdaters[CrossingOut] = crossOutUpdate
+	wsb.StateUpdaters[Erasing] = eraseUpdate
+	wsb.StateUpdaters[ClickTransition] = clickUpdate
+
+	return wsb
+}
+
+func WBIdleQueueMonitor(wb *WhiteBoardSprite, gs GameState) {
+	if wb.MapStateBasedOnEventQueues() != IdleWB {
+		wb.wbStateMachine.Transition(wb)
 	}
 }
 
-func defaultCrossOutShaderParams() map[string]any {
-	ShaderParams := make(map[string]any)
-	ShaderParams["Speed"] = 15 + rand.Float64()*10
-	ShaderParams["MaxCounter"] = 500
-	ShaderParams["Counter"] = 0
-	maxOp := rand.Float64()*0.1 + 0.9
-	ShaderParams["MaxOpacity"] = maxOp
-	return ShaderParams
+func OnClickTransition(wb *WhiteBoardSprite) {
+	wb.timers[clickableAfterTimer].TurnOn()
 }
 
-func defaultCrossOutDrawOptParams() map[string]float64 {
-	DOptsUpdaterParams := make(map[string]float64)
-	DOptsUpdaterParams["degree"] = rand.Float64() * -0.01
-	return DOptsUpdaterParams
-}
-
-func (w *WhiteBoardSprite) AddCrossOutGraphicEntity(yCoord, xCoord float32, graphicBounds *image.Rectangle, shaderParams map[string]any, drawOptParams map[string]float64) {
-
-	w.UiSprite.EventHub.Publish(events.WritingToWhiteBoard{
-		Msg: CrossOut,
-	})
-
-	ySelectOp := rand.Intn(len(w.YSelectOptionsForCrossOut) - 1)
-	ySelect := w.YSelectOptionsForCrossOut[ySelectOp]
-	lowerY := ySelect * 16
-	upperY := (ySelect + 1) * 16
-	SubRect := image.Rect(0, lowerY, w.crossOutTexture.Bounds().Dx(), upperY)
-	if graphicBounds != nil {
-		SubRect = *graphicBounds
-	}
-	singleCross := w.crossOutTexture.SubImage(SubRect).(*ebiten.Image)
-	//localCoords!!
-	crossOutSprite := &sprite.Sprite{Img: singleCross, X: xCoord, Y: yCoord}
-	crossOutSprite.Shader = registry.ShaderMap["HandWriting"]
-	crossOutSprite.BufferDst = w.DstImg.Img
-	crossOutSprite.ShaderParams = shaderParams
-	crossOutSprite.DOptsUpdaterParams = drawOptParams
-	crossOutSprite.UpdateShaderParams = shaders.UpdateCounterOneShot
-
-	id := RegisterEntity(&Entity{Sprite: crossOutSprite})
-	w.tIds = append(w.tIds, id)
-	w.YSelectOptionsForCrossOut = append(w.YSelectOptionsForCrossOut[:ySelectOp], w.YSelectOptionsForCrossOut[ySelectOp+1:]...)
-	if len(w.YSelectOptionsForCrossOut) == 1 {
-		w.YSelectOptionsForCrossOut = []int{0, 1, 2, 3}
+func OnClickUpdater(wb *WhiteBoardSprite, gs GameState) {
+	if registry.ClickCheck() && wb.UiSprite.Sprite.SpriteHovered() && wb.timers[clickableAfterTimer].On == false {
+		RemoveClickMe(wb.UiSprite)
+		onClickState := wb.wbStateMachine.onClickState
+		wb.wbStateMachine.State = onClickState
+		wb.wbStateMachine.StateUpdaters[onClickState].transitionToFunc(wb)
 	}
 }
 
-func (w *WhiteBoardSprite) Subscribe(hub *tasks.EventHub) {
+func DrawingMonitor(wb *WhiteBoardSprite, gs GameState) {
+	if CheckDoneDrawing(wb.drawingEnt) {
+		if wb.header {
+			wb.header = false
+			wb.underLineHeader()
+		}
+		wb.wbStateMachine.Transition(wb)
+	}
+}
+
+func WriteHeaderMonitor(wb *WhiteBoardSprite, gs GameState) {
+	if CheckDoneDrawing(wb.drawingEnt) {
+		if wb.header {
+			wb.header = false
+			wb.underLineHeader()
+		}
+		wb.wbStateMachine.Transition(wb)
+	}
+}
+
+func CrossOutMonitor(wb *WhiteBoardSprite, gs GameState) {
+	CheckDoneDrawing(wb.drawingEnt)
+}
+
+func gameStateProcessor(wb *WhiteBoardSprite, gs GameState) {
+	//non-state specific game state processing
+	if gs.MouseFlags.WindowOpen {
+		//don't update if UI window is open
+		return
+	}
+}
+
+func (wb *WhiteBoardSprite) MapStateBasedOnEventQueues() uint8 {
+	//order of priority
+
+	if wb.unlockEvent != nil {
+		return IdleWB
+	}
+
+	if len(wb.writeToWhiteBoardQueue) > 0 {
+		return WritingRequest
+	}
+
+	if len(wb.taskCreatedEventQueue) > 0 {
+		return WritingTask
+	}
+
+	if wb.taskRequirementsCompletedEvent != nil {
+		return CrossingOut
+	}
+
+	if wb.eraseRequest != nil {
+		return Erasing
+	}
+
+	return IdleWB
+}
+
+func (wbs *WhiteBoardStateMachine) DisableUpdate(wb *WhiteBoardSprite, gs GameState) {
+	if wb.unlockEvent == nil {
+		wbs.Transition(wb)
+	}
+}
+
+func (wb *WhiteBoardSprite) Update(gs GameState) {
+	wb.UpdateTimers()
+	wb.wbStateMachine.Update(wb, gs)
+	wb.graphicManager.Update()
+}
+
+func writeTask(wb *WhiteBoardSprite) {
+	wb.processQueuedWriteEvent()
+}
+
+func writeRequest(wb *WhiteBoardSprite) {
+	wb.processQueuedWriteRequest()
+}
+
+func intoErasingTransition(wb *WhiteBoardSprite) {
+	wb.initErase("")
+	graphics.AddClothGraphic(wb.graphicManager)
+	if wb.eraseRequest.time == NightTime {
+		wb.WriteHeader(allDone)
+		wb.header = true
+	}
+}
+
+func monitorErase(wb *WhiteBoardSprite, gs GameState) {
+	if wb.EraseFinished() {
+		wb.wbStateMachine.Transition(wb)
+	}
+}
+
+func outOfErase(wb *WhiteBoardSprite) {
+	wb.ResetImgAndClearGraphics()
+	wb.UiSprite.EventHub.Publish(WhiteBoardErased{When: wb.eraseRequest.time})
+	wb.eraseRequest = nil
+}
+
+func intoCrossOutTransition(w *WhiteBoardSprite) {
+
+	w.UiSprite.EventHub.Publish(tasks.TaskCompleted{Task: w.taskRequirementsCompletedEvent.Task})
+
+	w.tasksCompletedToday += 1
+	yCoord := float32(w.spacing * (w.tasksCompletedToday + 1))
+	//defineAndRegisterCrossOutGraphicEntity
+	w.AddCrossOutGraphicEntity(
+		yCoord-10,
+		0,
+		nil,
+		defaultCrossOutShaderParams(),
+		defaultCrossOutDrawOptParams())
+	w.taskRequirementsCompletedEvent = nil
+}
+
+func (wb *WhiteBoardSprite) EraseFinished() bool {
+	return sprite.CheckSpriteWithShaderCounterFinished(wb.DstImg)
+}
+
+func (wb *WhiteBoardSprite) WriteHeader(msg string) {
+	insets := getWBPreferredPositionInsets(msg, UpperCenter, wb.occupied, wb.DstImg.GetSpriteRect())
+	wb.queueEvent(WriteToWhiteBoard{Msg: msg, PreferredPosition: UpperCenter, Insets: insets})
+
+}
+
+func (wb *WhiteBoardSprite) Subscriptions(hub *tasks.EventHub) {
 	hub.Subscribe(tasks.TaskRequirementsCompleted{}, func(e tasks.Event) {
-		fmt.Printf("task requirment event recieved")
-		if w.state != Writing && w.state != NotReceivingTasks {
-			AddClickme(w)
-		} else {
-			w.clickAfterWriting = true
-		}
-		w.taskJustCompleted = true
+		wb.queueEvent(e)
 	})
 
 	hub.Subscribe(tasks.TaskCreated{}, func(e tasks.Event) {
-		log.Printf("new task recieved")
-		ev := e.(tasks.TaskCreated)
-		w.currentTask = ev.Task
-		if w.tasksCompletedToday == 0 {
-			w.timers["FirstTask"].TurnOn()
-		} else {
-			w.state = Writing
-			w.appendTextToOpenSlot(ev.Task.Text)
-		}
-	})
-
-	hub.Subscribe(tasks.TaskCompleted{}, func(e tasks.Event) {
-		yCoord := float32(w.spacing * (w.tasksCompletedToday + 1))
-		w.AddCrossOutGraphicEntity(yCoord-10, 0, nil, defaultCrossOutShaderParams(), defaultCrossOutDrawOptParams())
-		w.checkAllTasksCompleted()
-
-	})
-
-	hub.Subscribe(tasks.AllTasksCompleted{}, func(e tasks.Event) {
-		w.initErase("")
-	})
-
-	hub.Subscribe(events.DayOver{}, func(e tasks.Event) {
-		w.initErase("secondBuffer")
-		w.dayOver = true
+		wb.queueEvent(e)
 	})
 
 	hub.Subscribe(events.NewDay{}, func(e tasks.Event) {
 		ev := e.(events.NewDay)
-		w.numberOfTasksToday = ev.NTasks
-		w.tasksCompletedToday = 0
-		w.dayOver = false
-		w.day = ev.Day
 		fmt.Printf("White board received %d tasks on day %d", ev.NTasks, ev.Day)
-		if ev.Day == 1 {
-			w.state = NotReceivingTasks
-		}
-		if ev.Day != 1 {
-			w.WriteDailyTasksHeader()
-		}
+
+		wb.wbState = IdleWB
+		wb.tasksCompletedToday = 0
+		wb.numberOfTasksToday = ev.NTasks
+		wb.day = ev.Day
+
+		wb.NoEraseDst.Shader = nil
+		wb.NoEraseDst.Img.Clear()
+		wb.header = true
+
+		wb.WriteHeader(dailyTasks)
+
 	})
 
-	hub.Subscribe(WriteToWhiteBoard{}, func(event tasks.Event) {
-		w.state = Writing
-		ev := event.(WriteToWhiteBoard)
-		if ev.Later {
-			w.msgsToWriteLater = append(w.msgsToWriteLater, ev)
-			if ev.EventDriven != nil {
-				hub.Subscribe(ev.EventDriven, func(e tasks.Event) {
-					w.timers["Later"].TurnOn()
-				})
+	hub.Subscribe(events.DayOver{}, func(e tasks.Event) {
+		wb.eraseRequest = &EraseRequest{onClick: false}
+	})
+
+	hub.Subscribe(WriteToWhiteBoard{}, func(e tasks.Event) {
+		ev := e.(WriteToWhiteBoard)
+		insets := getWBPreferredPositionInsets(ev.Msg, ev.PreferredPosition, wb.occupied, wb.DstImg.GetSpriteRect())
+		ev.Insets = insets
+		wb.writeToWhiteBoardQueue = append(wb.writeToWhiteBoardQueue, ev)
+	})
+
+	hub.Subscribe(DisableWhiteBoard{}, func(e tasks.Event) {
+		ev := e.(DisableWhiteBoard)
+		wb.unlockEvent = ev.UnLockEvent
+		hub.Subscribe(ev.UnLockEvent, func(e tasks.Event) {
+			if ev.Condition(e) {
+				wb.unlockEvent = nil
 			}
-		} else {
-			w.appendTextToBestSpot(ev)
-		}
+		})
 	})
-	hub.Subscribe(events.WindowOpened{}, func(event tasks.Event) {
-		w.windowOpen = true
-	})
-	hub.Subscribe(events.WindowClosed{}, func(e tasks.Event) {
-		w.windowOpen = false
-		ev := e.(events.WindowClosed)
-		if ev.Window == string(GrandpasJournal) && w.day == 1 {
-			w.state = Writing
-			w.WriteDailyTasksHeader()
-		}
 
+	hub.Subscribe(tasks.AllTasksCompleted{}, func(e tasks.Event) {
+		wb.allTasksCompleted = true
+		wb.eraseRequest = &EraseRequest{time: NightTime, onClick: true}
 	})
 
 }
 
-func (w *WhiteBoardSprite) WriteDailyTasksHeader() {
-	w.appendTextToBestSpot(WriteToWhiteBoard{Msg: dailyTasks, PreferredPosition: "upperCenter"})
-	w.timers["UnderLine"].TurnOn()
+func (wb *WhiteBoardSprite) queueEvent(event tasks.Event) {
+	evTc, ok := event.(tasks.TaskCreated)
+	if ok {
+		wb.taskCreatedEventQueue = append(wb.taskCreatedEventQueue, evTc)
+	}
+
+	evReq, ok := event.(tasks.TaskRequirementsCompleted)
+	if ok {
+		wb.taskRequirementsCompletedEvent = &evReq
+	}
+
+	writeReq, ok := event.(WriteToWhiteBoard)
+	if ok {
+		wb.writeToWhiteBoardQueue = append(wb.writeToWhiteBoardQueue, writeReq)
+	}
+
 }
 
-func (w *WhiteBoardSprite) initErase(tag string) {
-	w.DstImg.Shader = registry.ShaderMap["Erase"]
-	w.DstImg.ShaderParams = make(map[string]any)
-	w.DstImg.ShaderParams["Counter"] = 0
-	w.DstImg.ShaderParams["MaxCounter"] = 121
-	w.DstImg.UpdateShaderParams = shaders.UpdateCounterOneShot
-	w.DstImg.ShaderTexture = w.UiSprite.Sprite.Img
-	w.timers["EraseAnimationCompleted"].TurnOn()
-	w.occupied = make(map[string]float64)
+func (wb *WhiteBoardSprite) initErase(tag string) {
+	wb.DstImg.Shader = registry.ShaderMap[registry.Erase]
+	wb.DstImg.ShaderParams = make(map[string]any)
+	wb.DstImg.ShaderParams["Counter"] = 0
+	wb.DstImg.ShaderParams["MaxCounter"] = 100
+	wb.DstImg.UpdateShaderParams = shaders.UpdateCounterOneShot
+	wb.DstImg.ShaderTexture = wb.UiSprite.Sprite.Img
+	wb.occupied = make(map[uint8]int)
 
 	if tag == "secondBuffer" {
-		w.NoEraseDst.Shader = registry.ShaderMap["Erase"]
-		w.NoEraseDst.ShaderParams = make(map[string]any)
-		w.NoEraseDst.ShaderParams["Counter"] = 0
-		w.NoEraseDst.ShaderParams["MaxCounter"] = 121
-		w.NoEraseDst.UpdateShaderParams = shaders.UpdateCounterOneShot
+		wb.NoEraseDst.Shader = registry.ShaderMap["Erase"]
+		wb.NoEraseDst.ShaderParams = make(map[string]any)
+		wb.NoEraseDst.ShaderParams["Counter"] = 0
+		wb.NoEraseDst.ShaderParams["MaxCounter"] = 100
+		wb.NoEraseDst.UpdateShaderParams = shaders.UpdateCounterOneShot
+		wb.NoEraseDst.ShaderTexture = wb.UiSprite.Sprite.Img
 	}
 
 }
 
-func (w *WhiteBoardSprite) checkAllTasksCompleted() {
-
-	if w.numberOfTasksToday == w.tasksCompletedToday {
-		w.allTasksCompleted = true
-	}
-
+func (wb *WhiteBoardSprite) checkAllTasksCompleted() bool {
+	return wb.numberOfTasksToday == wb.tasksCompletedToday
 }
 
-func (w *WhiteBoardSprite) appendTextToOpenSlot(txt string) {
-	w.UiSprite.EventHub.Publish(events.WritingToWhiteBoard{
+func (wb *WhiteBoardSprite) WriteTextToOpenSlot(txt string) {
+	//w.wbState = WritingTask no state in non state funcs plz
+	wb.UiSprite.EventHub.Publish(events.WritingToWhiteBoard{
 		Msg: txt,
 	})
-	yinset := float64(w.spacing*(w.tasksCompletedToday+1)) + 10.0
-	insets := [2]float64{float64(w.UiSprite.Sprite.X), float64(w.UiSprite.Sprite.Y)}
-	cs := &ebiten.ColorScale{}
-	cs.SetA(1.0)
-	cs.SetR(0.0)
-	cs.SetB(0.0)
-	cs.SetG(0.0)
-	ts := graphics.NewTextWithMarkerShader(txt, w.DstImg.Img, insets, *cs, yinset, 10)
-	ent := &Entity{Graphic: ts}
-	id := RegisterEntity(ent)
-	w.tIds = append(w.tIds, id)
+	yinset := float64(wb.spacing*(wb.tasksCompletedToday+1)) + 10.0
+	insets := [2]float64{float64(wb.UiSprite.Sprite.X), float64(wb.UiSprite.Sprite.Y)}
 
+	cs := util.ConvertRGBAtoEbitenCS(colornames.Crimson)
+	ts := graphics.NewTextWithMarkerShader(txt, wb.DstImg.Img, insets, cs, 10, yinset)
+	ent := &Entity{ShaderTextGraphic: ts}
+	id := RegisterEntity(ent)
+	wb.drawingEnt = id
+	wb.textGraphicEntityIDs[id] = struct{}{}
 }
 
-func (w *WhiteBoardSprite) appendTextToBestSpot(ev WriteToWhiteBoard) {
-	w.UiSprite.EventHub.Publish(events.WritingToWhiteBoard{
+func (wb *WhiteBoardSprite) appendTextToBestSpot(ev WriteToWhiteBoard) {
+	//w.wbState = WritingTask
+	wb.UiSprite.EventHub.Publish(events.WritingToWhiteBoard{
 		Msg: ev.Msg,
 	})
-	var x float64
-	var y float64
-
-	if strings.Contains(ev.Msg, "Happy") {
-		w.UiSprite.EventHub.Publish(events.BedTime{})
-	}
-	width, height := util.MeasureText(ev.Msg, 16, "RockSalt_12")
-
-	switch ev.PreferredPosition {
-
-	case "upperCenter":
-		x = float64(w.DstImg.Img.Bounds().Dx()/2) - width/2
-		y = height
-		w.occupied["upperCenter"] += 1
-	case "bottomLeft":
-		y = float64(w.DstImg.Img.Bounds().Dy() - 30)
-		x = 12
-		w.occupied["upperCenter"] += 1
-	case "bottomRight":
-		y = float64(w.DstImg.Img.Bounds().Dy() - 30)
-		x = float64(w.DstImg.Img.Bounds().Dx()-30) - width
-		w.occupied["upperCenter"] += 1
-	case "center":
-		currentMsgs := float64(len(w.msgsToWriteLater))
-		x = float64(w.DstImg.Img.Bounds().Dx()/2) - width/2
-		y = float64(w.DstImg.Img.Bounds().Dy()/2) - height/2 - (height+5)*currentMsgs
-		w.occupied["center"] += 1
-	}
 
 	insets := [2]float64{
-		float64(w.UiSprite.Sprite.X),
-		float64(w.UiSprite.Sprite.Y),
+		float64(wb.UiSprite.Sprite.X),
+		float64(wb.UiSprite.Sprite.Y),
 	}
-	cs := &ebiten.ColorScale{}
-	cs.SetA(1.0)
-	cs.SetR(0.0)
-	cs.SetB(0.0)
-	cs.SetG(0.0)
-	dst := w.DstImg
+
+	cs := util.ConvertRGBAtoEbitenCS(colornames.Crimson)
+
+	dst := wb.DstImg
 	if ev.NoErase {
-		dst = w.NoEraseDst
+		dst = wb.NoEraseDst
 	}
+
 	ts := graphics.NewTextWithMarkerShader(
 		ev.Msg,
 		dst.Img,
 		insets,
-		*cs,
-		y,
-		x)
-	ent := &Entity{Graphic: ts}
+		cs,
+		ev.Insets[0],
+		ev.Insets[1])
+
+	ent := &Entity{ShaderTextGraphic: ts}
 	id := RegisterEntity(ent)
-	if !ev.NoErase {
-		w.tIds = append(w.tIds, id)
+	if ev.NoErase {
+		wb.noEraseTextGraphicEntID[id] = struct{}{}
+	} else {
+		wb.drawingEnt = id
+		wb.textGraphicEntityIDs[id] = struct{}{}
 	}
+}
+
+func (wb *WhiteBoardSprite) UpdateTimers() {
+
+	for key, timer := range wb.timers {
+		if timer == nil {
+			continue
+		}
+		state := timer.Update()
+		if key == clickableAfterTimer && state == util.Done {
+			timer.TurnOff()
+			AddClickme(wb.UiSprite)
+		}
+	}
+	return
+}
+
+func getWBPreferredPositionInsets(
+	msg string,
+	positionRequest uint8,
+	occupied map[uint8]int,
+	bounds image.Rectangle) [2]float64 {
+
+	var x float64
+	var y float64
+	var lineSpacing = 5.0
+
+	width, height := util.MeasureText(msg, 16, "RockSalt_12")
+
+	switch positionRequest {
+
+	case UpperCenter:
+		x = float64(bounds.Dx()/2) - width/2
+		y = height
+		occupied[UpperCenter] += 1
+		return [2]float64{x, y}
+	case LowerLeft:
+		y = float64(bounds.Dy() - 30)
+		x = 12
+		occupied[LowerLeft] += 1
+		return [2]float64{x, y}
+	case LowerRight:
+		y = float64(bounds.Dy() - 30)
+		x = float64(bounds.Dx()-30) - width
+		occupied[LowerRight] += 1
+		return [2]float64{x, y}
+	case Center:
+		x = float64(bounds.Dx()/2) - width/2
+		y = float64(bounds.Dy()/2) - height/2 + ((lineSpacing + height) * float64(occupied[Center])) - 20
+		occupied[Center] += 1
+		return [2]float64{x, y}
+	default:
+		return [2]float64{0, 0}
+
+	}
+
 }

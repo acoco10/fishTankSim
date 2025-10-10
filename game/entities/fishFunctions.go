@@ -14,6 +14,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"slices"
 )
 
 type HealthState uint8
@@ -26,6 +27,7 @@ const minSpeed = 0.6
 const (
 	Healthy HealthState = iota
 	Stressed
+	ReallyStressed
 	Sick
 	Dead
 )
@@ -33,39 +35,46 @@ const (
 func CreatureEventSubscriptions(c *Entity) {
 
 	c.EventHub.Subscribe(PointGenerated{}, func(e tasks.Event) {
+		//only add it to queue, state controller decides what to do
 		ev := e.(PointGenerated)
 		point, exists := GetEntity(ev.PointId)
 		if !exists {
 			log.Fatal("A recently created point should exist....")
 		}
-		if point.ParticleData.PType == util.Food && !c.CreatureData.TickClicked {
-			c.CreatureData.ParticlePointQueue[ev.PointId] = point.ParticleData.Point
-			c.CreatureData.TickClicked = true
-			if c.CreatureData.Hunger < c.CreatureData.MaxHunger {
-				c.goToFood()
-			}
+		if c.CreatureData.Hunger == c.CreatureData.MaxHunger && point.ParticleData.PType == util.Food {
+			return
 		}
 
+		c.EnqueueParticlePoint(ev.PointId)
 	})
 
 	c.EventHub.Subscribe(CreatureReachedPoint{}, func(e tasks.Event) {
 		ev := e.(CreatureReachedPoint)
 		pt, exists := GetEntity(ev.PointID)
 		if !exists {
-			log.Println("fish point subscription received point that is not live")
+			log.Println("WARNING: fish point subscription  received creature received point with entity id that is not initiated")
 			return
 		}
+
+		if ev.CreatureID == c.Id || pt.ParticleData.PType == util.Structure {
+			//if its your own point(we will process in the queue properly) or a structure, dont worry about it
+			return
+		}
+
 		if pt.ParticleData == nil {
-			log.Println("fish point subscription received point has not particle data")
+			log.Println("fish point subscription received point has no particle data")
 			return
 		}
-		if ev.CreatureID != c.Id && pt.ParticleData.PType == util.Structure {
-			return
+
+		for _, p := range c.CreatureData.ParticlePointQueue {
+			if p == ev.PointID && pt.ParticleData.PType == util.Food {
+				//remove food that has been eaten by another fish
+				c.RemoveParticlePoint(ev.PointID)
+				c.SortParticleQueue()
+			}
 		}
-		delete(c.CreatureData.ParticlePointQueue, ev.PointID)
-		if c.CreatureData.Hunger < c.CreatureData.MaxHunger && ev.CreatureID != c.Id {
-			c.goToFood()
-		}
+
+		c.StateMachine.Transition(c) //send to to state machine to find next point
 	})
 
 	c.CreatureData.EventHub.Subscribe(events.DayOver{}, func(e tasks.Event) {
@@ -74,22 +83,21 @@ func CreatureEventSubscriptions(c *Entity) {
 	})
 
 	c.EventHub.Subscribe(events.NewProp{}, func(e tasks.Event) {
-		ev := e.(events.NewProp)
+		/*ev := e.(events.NewProp)
 
-		c.effectHandler = LoadFollowEffectAsEnt("exclamation", c.Id, c.EventHub, nil)
+		c.effectDeInitHandler = LoadFollowEffectAsEnt("exclamation", c.Id, c.EventHub, EntityParameters{})*/
 
-		prop, exists := GetEntity(ev.PropId)
+		/*prop, exists := GetEntity(ev.PropId)
 		if !exists {
 			log.Fatal("some weird shit happened when fish was attracted to a new structure")
-		}
+		}*/
 
-		TargetPoint := &util.Point{X: float32(prop.Sprite.TranslatedMidX()), Y: float32(prop.Sprite.TranslatedMidY()), PType: util.Structure}
+		/*TargetPoint := &util.Point{X: float32(prop.Sprite.TranslatedMidX()), Y: float32(prop.Sprite.TranslatedMidY()), PType: util.Structure}
 		println("making creature target point new prop")
 		c.CreatureData.TargetParticleId = ev.PropId
 		c.CreatureData.ParticlePointQueue[ev.PropId] = TargetPoint
 		c.SetTargetPoint(TargetPoint)
-
-		c.CreatureData.TargetZ = min(prop.Z+1, 12)
+		c.CreatureData.TargetZ = min(prop.Z+1, 12)*/
 	})
 
 	c.CreatureData.EventHub.Subscribe(events.NewDay{}, func(e tasks.Event) {
@@ -98,7 +106,62 @@ func CreatureEventSubscriptions(c *Entity) {
 		println("new day  received  for fish:", c)
 		c.CreatureData.CalcDailyFishHealthState()
 		c.CheckAndLevelUp()
+		c.CreatureData.age += 1
 	})
+}
+
+func (ent *Entity) RemoveParticlePoint(particleID uint32) {
+	for i, id := range ent.CreatureData.ParticlePointQueue {
+		if id == particleID {
+			// Remove element by slicing around it
+			ent.CreatureData.ParticlePointQueue = append(
+				ent.CreatureData.ParticlePointQueue[:i],
+				ent.CreatureData.ParticlePointQueue[i+1:]...,
+			)
+		}
+	}
+}
+
+func (ent *Entity) EnqueueParticlePoint(entID uint32) {
+	// Check if point already exists in queue
+	for _, existingPoint := range ent.CreatureData.ParticlePointQueue {
+		if existingPoint == entID {
+			return // Don't add duplicate
+		}
+	}
+
+	// Add point to end of queue
+	ent.CreatureData.ParticlePointQueue = append(ent.CreatureData.ParticlePointQueue, entID)
+}
+
+func (ent *Entity) DequeueParticlePoint() *util.Point {
+	if len(ent.CreatureData.ParticlePointQueue) == 0 {
+		return nil
+	}
+
+	// Get first point
+	id := ent.CreatureData.ParticlePointQueue[0]
+	point, exists := GetEntity(id)
+	if !exists {
+		return nil
+	}
+	ent.CreatureData.TargetParticleId = id
+
+	// Remove first point from queue
+	ent.CreatureData.ParticlePointQueue = ent.CreatureData.ParticlePointQueue[1:]
+
+	return point.ParticleData.Point
+}
+
+func (ent *Entity) ProcessTargetPointQueue() {
+	//deque point or set to random point if no targets queued
+	ent.SortParticleQueue()
+	newTarg := ent.DequeueParticlePoint()
+	if newTarg != nil {
+		ent.SetTargetPoint(newTarg)
+	} else {
+		ent.SetTargetPoint(ent.RandomTarget())
+	}
 }
 
 func (c *CreatureData) CalcDailyFishHealthState() {
@@ -118,17 +181,22 @@ func (c *CreatureData) CalcDailyFishHealthState() {
 		c.Stress -= 1
 	}
 
-	// reduce hunger if chronically stressed
-	if c.Stress > 3 {
-		c.HealthState = Stressed
-		c.Hunger = 3 //less growth possible if stressed
-		c.DaysStressed++
-	}
-	//check if fish gets sick if chronically stressed
-	if c.DaysStressed > 1 && c.HealthState != Sick {
-		sickChance := rand.Intn(10) + c.DaysStressed
-		if sickChance > 6 {
-			c.HealthState = Sick
+	if c.HealthState != Sick {
+		if c.Stress > 5 {
+			c.HealthState = ReallyStressed
+			c.DaysStressed += 2
+		} else if c.Stress > 3 {
+			c.HealthState = Stressed
+			c.Hunger = 3 //less growth possible if stressed
+			c.DaysStressed++
+		}
+
+		//check if fish gets sick if chronically stressed
+		if c.DaysStressed > 1 && c.HealthState != Sick {
+			sickChance := rand.Intn(10) + c.DaysStressed
+			if sickChance > 6 {
+				c.HealthState = Sick
+			}
 		}
 	}
 
@@ -143,40 +211,6 @@ func (c *CreatureData) CalcDailyFishHealthState() {
 		}
 	}
 
-}
-
-func DoneEating(c *Entity) {
-	if c.CreatureData.Hunger < c.CreatureData.MaxHunger {
-		c.goToFood()
-	} else {
-		c.SetTargetPoint(c.RandomTarget())
-	}
-}
-
-func (e *Entity) otherFishPoint(point *util.Point) {
-	c := e.CreatureData
-
-	delete(c.ParticlePointQueue, c.TargetParticleId)
-
-	if len(c.ParticlePointQueue) > 0 {
-		e.goToFood()
-	}
-
-}
-
-func (c *Entity) goToFood() {
-	if c.CreatureData.Hunger < c.CreatureData.MaxHunger {
-		newTargid := ClosestParticle(c.Sprite.X, c.Sprite.Y, c.CreatureData.ParticlePointQueue)
-		c.CreatureData.TargetParticleId = newTargid
-		if newTargid == 0 {
-			c.SetTargetPoint(c.RandomTarget())
-		} else {
-			targPoint := c.CreatureData.ParticlePointQueue[newTargid]
-			c.SetTargetPoint(targPoint)
-		}
-	} else {
-		c.SetTargetPoint(c.RandomTarget())
-	}
 }
 
 func (e *Entity) calcSpeed() {
@@ -622,40 +656,12 @@ func (c *Entity) PointReached(flags [10]uint32) {
 		c.Z = c.CreatureData.TargetZ
 		ZSortEntities()
 	}
-	c.CreatureData.distanceTraveled = 0
-	if flags[0] == 1 {
-		c.SetTargetPoint(c.RandomTarget())
-	}
 
-	if c.CreatureData.TargetParticleId != 0 {
-		if c.CreatureData.TargetPoint.PType == util.Food {
-			c.CreatureData.Hunger++
-			c.Add1expGraphic()
-			c.CreatureData.progress += 1
-			c.CreatureData.State = Eating
-		}
-		ev := CreatureReachedPoint{
-			PointID:    c.CreatureData.TargetParticleId,
-			CreatureID: c.Id,
-		}
-		c.CreatureData.EventHub.Publish(ev)
-		c.CreatureData.TargetParticleId = 0
-		return
-	} else if c.CreatureData.TargetPoint.PType == util.Structure {
-		ev := CreatureReachedPoint{
-			PointID:    c.CreatureData.TargetParticleId,
-			CreatureID: c.Id,
-		}
-		c.CreatureData.EventHub.Publish(ev)
-		c.CreatureData.TargetParticleId = 0
-		c.SetTargetPoint(c.RandomTarget())
-		if c.effectHandler != nil {
-			c.effectHandler()
-		}
-	} else {
-		c.SetTargetPoint(c.RandomTarget())
+	if c.CreatureData.TargetPoint.PType != util.Nada {
+		c.CreatureData.ArrivedAtPoint = c.CreatureData.TargetParticleId
 	}
-	//reorg target point and q
+	c.CreatureData.TargetPoint = nil
+	c.Transition()
 
 }
 
@@ -699,26 +705,71 @@ func (e *Entity) TranSlateFishShaderOpts() *ebiten.DrawRectShaderOptions {
 	return opts
 }
 
-func (e *Entity) TranSlateFishOpts(options ebiten.DrawImageOptions) ebiten.DrawImageOptions {
-	if e.CreatureData == nil {
+func (ent *Entity) SortParticleQueue() {
+	slices.SortFunc(ent.CreatureData.ParticlePointQueue, func(a, b uint32) int {
+		// Calculate Z distance from entity
+
+		aPoint, exists := GetEntity(a)
+		if !exists {
+			return 0
+		}
+		bPoint, exists := GetEntity(b)
+		if !exists {
+			return 0
+		}
+
+		aZDist := math.Abs(float64(aPoint.Z - ent.Z))
+		bZDist := math.Abs(float64(bPoint.Z - ent.Z))
+
+		// First priority: sort by Z distance
+		if aZDist != bZDist {
+			if aZDist < bZDist {
+				return -1 // a is closer in Z
+			}
+			return 1 // b is closer in Z
+		}
+
+		// If Z distance is equal, sort by XY distance
+		aDist := entityEntityDistanceFunc(*ent, *aPoint)
+		bDist := entityEntityDistanceFunc(*ent, *bPoint)
+
+		if aDist < bDist {
+			return -1 // a is closer in XY
+		} else if aDist > bDist {
+			return 1 // b is closer in XY
+		}
+		return 0 // equal distance
+	})
+}
+
+func entityEntityDistanceFunc(ent1 Entity, ent2 Entity) float64 {
+	return DistanceFunc(ent1.Sprite.X, ent2.Sprite.X, ent1.Sprite.Y, ent2.Sprite.Y)
+}
+
+func entityPointDistanceFunc(ent1 Entity, point util.Point) float64 {
+	return DistanceFunc(ent1.Sprite.X, point.X, ent1.Sprite.Y, point.Y)
+}
+
+func (ent *Entity) TranSlateFishOpts(options ebiten.DrawImageOptions) ebiten.DrawImageOptions {
+	if ent.CreatureData == nil {
 		return options
 	}
 
-	s := e.Sprite
-	c := e.CreatureData
+	s := ent.Sprite
+	c := ent.CreatureData
 
 	opts := ebiten.DrawImageOptions{}
 
 	if c.IsGoingRight() {
-		e.Sprite.Flip = true
+		ent.Sprite.Flip = true
 		opts.GeoM.Scale(-1, 1)
-		opts.GeoM.Translate(float64(e.Sprite.GetSpriteRect().Dx()), 0) // flip horizontally
+		opts.GeoM.Translate(float64(ent.Sprite.GetSpriteRect().Dx()), 0) // flip horizontally
 	}
 	if c.IsGoingLeft() {
-		e.Sprite.Flip = false
+		ent.Sprite.Flip = false
 	}
 
-	if e.Sprite.Dy < -0.5 {
+	if ent.Sprite.Dy < -0.5 {
 		if c.IsGoingRight() {
 			opts.GeoM.Rotate(-0.3)
 		} else {
@@ -726,7 +777,7 @@ func (e *Entity) TranSlateFishOpts(options ebiten.DrawImageOptions) ebiten.DrawI
 		}
 	}
 
-	if e.Sprite.Dy > 0.5 {
+	if ent.Sprite.Dy > 0.5 {
 		if c.IsGoingRight() {
 			opts.GeoM.Rotate(0.3)
 		} else {
@@ -737,17 +788,9 @@ func (e *Entity) TranSlateFishOpts(options ebiten.DrawImageOptions) ebiten.DrawI
 	opts.GeoM.Translate(float64(s.X-float32(s.SpriteWidth()/2)), float64(s.Y-float32(s.SpriteHeight()/2)))
 
 	if registry.Config.Zoom {
-		opts = colorScaleBasedOnZ(e.CreatureData.TargetZ, opts)
+		sprite.ColorScaleBasedOnZ(ent.Z, &opts)
 	}
 
-	return opts
-}
-
-func colorScaleBasedOnZ(z int, opts ebiten.DrawImageOptions) ebiten.DrawImageOptions {
-	depthCalcRg := float32(z/12)*0.3 + 0.7
-	depthCalcB := float32(z/12)*0.3 + 0.8
-	depthCalcA := float32(z/12)*0.1 + 0.95
-	opts.ColorScale.Scale(depthCalcRg, depthCalcRg, depthCalcB, depthCalcA)
 	return opts
 }
 
@@ -871,6 +914,7 @@ type FishStats struct {
 	Happiness        float32
 	Hunger           int
 	MaxHunger        int
+	age              int
 	defaultMaxHunger int
 	maxEnergy        float32
 	energy           float32
@@ -897,6 +941,7 @@ func GenFishStats(fType FishList, name string) (*FishStats, error) {
 		println("loading molly GoldFish")
 		fs, err := GenMollyFishStats()
 		fs.name = name
+		fs.age = 1
 		if err != nil {
 			return fs, err
 		}
@@ -905,6 +950,7 @@ func GenFishStats(fType FishList, name string) (*FishStats, error) {
 		println("loading gold GoldFish")
 		fs, err := GenGoldFishStats()
 		fs.name = name
+		fs.age = 1
 		if err != nil {
 			return fs, err
 		}
@@ -912,6 +958,7 @@ func GenFishStats(fType FishList, name string) (*FishStats, error) {
 	case Guppy:
 		fs, err := GenGuppyFishStats()
 		fs.name = name
+		fs.age = 1
 		if err != nil {
 			return fs, err
 		}
@@ -919,6 +966,7 @@ func GenFishStats(fType FishList, name string) (*FishStats, error) {
 	case Kirbensis:
 		fs, err := GenKirbensisFishStats()
 		fs.FishType = Kirbensis
+		fs.age = 1
 		fs.name = name
 		if err != nil {
 			return fs, err
@@ -928,6 +976,7 @@ func GenFishStats(fType FishList, name string) (*FishStats, error) {
 		//no fish stat generator for this species yet
 		log.Println("Warning: No fish stat generator for:", string(fType))
 		fs, err := GenKirbensisFishStats()
+		fs.age = 1
 		fs.FishType = fType
 		fs.name = name
 		if err != nil {

@@ -19,12 +19,16 @@ const (
 	active
 	activePressed
 	menu
+	locked
+	zoom
+	hidden
 )
 
 type CursorUpdater struct {
 	focusEntityID     uint32
 	currentPosition   image.Point
 	systemPosition    image.Point
+	lockedPosition    image.Point
 	state             CursorState
 	speed             float64 //multiply by current position to reduce or increase spead of cursor
 	resistanceX       float64
@@ -32,19 +36,90 @@ type CursorUpdater struct {
 	bounds            *image.Rectangle
 	stateBeforeWindow CursorState
 	cursorImages      map[CursorState]*ebiten.Image
+	gameState         *GameState
 }
 
 func (cu *CursorUpdater) AfterUpdate() {
 }
 
 func (cu *CursorUpdater) Update() {
-	x, y := ebiten.CursorPosition()
+
+	if cu.state == locked {
+		cu.currentPosition = cu.lockedPosition
+		return
+	}
 
 	mouseX, mouseY := ebiten.CursorPosition()
 	actualPosition := image.Point{mouseX, mouseY}
 
-	// Apply resistance/smoothing to create drag feeling
+	scaledX, scaledY := util.GetScaledCursorPosition()
+	scaledPosition := image.Point{scaledX, scaledY}
+
+	cu.currentPosition = actualPosition
+
+	if registry.Config.Zoom {
+		return
+	}
+	focEnt := cu.gameState.FocusedEntity
+
+	if focEnt == nil {
+		if cu.gameState.HoveredUiSprite != nil {
+			if cu.gameState.HoveredUiSprite.UiData.state != Disabled {
+				cu.state = active
+			}
+		} else {
+			cu.state = idle
+		}
+		return
+	}
+
+	if focEnt.UiData != nil {
+		if scaledPosition.In(focEnt.UiData.ActivationRect) {
+			cu.state = active
+		} else {
+			cu.state = idle
+		}
+	}
+
+	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		if cu.state == idle {
+			cu.state = idlePressed
+		}
+		if cu.state == active {
+			cu.state = activePressed
+		}
+	} else {
+		if cu.state == idlePressed {
+			cu.state = idle
+		}
+	}
+
+	registry.Config.Set(registry.CursorPoint, cu.currentPosition)
+}
+
+func (cu *CursorUpdater) Lock() {
+	cu.state = locked
+	cu.lockedPosition = cu.currentPosition
+}
+
+func (cu *CursorUpdater) UnLock() {
+	cu.state = idle
+	registry.Config.Set(registry.CursorLocked, false)
+
+}
+
+func (cu *CursorUpdater) speedControl() {
 	if cu.speed != 0.0 {
+
+		//this worked at some point, dont know how i feel about the concept though
+		//x, y := ebiten.CursorPosition()
+
+		mouseX, mouseY := ebiten.CursorPosition()
+		actualPosition := image.Point{mouseX, mouseY}
+
+		// Apply resistance/smoothing to create drag feeling
+
+		cu.currentPosition = actualPosition
 
 		// Calculate the difference between actual mouse and current virtual cursor
 		deltaX := float64(mouseX) - float64(cu.currentPosition.X)
@@ -61,54 +136,6 @@ func (cu *CursorUpdater) Update() {
 		// cu.currentPosition.Y = int(float64(cu.currentPosition.Y)*(1-smoothing) + float64(mouseY)*smoothing)
 	} else {
 		// No resistance - cursor follows mouse exactly
-		cu.currentPosition = actualPosition
-	}
-
-	x, y = util.GetScaledCursorPosition()
-	pt := image.Point{x, y}
-
-	entity, exists := GetEntity(cu.focusEntityID)
-	if !exists {
-		cu.state = idle
-		return
-	}
-
-	if entity.UiData != nil {
-		if pt.In(entity.UiData.ActivationRect) {
-			cu.state = active
-		} else {
-			cu.state = idle
-		}
-	}
-	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-		if cu.state == idle {
-			cu.state = idlePressed
-		}
-		if cu.state == active {
-			cu.state = activePressed
-		}
-	} else {
-		if cu.state == idlePressed {
-			cu.state = idle
-		}
-	}
-
-	if registry.Config.Zoom {
-		cu.state = menu
-	} else if cu.state == menu {
-		cu.state = idle
-	}
-
-	registry.Config.Set(registry.CursorPoint, cu.currentPosition)
-	if cu.bounds != nil {
-		scaledX, _ := util.GetScaledCursorPosition()
-		if scaledX > cu.bounds.Max.X {
-			cu.currentPosition.X = cu.bounds.Max.X * registry.Config.ResolutionScalingi
-		}
-		if scaledX < cu.bounds.Min.X {
-			cu.currentPosition.X = cu.bounds.Min.X * registry.Config.ResolutionScalingi
-		}
-		registry.Config.Set(registry.CursorPoint, cu.currentPosition)
 	}
 }
 
@@ -119,8 +146,15 @@ func (cu *CursorUpdater) MouseButtonJustReleased(b ebiten.MouseButton) bool {
 func (cu *CursorUpdater) Draw(screen *ebiten.Image) {
 	dopts := &ebiten.DrawImageOptions{}
 	dopts.GeoM.Translate(float64(cu.currentPosition.X), float64(cu.currentPosition.Y))
-	screen.DrawImage(cu.cursorImages[cu.state], dopts)
+	cursorImage, exists := cu.cursorImages[cu.state]
+	if !exists {
+		log.Println("WARNING: cursor state has no image formatted yet")
+		screen.DrawImage(cu.cursorImages[idle], dopts)
+		return
+	}
+	screen.DrawImage(cursorImage, dopts)
 }
+
 func (cu *CursorUpdater) AfterDraw(screen *ebiten.Image) {
 }
 
@@ -189,27 +223,27 @@ func loadCursorImages() map[CursorState]*ebiten.Image {
 	imgMap[active] = ebiten.NewImageFromImage(img.SubImage(image.Rect(64, 0, 96, 32)))
 	imgMap[activePressed] = ebiten.NewImageFromImage(img.SubImage(image.Rect(96, 0, 128, 32)))
 	imgMap[menu] = ebiten.NewImageFromImage(img.SubImage(image.Rect(128, 0, 160, 32)))
+	imgMap[hidden] = ebiten.NewImage(10, 10)
+	zoomImg := ebiten.NewImageFromImage(img.SubImage(image.Rect(160, 0, 192, 32)))
+	blank := ebiten.NewImage(64, 64)
+	dopts := &ebiten.DrawImageOptions{}
+	dopts.GeoM.Scale(2, 2)
+	blank.DrawImage(zoomImg, dopts)
+	imgMap[zoom] = blank
+
+	imgMap[locked] = imgMap[activePressed]
 	return imgMap
 }
 
-func CreateCursorUpdater(hub *tasks.EventHub) *CursorUpdater {
+func CreateCursorUpdater(hub *tasks.EventHub, gs *GameState) *CursorUpdater {
 	c := &CursorUpdater{}
+	c.gameState = gs
 	c.cursorImages = loadCursorImages()
 	subs(hub, c)
 	return c
 }
 
 func subs(hub *tasks.EventHub, updater *CursorUpdater) {
-
-	hub.Subscribe(events.FocusEvent{}, func(e tasks.Event) {
-		ev := e.(events.FocusEvent)
-		updater.focusEntityID = ev.EntID
-	})
-
-	hub.Subscribe(events.UnFocusEvent{}, func(e tasks.Event) {
-		updater.state = idle
-		updater.focusEntityID = 0
-	})
 
 	hub.Subscribe(events.WindowOpened{}, func(e tasks.Event) {
 		updater.state = menu
@@ -219,6 +253,22 @@ func subs(hub *tasks.EventHub, updater *CursorUpdater) {
 	hub.Subscribe(events.WindowClosed{}, func(e tasks.Event) {
 		updater.state = idle
 		updater.focusEntityID = 0
+	})
+
+	hub.Subscribe(events.Zoom{}, func(e tasks.Event) {
+		updater.state = zoom
+	})
+
+	hub.Subscribe(events.UnZoom{}, func(e tasks.Event) {
+		updater.state = idle
+	})
+
+	hub.Subscribe(events.PlacementMode{}, func(e tasks.Event) {
+		updater.state = hidden
+	})
+
+	hub.Subscribe(PlacementPicked{}, func(e tasks.Event) {
+		updater.state = idle
 	})
 
 }
