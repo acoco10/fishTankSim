@@ -52,7 +52,7 @@ func main() {
 
 	gameLog := sceneManagement.NewGameLog(state, "")
 
-	g := scenes.NewGame(gameLog, scenes.NewUser)
+	g := scenes.NewGame(gameLog)
 	err = ebiten.RunGame(g)
 	if err != nil {
 		log.Fatal(err)
